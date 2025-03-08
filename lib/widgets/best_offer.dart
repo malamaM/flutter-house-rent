@@ -19,14 +19,14 @@ class BestOffer extends StatelessWidget {
             children: [
               Text(
                 'Best Offer',
-                style: Theme.of(context).textTheme.headline1!.copyWith(
+                style: Theme.of(context).textTheme.displayLarge!.copyWith(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
               ),
               Text(
                 'See All',
-                style: Theme.of(context).textTheme.bodyText1!.copyWith(
+                style: Theme.of(context).textTheme.bodyLarge!.copyWith(
                       fontSize: 14,
                     ),
               ),
@@ -65,7 +65,7 @@ class BestOffer extends StatelessWidget {
                                 offer.name,
                                 style: Theme.of(context)
                                     .textTheme
-                                    .headline1!
+                                    .displayLarge!
                                     .copyWith(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
@@ -76,7 +76,7 @@ class BestOffer extends StatelessWidget {
                                 offer.address,
                                 style: Theme.of(context)
                                     .textTheme
-                                    .bodyText1!
+                                    .bodyLarge!
                                     .copyWith(
                                       fontSize: 14,
                                     ),

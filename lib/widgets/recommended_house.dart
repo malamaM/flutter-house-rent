@@ -73,7 +73,7 @@ class RecommendedHouse extends StatelessWidget {
                                 recommendedList[index].name,
                                 style: Theme.of(context)
                                     .textTheme
-                                    .headline1!
+                                    .displayLarge!
                                     .copyWith(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
@@ -84,7 +84,7 @@ class RecommendedHouse extends StatelessWidget {
                                 recommendedList[index].address,
                                 style: Theme.of(context)
                                     .textTheme
-                                    .bodyText1!
+                                    .bodyLarge!
                                     .copyWith(
                                       fontSize: 12,
                                     ),

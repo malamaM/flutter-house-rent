@@ -19,7 +19,7 @@ class ContentIntro extends StatelessWidget {
         children: [
           Text(
             house.name,
-            style: Theme.of(context).textTheme.headline1!.copyWith(
+            style: Theme.of(context).textTheme.displayLarge!.copyWith(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
@@ -27,14 +27,14 @@ class ContentIntro extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             house.address,
-            style: Theme.of(context).textTheme.bodyText1!.copyWith(
+            style: Theme.of(context).textTheme.bodyLarge!.copyWith(
                   fontSize: 14,
                 ),
           ),
           const SizedBox(height: 15),
           Text(
             '500 sqft',
-            style: Theme.of(context).textTheme.bodyText1!.copyWith(
+            style: Theme.of(context).textTheme.bodyLarge!.copyWith(
                   fontSize: 14,
                 ),
           ),
@@ -44,14 +44,14 @@ class ContentIntro extends StatelessWidget {
               children: [
                 TextSpan(
                   text: '\$4455',
-                  style: Theme.of(context).textTheme.headline1!.copyWith(
+                  style: Theme.of(context).textTheme.displayLarge!.copyWith(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                 ),
                 TextSpan(
                   text: ' Fer Month',
-                  style: Theme.of(context).textTheme.bodyText1!.copyWith(
+                  style: Theme.of(context).textTheme.bodyLarge!.copyWith(
                         fontSize: 14,
                       ),
                 ),

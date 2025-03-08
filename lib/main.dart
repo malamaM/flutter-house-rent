@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'package:house_rent/screens/home/home.dart';
+import 'package:house_rent/screens/login/login.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(const MyApp());
@@ -14,21 +16,19 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        backgroundColor: const Color(0xFFF5F6F6),
         primaryColor: const Color(0xFF811B83),
-        colorScheme: ColorScheme.fromSwatch().copyWith(
-          secondary: const Color(0xFFFA5019),
-        ),
         textTheme: TextTheme(
-          headline1: const TextStyle(
+          displayLarge: const TextStyle(
             color: Color(0xFF100E34),
           ),
-          bodyText1: TextStyle(
+          bodyLarge: TextStyle(
             color: const Color(0xFF100E34).withOpacity(0.5),
           ),
-        ),
+        ), colorScheme: ColorScheme.fromSwatch().copyWith(
+          secondary: const Color(0xFFFA5019),
+        ).copyWith(background: const Color(0xFFF5F6F6)),
       ),
-      home: const Home(),
+      home:  SignInScreen(),
     );
   }
 }

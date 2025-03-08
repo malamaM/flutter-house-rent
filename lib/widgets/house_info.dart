@@ -6,12 +6,12 @@ class HouseInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         children: [
           Row(
-            children: const [
+            children: [
               _MenuInfo(
                 imageUrl: 'assets/icons/bedroom.svg',
                 content: '5 Bedroom\n3 Master Bedroom',
@@ -22,9 +22,9 @@ class HouseInfo extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           Row(
-            children: const [
+            children: [
               _MenuInfo(
                 imageUrl: 'assets/icons/kitchen.svg',
                 content: '2 Kitchen\n120 sqft',
@@ -60,7 +60,7 @@ class _MenuInfo extends StatelessWidget {
           const SizedBox(width: 20),
           Text(
             content,
-            style: Theme.of(context).textTheme.bodyText1!.copyWith(
+            style: Theme.of(context).textTheme.bodyLarge!.copyWith(
                   fontSize: 12,
                 ),
           ),
