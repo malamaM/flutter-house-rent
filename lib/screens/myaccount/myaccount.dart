@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:house_rent/screens/myaccount/update/update_profile.dart';
+import 'package:house_rent/screens/myaccount/changepassword/change_password.dart';
+
 
 
 class MyAccount extends StatelessWidget {
@@ -51,7 +53,11 @@ class MyAccount extends StatelessWidget {
                   svgSrc: lockIconSvg,
                   title: "Change Password",
                   subTitle: "Change your password",
-                  press: () {},
+                  press: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (context) => ChangePassword()),
+                    );
+                  },
                 ),
                 ProfileMenuCard(
                   svgSrc: cardIconSvg,
