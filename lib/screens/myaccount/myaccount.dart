@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:house_rent/screens/myaccount/update/update_profile.dart';
+
 
 class MyAccount extends StatelessWidget {
   const MyAccount({super.key});
@@ -39,7 +41,11 @@ class MyAccount extends StatelessWidget {
                   svgSrc: profileIconSvg,
                   title: "Profile Information",
                   subTitle: "Change your account information",
-                  press: () {},
+                  press: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (context) => EditProfileScreen()),
+                    );
+                  },
                 ),
                 ProfileMenuCard(
                   svgSrc: lockIconSvg,
