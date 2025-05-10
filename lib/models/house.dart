@@ -1,6 +1,3 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-
 class House {
   String name;
   String address;
@@ -8,28 +5,21 @@ class House {
 
   House(this.name, this.address, this.imageUrl);
 
-  // Fetch recommended houses dynamically from the API
-  static Future<List<House>> fetchHouses() async {
-    const String apiUrl = 'http://127.0.0.1:8000/api/houses';
-    try {
-      final response = await http.get(Uri.parse(apiUrl));
+  static List<House> generateRecommended() {
+    return [
+      House('The Moon House', 'P455, Chhatak, Sylhet',
+          'assets/images/house01.jpeg'),
+      House('The Moon House', 'P455, Chhatak, Sylhet',
+          'assets/images/house02.jpeg'),
+    ];
+  }
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List<dynamic> housesData = data['data'];
-
-        return housesData.map((house) {
-          return House(
-            house['title'], // Use the 'title' field for the name
-            house['city'], // Use the 'city' field for the address
-            'http://127.0.0.1:8000/storage/${house['image-cover']}', // Add '/storage/' to the image URL
-          );
-        }).toList();
-      } else {
-        throw Exception('Failed to load houses');
-      }
-    } catch (e) {
-      throw Exception('Error fetching houses: $e');
-    }
+  static List<House> generateBestOffer() {
+    return [
+      House('The Moon House', 'P455, Chhatak, Sylhet',
+          'assets/images/offer01.jpeg'),
+      House('The Moon House', 'P455, Chhatak, Sylhet',
+          'assets/images/offer02.jpeg'),
+    ];
   }
 }
