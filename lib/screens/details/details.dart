@@ -24,9 +24,9 @@ class Details extends StatelessWidget {
             const SizedBox(height: 20),
             ContentIntro(house: house),
             const SizedBox(height: 20),
-            const HouseInfo(),
+            HouseInfo(house: house),
             const SizedBox(height: 20),
-            const About(),
+            About(house: house),
             const SizedBox(height: 20),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20),

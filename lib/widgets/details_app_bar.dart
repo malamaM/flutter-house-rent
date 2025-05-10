@@ -21,10 +21,14 @@ class DetailsAppBar extends StatelessWidget {
       height: 400,
       child: Stack(
         children: [
-          Image.asset(
+          Image.network(
             house.imageUrl,
             fit: BoxFit.cover,
-            height: double.infinity,
+            errorBuilder: (context, error, stackTrace) => 
+              Container(
+                color: Colors.grey[300],
+                child: Icon(Icons.error_outline),
+              ),
           ),
           SafeArea(
             child: Padding(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/screens/details/details.dart';
+import 'package:house_rent/widgets/circle_icon_button.dart';
 
 class BestOffer extends StatefulWidget {
   const BestOffer({Key? key}) : super(key: key);
@@ -15,7 +16,7 @@ class _BestOfferState extends State<BestOffer> {
   @override
   void initState() {
     super.initState();
-    _offerList = House.fetchHouses(); // Fetch houses dynamically
+    _offerList = House.fetchHouses(filter: 'For Sale'); // Fetch "Best Offer" houses
   }
 
   _handleNavigateToDetails(BuildContext context, House house) {
@@ -29,89 +30,112 @@ class _BestOfferState extends State<BestOffer> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(15),
-      child: SizedBox(
-        height: 340,
-        child: FutureBuilder<List<House>>(
-          future: _offerList,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            } else if (snapshot.hasError) {
-              return Center(child: Text('Error: ${snapshot.error}'));
-            } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return const Center(child: Text('No offers available'));
-            }
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 20),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Best Offer',
+                style: Theme.of(context).textTheme.displayLarge!.copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              Text(
+                'See All',
+                style: Theme.of(context).textTheme.bodyLarge!.copyWith(
+                      fontSize: 14,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          FutureBuilder<List<House>>(
+            future: _offerList,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return const Center(child: Text('No offers available'));
+              }
 
-            final offerList = snapshot.data!;
-            return ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemBuilder: (context, index) => GestureDetector(
-                onTap: () =>
-                    _handleNavigateToDetails(context, offerList[index]),
-                child: Container(
-                  height: 300,
-                  width: 230,
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Stack(
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          image: DecorationImage(
-                            image: NetworkImage(
-                              offerList[index].imageUrl,
-                            ),
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
+              final offerList = snapshot.data!;
+              return Column(
+                children: offerList
+                    .map(
+                      (offer) => GestureDetector(
+                        onTap: () => _handleNavigateToDetails(context, offer),
                         child: Container(
-                          color: Colors.white54,
+                          margin: const EdgeInsets.only(bottom: 10),
                           padding: const EdgeInsets.all(10),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Stack(
                             children: [
-                              Text(
-                                offerList[index].name,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .displayLarge!
-                                    .copyWith(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 150,
+                                    height: 80,
+                                    decoration: BoxDecoration(
+                                      image: DecorationImage(
+                                        image: NetworkImage(offer.imageUrl),
+                                        fit: BoxFit.cover,
+                                      ),
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        offer.name,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .displayLarge!
+                                            .copyWith(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      Text(
+                                        offer.address,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyLarge!
+                                            .copyWith(
+                                              fontSize: 14,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 5),
-                              Text(
-                                offerList[index].address,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyLarge!
-                                    .copyWith(
-                                      fontSize: 12,
-                                    ),
+                              const Positioned(
+                                right: 0,
+                                child: CircleIconButton(
+                                  iconUrl: 'assets/icons/heart.svg',
+                                  color: Colors.grey,
+                                ),
                               ),
                             ],
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
-              separatorBuilder: (_, index) => const SizedBox(width: 20),
-              itemCount: offerList.length,
-            );
-          },
-        ),
+                    )
+                    .toList(),
+              );
+            },
+          ),
+        ],
       ),
     );
   }

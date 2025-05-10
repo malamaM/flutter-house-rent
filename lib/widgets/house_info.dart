@@ -1,37 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:house_rent/models/house.dart';
 
 class HouseInfo extends StatelessWidget {
-  const HouseInfo({Key? key}) : super(key: key);
+  final House house;
+  
+  const HouseInfo({Key? key, required this.house}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 20),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         children: [
           Row(
             children: [
               _MenuInfo(
                 imageUrl: 'assets/icons/bedroom.svg',
-                content: '5 Bedroom\n3 Master Bedroom',
+                content: '${house.bedrooms} Bedroom${house.bedrooms != 1 ? 's' : ''}',
               ),
               _MenuInfo(
                 imageUrl: 'assets/icons/bathroom.svg',
-                content: '5 Bathroom\n3 Toilet',
+                content: '${house.bathrooms} Bathroom${house.bathrooms != 1 ? 's' : ''}',
               ),
             ],
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           Row(
             children: [
               _MenuInfo(
                 imageUrl: 'assets/icons/kitchen.svg',
-                content: '2 Kitchen\n120 sqft',
+                content: 'Size\n${house.size} sqft',
               ),
               _MenuInfo(
                 imageUrl: 'assets/icons/parking.svg',
-                content: '5 Parking\n120 sqft',
+                content: '${house.carGarage} Car Garage',
               ),
             ],
           )

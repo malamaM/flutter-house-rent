@@ -5,11 +5,25 @@ class House {
   String name;
   String address;
   String imageUrl;
+  int bedrooms;
+  int bathrooms;
+  int size;
+  int carGarage;
+  String? description; // Add description field
 
-  House(this.name, this.address, this.imageUrl);
+  House(
+    this.name, 
+    this.address, 
+    this.imageUrl, 
+    {this.bedrooms = 0, 
+    this.bathrooms = 0, 
+    this.size = 0, 
+    this.carGarage = 0,
+    this.description}
+  );
 
   // Fetch recommended houses dynamically from the API
-  static Future<List<House>> fetchHouses() async {
+  static Future<List<House>> fetchHouses({String? filter}) async {
     const String apiUrl = 'http://127.0.0.1:8000/api/houses';
     try {
       final response = await http.get(Uri.parse(apiUrl));
@@ -18,11 +32,21 @@ class House {
         final data = json.decode(response.body);
         final List<dynamic> housesData = data['data'];
 
-        return housesData.map((house) {
+        // Apply filtering if a filter is provided
+        final filteredHouses = filter != null
+            ? housesData.where((house) => house['status'] == filter).toList()
+            : housesData;
+
+        return filteredHouses.map((house) {
           return House(
             house['title'], // Use the 'title' field for the name
             house['city'], // Use the 'city' field for the address
             'http://127.0.0.1:8000/storage/${house['image-cover']}', // Add '/storage/' to the image URL
+            bedrooms: house['bedrooms'] ?? 0,
+            bathrooms: house['bathrooms'] ?? 0,
+            size: house['size'] ?? 0,
+            carGarage: house['car_garage'] ?? 0,
+            description: house['description'], // Add description from API
           );
         }).toList();
       } else {

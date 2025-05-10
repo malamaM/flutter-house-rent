@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:house_rent/models/house.dart';
 
 class About extends StatelessWidget {
-  const About({Key? key}) : super(key: key);
+  final House house;
+  
+  const About({Key? key, required this.house}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +22,7 @@ class About extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            'Lorem ipsum dolor sit amet consectetur adipisicing elit. Dignissimos exercitationem ut cupiditate...',
+            house.description ?? 'No description available',
             style: Theme.of(context).textTheme.bodyLarge!.copyWith(
                   fontSize: 14,
                 ),
