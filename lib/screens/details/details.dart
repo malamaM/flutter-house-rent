@@ -4,6 +4,7 @@ import 'package:house_rent/models/house.dart';
 import 'package:house_rent/widgets/about.dart';
 import 'package:house_rent/widgets/content_intro.dart';
 import 'package:house_rent/widgets/details_app_bar.dart';
+import 'package:house_rent/widgets/house_gallery.dart';
 import 'package:house_rent/widgets/house_info.dart';
 
 class Details extends StatelessWidget {
@@ -21,7 +22,9 @@ class Details extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             DetailsAppBar(house: house),
-            const SizedBox(height: 20),
+            const SizedBox(height: 10),
+            HouseGallery(houseId: house.id),
+            const SizedBox(height: 10),
             ContentIntro(house: house),
             const SizedBox(height: 20),
             HouseInfo(house: house),

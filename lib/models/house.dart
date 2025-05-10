@@ -5,6 +5,7 @@ class House {
   String name;
   String address;
   String imageUrl;
+  int id; // Add id field
   int bedrooms;
   int bathrooms;
   int size;
@@ -15,7 +16,9 @@ class House {
     this.name, 
     this.address, 
     this.imageUrl, 
-    {this.bedrooms = 0, 
+    {
+    this.id = 0,  // Add id parameter with default value
+    this.bedrooms = 0, 
     this.bathrooms = 0, 
     this.size = 0, 
     this.carGarage = 0,
@@ -42,6 +45,7 @@ class House {
             house['title'], // Use the 'title' field for the name
             house['city'], // Use the 'city' field for the address
             'http://127.0.0.1:8000/storage/${house['image-cover']}', // Add '/storage/' to the image URL
+            id: house['id'] ?? 0,  // Extract the house id
             bedrooms: house['bedrooms'] ?? 0,
             bathrooms: house['bathrooms'] ?? 0,
             size: house['size'] ?? 0,
