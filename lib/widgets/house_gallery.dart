@@ -2,6 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+class ImageItem {
+  final String url;
+  final String caption;
+  
+  ImageItem({required this.url, this.caption = ''});
+}
+
 class HouseGallery extends StatefulWidget {
   final int houseId;
 
@@ -12,7 +19,7 @@ class HouseGallery extends StatefulWidget {
 }
 
 class _HouseGalleryState extends State<HouseGallery> {
-  late Future<List<String>?> _imageUrls;
+  late Future<List<ImageItem>?> _imageUrls;
   bool _noImagesAvailable = false;
 
   @override
@@ -22,7 +29,7 @@ class _HouseGalleryState extends State<HouseGallery> {
     _imageUrls = _fetchImages();
   }
 
-  Future<List<String>?> _fetchImages() async {
+  Future<List<ImageItem>?> _fetchImages() async {
     final url = Uri.parse('http://127.0.0.1:8000/api/houses/images');
     print('Fetching images from: $url with houseId: ${widget.houseId}');
     
@@ -56,11 +63,14 @@ class _HouseGalleryState extends State<HouseGallery> {
         print('Raw API response: ${response.body}');
         
         if (data['images'] != null && data['images'] is List) {
-          final List<String> urls = List<String>.from(data['images'].map((imageObj) => 
-            'http://127.0.0.1:8000/storage/${imageObj['image']}'
+          final List<ImageItem> images = List<ImageItem>.from(data['images'].map((imageObj) => 
+            ImageItem(
+              url: 'http://127.0.0.1:8000/storage/${imageObj['image']}',
+              caption: imageObj['caption'] ?? '',
+            )
           ));
-          print('Processed image URLs: $urls');
-          return urls;
+          print('Processed image items: ${images.length}');
+          return images;
         } else {
           print('No images array found in response or empty array');
           setState(() {
@@ -78,12 +88,12 @@ class _HouseGalleryState extends State<HouseGallery> {
   }
 
   // Method to open full screen image
-  void _openFullScreen(BuildContext context, String imageUrl, List<String> allImages) {
+  void _openFullScreen(BuildContext context, ImageItem image, List<ImageItem> allImages) {
     Navigator.push(
       context, 
       MaterialPageRoute(
         builder: (_) => FullScreenImage(
-          imageUrl: imageUrl,
+          image: image,
           allImages: allImages,
         )
       )
@@ -125,7 +135,7 @@ class _HouseGalleryState extends State<HouseGallery> {
       );
     }
 
-    return FutureBuilder<List<String>?>(
+    return FutureBuilder<List<ImageItem>?>(
       future: _imageUrls,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -176,10 +186,10 @@ class _HouseGalleryState extends State<HouseGallery> {
                   scrollDirection: Axis.horizontal,
                   itemCount: imageUrls.length,
                   itemBuilder: (context, index) {
-                    final imageUrl = imageUrls[index];
+                    final imageUrl = imageUrls[index].url;
                     print('Loading image: $imageUrl');
                     return GestureDetector(
-                      onTap: () => _openFullScreen(context, imageUrl, imageUrls),
+                      onTap: () => _openFullScreen(context, imageUrls[index], imageUrls),
                       child: Padding(
                         padding: const EdgeInsets.only(right: 10),
                         child: ClipRRect(
@@ -215,12 +225,12 @@ class _HouseGalleryState extends State<HouseGallery> {
 
 // Full screen image viewer
 class FullScreenImage extends StatefulWidget {
-  final String imageUrl;
-  final List<String> allImages;
+  final ImageItem image;
+  final List<ImageItem> allImages;
   
   const FullScreenImage({
     Key? key,
-    required this.imageUrl,
+    required this.image,
     required this.allImages,
   }) : super(key: key);
 
@@ -230,19 +240,44 @@ class FullScreenImage extends StatefulWidget {
 
 class _FullScreenImageState extends State<FullScreenImage> {
   late PageController _pageController;
+  late ScrollController _thumbnailScrollController;
   late int _currentIndex;
   
   @override
   void initState() {
     super.initState();
-    _currentIndex = widget.allImages.indexOf(widget.imageUrl);
+    _currentIndex = widget.allImages.indexOf(widget.image);
     _pageController = PageController(initialPage: _currentIndex);
+    _thumbnailScrollController = ScrollController();
+    
+    // Wait for the layout to be built before scrolling to the current thumbnail
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToSelectedThumbnail();
+    });
   }
   
   @override
   void dispose() {
     _pageController.dispose();
+    _thumbnailScrollController.dispose();
     super.dispose();
+  }
+
+  void _scrollToSelectedThumbnail() {
+    // Calculate the offset to center the selected thumbnail
+    final double thumbnailWidth = 70.0; // Width of thumbnail + padding
+    final double offset = _currentIndex * thumbnailWidth;
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final double scrollOffset = offset - (screenWidth / 2) + (thumbnailWidth / 2);
+    
+    // Scroll to position
+    if (_thumbnailScrollController.hasClients) {
+      _thumbnailScrollController.animateTo(
+        scrollOffset.clamp(0.0, _thumbnailScrollController.position.maxScrollExtent),
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   @override
@@ -257,38 +292,122 @@ class _FullScreenImageState extends State<FullScreenImage> {
           style: const TextStyle(color: Colors.white),
         ),
       ),
-      body: PageView.builder(
-        controller: _pageController,
-        itemCount: widget.allImages.length,
-        onPageChanged: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        itemBuilder: (context, index) {
-          return InteractiveViewer(
-            minScale: 0.5,
-            maxScale: 4.0,
-            child: Center(
-              child: Image.network(
-                widget.allImages[index],
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: Colors.grey[900],
-                    child: const Center(
-                      child: Icon(
-                        Icons.error_outline,
-                        color: Colors.white,
-                        size: 50,
+      body: Stack(
+        children: [
+          // Main image viewer (without caption)
+          PageView.builder(
+            controller: _pageController,
+            itemCount: widget.allImages.length,
+            onPageChanged: (index) {
+              setState(() {
+                _currentIndex = index;
+                _scrollToSelectedThumbnail();
+              });
+            },
+            itemBuilder: (context, index) {
+              final currentImage = widget.allImages[index];
+              return InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: Center(
+                  child: Image.network(
+                    currentImage.url,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.grey[900],
+                        child: const Center(
+                          child: Icon(
+                            Icons.error_outline,
+                            color: Colors.white,
+                            size: 50,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              );
+            },
+          ),
+          
+          // Caption positioned above the carousel
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 90, // Position above the carousel
+            child: widget.allImages[_currentIndex].caption.isNotEmpty
+              ? Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                  color: Colors.black.withOpacity(0.7),
+                  child: Text(
+                    widget.allImages[_currentIndex].caption,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                    ),
+                  ),
+                )
+              : const SizedBox.shrink(), // No space if no caption
+          ),
+          
+          // Thumbnail carousel at bottom (unchanged)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 20,
+            child: Container(
+              height: 70,
+              color: Colors.black.withOpacity(0.5),
+              child: ListView.builder(
+                controller: _thumbnailScrollController,
+                scrollDirection: Axis.horizontal,
+                itemCount: widget.allImages.length,
+                itemBuilder: (context, index) {
+                  final bool isSelected = index == _currentIndex;
+                  return GestureDetector(
+                    onTap: () {
+                      _pageController.animateToPage(
+                        index,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                      width: 60,
+                      decoration: BoxDecoration(
+                        border: isSelected
+                            ? Border.all(color: Colors.white, width: 2)
+                            : null,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: Image.network(
+                          widget.allImages[index].url,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: Colors.grey[800],
+                              child: const Icon(
+                                Icons.error_outline,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     ),
                   );
                 },
               ),
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
