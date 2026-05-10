@@ -4,6 +4,7 @@ import 'package:flutter_svg/svg.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:house_rent/screens/profile/profile.dart';
+import 'package:house_rent/screens/my_listings/my_listings.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   const CustomAppBar({Key? key}) : super(key: key);
@@ -22,7 +23,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   context: context,
                   builder: (context) {
                     return Container(
-                      height: 250,
+                      height: 320,
                       child: Column(
                         children: [
                           ListTile(
@@ -39,6 +40,17 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                              );
+                            },
+                          ),
+                          ListTile(
+                            leading: Icon(Icons.list),
+                            title: Text('My Listings'),
+                            onTap: () {
+                              Navigator.pop(context);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const MyListingsScreen()),
                               );
                             },
                           ),

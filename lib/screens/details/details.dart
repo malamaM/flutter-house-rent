@@ -9,12 +9,28 @@ import 'package:house_rent/widgets/details_app_bar.dart';
 import 'package:house_rent/widgets/house_gallery.dart';
 import 'package:house_rent/widgets/house_info.dart';
 
-class Details extends StatelessWidget {
+class Details extends StatefulWidget {
   final House house;
+  final bool isOwnerView;
+  
   const Details({
     Key? key,
     required this.house,
+    this.isOwnerView = false,
   }) : super(key: key);
+
+  @override
+  _DetailsState createState() => _DetailsState();
+}
+
+class _DetailsState extends State<Details> {
+  @override
+  void initState() {
+    super.initState();
+    if (!widget.isOwnerView) {
+      House.recordView(widget.house.id);
+    }
+  }
 
   Future<Map<String, dynamic>> fetchOwner(String houseId) async {
     final url = 'http://127.0.0.1:8000/api/houses/$houseId/owner';
@@ -85,20 +101,60 @@ class Details extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DetailsAppBar(house: house),
+            DetailsAppBar(house: widget.house),
+            if (widget.isOwnerView)
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.blue.shade700, Colors.blue.shade500],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.blue.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.bar_chart, color: Colors.white, size: 32),
+                    const SizedBox(width: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Listing Stats',
+                          style: TextStyle(color: Colors.white70, fontSize: 14),
+                        ),
+                        Text(
+                          '${widget.house.views} Total Views',
+                          style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             const SizedBox(height: 10),
-            HouseGallery(houseId: house.id),
+            HouseGallery(houseId: widget.house.id),
             const SizedBox(height: 10),
-            ContentIntro(house: house),
+            ContentIntro(house: widget.house),
             const SizedBox(height: 20),
-            HouseInfo(house: house),
+            HouseInfo(house: widget.house),
             const SizedBox(height: 20),
-            About(house: house),
+            About(house: widget.house),
             const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: ElevatedButton(
-                onPressed: () => showOwnerDialog(context, house.id.toString()),
+            if (!widget.isOwnerView)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: ElevatedButton(
+                  onPressed: () => showOwnerDialog(context, widget.house.id.toString()),
                 style: ElevatedButton.styleFrom(
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
