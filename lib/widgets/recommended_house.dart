@@ -124,6 +124,21 @@ class _RecommendedHouseState extends State<RecommendedHouse> {
                                           fontSize: 12,
                                         ),
                                   ),
+                                  const SizedBox(height: 5),
+                                  Row(
+                                    children: [
+                                      if (recommendedList[index].isVerified)
+                                        const Icon(Icons.verified, color: Colors.blue, size: 14),
+                                      if (recommendedList[index].isVerified)
+                                        const SizedBox(width: 4),
+                                      const Icon(Icons.star, color: Colors.amber, size: 14),
+                                      const SizedBox(width: 2),
+                                      Text(
+                                        '${recommendedList[index].averageRating.toStringAsFixed(1)} (${recommendedList[index].totalReviews})',
+                                        style: Theme.of(context).textTheme.bodySmall!.copyWith(fontSize: 10, fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
                                 ],
                               ),
                               if (recommendedList[index].isSaved)

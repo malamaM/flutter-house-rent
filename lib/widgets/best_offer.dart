@@ -115,6 +115,21 @@ class _BestOfferState extends State<BestOffer> {
                                               fontSize: 14,
                                             ),
                                       ),
+                                      const SizedBox(height: 5),
+                                      Row(
+                                        children: [
+                                          if (offer.isVerified)
+                                            const Icon(Icons.verified, color: Colors.blue, size: 14),
+                                          if (offer.isVerified)
+                                            const SizedBox(width: 4),
+                                          const Icon(Icons.star, color: Colors.amber, size: 14),
+                                          const SizedBox(width: 2),
+                                          Text(
+                                            '${offer.averageRating.toStringAsFixed(1)} (${offer.totalReviews})',
+                                            style: Theme.of(context).textTheme.bodySmall!.copyWith(fontSize: 10, fontWeight: FontWeight.bold),
+                                          ),
+                                        ],
+                                      ),
                                     ],
                                   ),
                                 ],

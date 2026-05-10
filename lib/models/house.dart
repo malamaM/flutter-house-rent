@@ -27,6 +27,11 @@ class House {
   double? latitude;
   double? longitude;
   bool isSaved;
+  int? ownerId;
+  String? ownerName;
+  bool isVerified;
+  double averageRating;
+  int totalReviews;
 
   House(
     this.name, 
@@ -54,6 +59,11 @@ class House {
     this.latitude,
     this.longitude,
     this.isSaved = false,
+    this.ownerId,
+    this.ownerName,
+    this.isVerified = false,
+    this.averageRating = 0.0,
+    this.totalReviews = 0,
     }
   );
 
@@ -88,7 +98,16 @@ class House {
     }
 
     try {
-      final response = await http.get(Uri.parse(apiUrl));
+      final prefs = await SharedPreferences.getInstance();
+      final String? token = prefs.getString('access_token');
+      final Map<String, String> headers = {
+        'Accept': 'application/json',
+      };
+      if (token != null) {
+        headers['Authorization'] = 'Bearer $token';
+      }
+
+      final response = await http.get(Uri.parse(apiUrl), headers: headers);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -122,6 +141,11 @@ class House {
             latitude: _parseDouble(house['latitude']),
             longitude: _parseDouble(house['longitude']),
             isSaved: house['is_saved'] == true || house['is_saved'] == 1,
+            ownerId: house['user']?['id'],
+            ownerName: house['user']?['name'],
+            isVerified: house['user']?['is_verified'] == true || house['user']?['is_verified'] == 1,
+            averageRating: _parseDouble(house['user']?['average_rating']) ?? 0.0,
+            totalReviews: _parseInt(house['user']?['total_reviews']),
           );
         }).toList();
       } else {
@@ -205,6 +229,11 @@ class House {
             latitude: _parseDouble(house['latitude']),
             longitude: _parseDouble(house['longitude']),
             isSaved: house['is_saved'] == true || house['is_saved'] == 1,
+            ownerId: house['user']?['id'],
+            ownerName: house['user']?['name'],
+            isVerified: house['user']?['is_verified'] == true || house['user']?['is_verified'] == 1,
+            averageRating: _parseDouble(house['user']?['average_rating']) ?? 0.0,
+            totalReviews: _parseInt(house['user']?['total_reviews']),
           );
         }).toList();
       } else {
@@ -263,6 +292,11 @@ class House {
             latitude: _parseDouble(house['latitude']),
             longitude: _parseDouble(house['longitude']),
             isSaved: house['is_saved'] == true || house['is_saved'] == 1,
+            ownerId: house['user']?['id'],
+            ownerName: house['user']?['name'],
+            isVerified: house['user']?['is_verified'] == true || house['user']?['is_verified'] == 1,
+            averageRating: _parseDouble(house['user']?['average_rating']) ?? 0.0,
+            totalReviews: _parseInt(house['user']?['total_reviews']),
           );
         }).toList();
       } else {
