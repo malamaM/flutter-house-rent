@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:house_rent/screens/home/explore.dart' as house_explore;
+import 'package:house_rent/screens/home/saved_houses_screen.dart';
 
 class CustomBottomNavigationBar extends StatelessWidget {
+  final int currentIndex;
+  
   final bottomBarItems = [
     'home',
     'home_search',
@@ -10,7 +14,7 @@ class CustomBottomNavigationBar extends StatelessWidget {
     'home_mark'
   ];
 
-  CustomBottomNavigationBar({Key? key}) : super(key: key);
+  CustomBottomNavigationBar({Key? key, this.currentIndex = 0}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -33,9 +37,29 @@ class CustomBottomNavigationBar extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: bottomBarItems
             .map(
-              (item) => SvgPicture.asset(
-                'assets/icons/$item.svg',
-                color: Theme.of(context).primaryColor,
+              (item) => GestureDetector(
+                onTap: () {
+                  if (item == 'home_search') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const house_explore.Explore()),
+                    );
+                  } else if (item == 'home') {
+                    // Navigate to Home
+                    Navigator.popUntil(context, (route) => route.isFirst);
+                  } else if (item == 'home_mark') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const SavedHousesScreen()),
+                    );
+                  }
+                },
+                child: SvgPicture.asset(
+                  'assets/icons/$item.svg',
+                  color: bottomBarItems.indexOf(item) == currentIndex
+                      ? Theme.of(context).primaryColor
+                      : Colors.grey.withOpacity(0.5),
+                ),
               ),
             )
             .toList(),

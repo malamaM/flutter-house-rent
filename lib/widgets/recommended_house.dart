@@ -70,14 +70,27 @@ class _RecommendedHouseState extends State<RecommendedHouse> {
                           ),
                         ),
                       ),
-                      Positioned(
-                        right: 15,
-                        top: 15,
-                        child: CircleIconButton(
-                          iconUrl: 'assets/icons/mark.svg',
-                          color: Theme.of(context).colorScheme.secondary,
+                      if (recommendedList[index].isSaved)
+                        Positioned(
+                          right: 15,
+                          top: 15,
+                          child: CircleIconButton(
+                            iconUrl: 'assets/icons/mark.svg',
+                            color: Theme.of(context).primaryColor,
+                            iconColor: Colors.white,
+                            onTap: () async {
+                              final isSaved = await House.toggleSaveHouse(recommendedList[index].id);
+                              setState(() {
+                                  recommendedList[index].isSaved = isSaved;
+                              });
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(isSaved ? 'House saved!' : 'House removed from saved')),
+                                );
+                              }
+                            },
+                          ),
                         ),
-                      ),
                       Positioned(
                         bottom: 0,
                         left: 0,
@@ -113,10 +126,23 @@ class _RecommendedHouseState extends State<RecommendedHouse> {
                                   ),
                                 ],
                               ),
-                              CircleIconButton(
-                                iconUrl: 'assets/icons/mark.svg',
-                                color: Theme.of(context).colorScheme.secondary,
-                              ),
+                              if (recommendedList[index].isSaved)
+                                CircleIconButton(
+                                  iconUrl: 'assets/icons/mark.svg',
+                                  color: Theme.of(context).primaryColor,
+                                  iconColor: Colors.white,
+                                  onTap: () async {
+                                    final isSaved = await House.toggleSaveHouse(recommendedList[index].id);
+                                    setState(() {
+                                        recommendedList[index].isSaved = isSaved;
+                                    });
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text(isSaved ? 'House saved!' : 'House removed from saved')),
+                                      );
+                                    }
+                                  },
+                                ),
                             ],
                           ),
                         ),

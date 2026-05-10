@@ -24,6 +24,9 @@ class House {
   int swimmingPool;
   int garage;
   int views;
+  double? latitude;
+  double? longitude;
+  bool isSaved;
 
   House(
     this.name, 
@@ -48,6 +51,9 @@ class House {
     this.swimmingPool = 0,
     this.garage = 0,
     this.views = 0,
+    this.latitude,
+    this.longitude,
+    this.isSaved = false,
     }
   );
 
@@ -59,9 +65,28 @@ class House {
     return 0;
   }
 
+  static double? _parseDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
+
   // Fetch recommended houses dynamically from the API
-  static Future<List<House>> fetchHouses({String? filter}) async {
-    const String apiUrl = 'http://127.0.0.1:8000/api/houses';
+  static Future<List<House>> fetchHouses({Map<String, String>? filters}) async {
+    String apiUrl = 'http://127.0.0.1:8000/api/houses';
+    
+    if (filters != null && filters.isNotEmpty) {
+      final queryParams = filters.entries
+          .where((e) => e.value.isNotEmpty)
+          .map((e) => '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
+          .join('&');
+      if (queryParams.isNotEmpty) {
+        apiUrl += '?$queryParams';
+      }
+    }
+
     try {
       final response = await http.get(Uri.parse(apiUrl));
 
@@ -69,10 +94,7 @@ class House {
         final data = json.decode(response.body);
         final List<dynamic> housesData = data['data'];
 
-        // Apply filtering if a filter is provided
-        final filteredHouses = filter != null
-            ? housesData.where((house) => house['status'] == filter).toList()
-            : housesData;
+        final filteredHouses = housesData;
 
         return filteredHouses.map((house) {
           return House(
@@ -97,6 +119,9 @@ class House {
             swimmingPool: _parseInt(house['swimming_pool']),
             garage: _parseInt(house['garage']),
             views: _parseInt(house['views']),
+            latitude: _parseDouble(house['latitude']),
+            longitude: _parseDouble(house['longitude']),
+            isSaved: house['is_saved'] == true || house['is_saved'] == 1,
           );
         }).toList();
       } else {
@@ -104,6 +129,89 @@ class House {
       }
     } catch (e) {
       throw Exception('Error fetching houses: $e');
+    }
+  }
+
+  // Toggle save status for a house
+  static Future<bool> toggleSaveHouse(int houseId) async {
+    final String apiUrl = 'http://127.0.0.1:8000/api/houses/$houseId/save';
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? accessToken = prefs.getString('access_token');
+      if (accessToken == null) throw Exception('Not authenticated');
+
+      final response = await http.post(
+        Uri.parse(apiUrl),
+        headers: {
+          'Authorization': 'Bearer $accessToken',
+          'Accept': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['is_saved'] ?? false;
+      }
+      return false;
+    } catch (e) {
+      print('Error toggling save: $e');
+      return false;
+    }
+  }
+
+  // Fetch saved houses
+  static Future<List<House>> fetchSavedHouses() async {
+    const String apiUrl = 'http://127.0.0.1:8000/api/saved-houses';
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? accessToken = prefs.getString('access_token');
+      if (accessToken == null) throw Exception('Not authenticated');
+
+      final response = await http.get(
+        Uri.parse(apiUrl),
+        headers: {
+          'Authorization': 'Bearer $accessToken',
+          'Accept': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final List<dynamic> housesData = data['data'];
+
+        return housesData.map((house) {
+          return House(
+            house['title'] ?? 'Unknown',
+            house['city'] ?? 'Unknown',
+            house['image-cover'] != null ? 'http://127.0.0.1:8000/storage/${house['image-cover']}' : 'https://via.placeholder.com/150',
+            id: _parseInt(house['id']),
+            bedrooms: _parseInt(house['bedrooms']),
+            bathrooms: _parseInt(house['bathrooms']),
+            size: _parseInt(house['size']),
+            carGarage: _parseInt(house['car_garage']),
+            description: house['description'],
+            status: house['status'],
+            country: house['country'],
+            province: house['province'],
+            district: house['district'],
+            houseNumber: house['house_number'],
+            type: house['type'],
+            priceRental: _parseInt(house['price-rental'] ?? house['price_rental']),
+            pricePurchase: _parseInt(house['price-purchase'] ?? house['price_purchase']),
+            gym: _parseInt(house['gym']),
+            swimmingPool: _parseInt(house['swimming_pool']),
+            garage: _parseInt(house['garage']),
+            views: _parseInt(house['views']),
+            latitude: _parseDouble(house['latitude']),
+            longitude: _parseDouble(house['longitude']),
+            isSaved: house['is_saved'] == true || house['is_saved'] == 1,
+          );
+        }).toList();
+      } else {
+        throw Exception('Failed to load saved houses: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching saved houses: $e');
     }
   }
 
@@ -152,6 +260,9 @@ class House {
             swimmingPool: _parseInt(house['swimming_pool']),
             garage: _parseInt(house['garage']),
             views: _parseInt(house['views']),
+            latitude: _parseDouble(house['latitude']),
+            longitude: _parseDouble(house['longitude']),
+            isSaved: house['is_saved'] == true || house['is_saved'] == 1,
           );
         }).toList();
       } else {

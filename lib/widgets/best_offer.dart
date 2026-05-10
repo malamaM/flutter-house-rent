@@ -16,7 +16,7 @@ class _BestOfferState extends State<BestOffer> {
   @override
   void initState() {
     super.initState();
-    _offerList = House.fetchHouses(filter: 'For Sale'); // Fetch "Best Offer" houses
+    _offerList = House.fetchHouses(filters: {'status': 'For Sale'}); // Fetch "Best Offer" houses
   }
 
   _handleNavigateToDetails(BuildContext context, House house) {
@@ -119,13 +119,26 @@ class _BestOfferState extends State<BestOffer> {
                                   ),
                                 ],
                               ),
-                              const Positioned(
-                                right: 0,
-                                child: CircleIconButton(
-                                  iconUrl: 'assets/icons/heart.svg',
-                                  color: Colors.grey,
+                              if (offer.isSaved)
+                                Positioned(
+                                  right: 0,
+                                  child: CircleIconButton(
+                                    iconUrl: 'assets/icons/heart.svg',
+                                    color: Theme.of(context).primaryColor,
+                                    iconColor: Colors.white,
+                                    onTap: () async {
+                                      final isSaved = await House.toggleSaveHouse(offer.id);
+                                      setState(() {
+                                        offer.isSaved = isSaved;
+                                      });
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text(isSaved ? 'House saved!' : 'House removed from saved')),
+                                        );
+                                      }
+                                    },
+                                  ),
                                 ),
-                              ),
                             ],
                           ),
                         ),

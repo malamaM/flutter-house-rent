@@ -8,6 +8,7 @@ import 'package:house_rent/widgets/content_intro.dart';
 import 'package:house_rent/widgets/details_app_bar.dart';
 import 'package:house_rent/widgets/house_gallery.dart';
 import 'package:house_rent/widgets/house_info.dart';
+import 'package:house_rent/widgets/house_location_map.dart';
 
 class Details extends StatefulWidget {
   final House house;
@@ -149,6 +150,8 @@ class _DetailsState extends State<Details> {
             HouseInfo(house: widget.house),
             const SizedBox(height: 20),
             About(house: widget.house),
+            const SizedBox(height: 20),
+            HouseLocationMap(house: widget.house),
             const SizedBox(height: 20),
             if (!widget.isOwnerView)
               Container(

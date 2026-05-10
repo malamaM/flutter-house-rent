@@ -4,24 +4,31 @@ import 'package:flutter_svg/flutter_svg.dart';
 class CircleIconButton extends StatelessWidget {
   final String iconUrl;
   final Color color;
+  final Color? iconColor;
+  final VoidCallback? onTap;
 
   const CircleIconButton({
     Key? key,
     required this.iconUrl,
     required this.color,
+    this.iconColor,
+    this.onTap,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 20,
-      height: 20,
-      padding: const EdgeInsets.all(5),
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 20,
+        height: 20,
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+        ),
+        child: SvgPicture.asset(iconUrl, color: iconColor),
       ),
-      child: SvgPicture.asset(iconUrl),
     );
   }
 }

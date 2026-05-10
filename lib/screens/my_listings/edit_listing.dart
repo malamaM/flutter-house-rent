@@ -126,7 +126,12 @@ class _EditListingScreenState extends State<EditListingScreen> {
   }
 
   Future<void> _pickCoverImage() async {
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    final pickedFile = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 50,
+      maxWidth: 1200,
+      maxHeight: 1200,
+    );
     if (pickedFile != null) {
       setState(() {
         _newCoverImage = File(pickedFile.path);
@@ -135,7 +140,11 @@ class _EditListingScreenState extends State<EditListingScreen> {
   }
 
   Future<void> _pickGalleryImages() async {
-    final pickedFiles = await _picker.pickMultiImage();
+    final pickedFiles = await _picker.pickMultiImage(
+      imageQuality: 50,
+      maxWidth: 1200,
+      maxHeight: 1200,
+    );
     if (pickedFiles.isNotEmpty) {
       setState(() {
         _newGalleryImages.addAll(pickedFiles.map((e) => File(e.path)).toList());

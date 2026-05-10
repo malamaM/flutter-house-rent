@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class SearchInput extends StatelessWidget {
-  const SearchInput({Key? key}) : super(key: key);
+  final VoidCallback? onTap;
+  
+  const SearchInput({Key? key, this.onTap}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(15),
       child: TextField(
+        readOnly: true,
+        onTap: onTap,
         decoration: InputDecoration(
           fillColor: Colors.white,
           filled: true,

@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:house_rent/models/house.dart';
+import 'package:house_rent/widgets/map_location_picker.dart';
 
 class CreateListingScreen extends StatefulWidget {
   const CreateListingScreen({Key? key}) : super(key: key);
@@ -45,6 +47,8 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
 
   File? _coverImage;
   List<File> _galleryImages = [];
+  double? _latitude;
+  double? _longitude;
 
   @override
   void dispose() {
@@ -101,7 +105,12 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   }
 
   Future<void> _pickCoverImage() async {
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    final pickedFile = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 50,
+      maxWidth: 1200,
+      maxHeight: 1200,
+    );
     if (pickedFile != null) {
       setState(() {
         _coverImage = File(pickedFile.path);
@@ -110,7 +119,11 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   }
 
   Future<void> _pickGalleryImages() async {
-    final pickedFiles = await _picker.pickMultiImage();
+    final pickedFiles = await _picker.pickMultiImage(
+      imageQuality: 50,
+      maxWidth: 1200,
+      maxHeight: 1200,
+    );
     if (pickedFiles.isNotEmpty) {
       setState(() {
         _galleryImages.addAll(pickedFiles.map((e) => File(e.path)));
@@ -149,6 +162,11 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       'captions[0]': '',
       'types[0]': '',
     };
+
+    if (_latitude != null && _longitude != null) {
+      data['latitude'] = _latitude.toString();
+      data['longitude'] = _longitude.toString();
+    }
 
     final galleryPaths = _galleryImages.map((f) => f.path).toList();
 
@@ -311,6 +329,46 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                         _buildTextField(controller: _provinceController, label: 'Province/State'),
                         _buildTextField(controller: _districtController, label: 'District'),
                         _buildTextField(controller: _houseNumberController, label: 'House/Street Number'),
+                        const SizedBox(height: 16),
+                        const Text('Coordinates (Optional)', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        if (_latitude != null && _longitude != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 16.0),
+                            child: Text(
+                              'Selected: ${_latitude!.toStringAsFixed(4)}, ${_longitude!.toStringAsFixed(4)}',
+                              style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            final LatLng? result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => MapLocationPicker(
+                                  initialLocation: _latitude != null && _longitude != null
+                                      ? LatLng(_latitude!, _longitude!)
+                                      : null,
+                                ),
+                              ),
+                            );
+                            if (result != null) {
+                              setState(() {
+                                _latitude = result.latitude;
+                                _longitude = result.longitude;
+                              });
+                            }
+                          },
+                          icon: const Icon(Icons.map),
+                          label: const Text('Select Location on Map'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.blue,
+                            elevation: 0,
+                            side: const BorderSide(color: Colors.blue),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                        ),
                       ],
                     ),
                   ),

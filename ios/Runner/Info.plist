@@ -51,5 +51,9 @@
 	<string>We need access to your photo library to select profile pictures.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>We need access to the microphone for video recording.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We need access to your location to easily pinpoint your property's location on the map.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>We need access to your location to easily pinpoint your property's location on the map.</string>
 </dict>
 </plist>
