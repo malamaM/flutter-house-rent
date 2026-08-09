@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:house_rent/theme/app_colors.dart';
 
 class Categories extends StatefulWidget {
   const Categories({Key? key}) : super(key: key);
@@ -9,15 +10,16 @@ class Categories extends StatefulWidget {
 
 class _CategoriesState extends State<Categories> {
   final categories = [
-    'Top Recommended',
+    'Recommended',
     'Near You',
-    'Agency Recommended',
-    'Most Popular'
+    'Agencies',
+    'Most Popular',
+    'Luxury'
   ];
 
   int currentSelect = 0;
 
-  _handleChangeCurrentCategory(int index) {
+  void _handleChangeCurrentCategory(int index) {
     setState(() {
       currentSelect = index;
     });
@@ -26,39 +28,44 @@ class _CategoriesState extends State<Categories> {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 35,
+      height: 48,
       child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 24.0),
         scrollDirection: Axis.horizontal,
-        itemBuilder: (context, index) => GestureDetector(
-          onTap: () => _handleChangeCurrentCategory(index),
-          child: Container(
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(
-                  color: currentSelect == index
-                      ? Theme.of(context).primaryColor
-                      : Colors.transparent,
-                  width: 3,
+        itemBuilder: (context, index) {
+          final isSelected = currentSelect == index;
+          return GestureDetector(
+            onTap: () => _handleChangeCurrentCategory(index),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeInOut,
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.primary : AppColors.surfaceContainer,
+                borderRadius: BorderRadius.circular(50),
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: AppColors.primary.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        )
+                      ]
+                    : [],
+              ),
+              child: Text(
+                categories[index],
+                style: TextStyle(
+                  color: isSelected ? Colors.white : AppColors.textSecondary,
+                  fontSize: 14,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                 ),
               ),
             ),
-            child: Text(
-              categories[index],
-              style: TextStyle(
-                color: currentSelect == index
-                    ? Theme.of(context).primaryColor
-                    : Theme.of(context).textTheme.bodyLarge!.color,
-                fontSize: currentSelect == index ? 16 : 14,
-                fontWeight: currentSelect == index
-                    ? FontWeight.bold
-                    : FontWeight.normal,
-              ),
-            ),
-          ),
-        ),
-        separatorBuilder: (_, index) => const SizedBox(width: 15),
+          );
+        },
+        separatorBuilder: (_, index) => const SizedBox(width: 12),
         itemCount: categories.length,
       ),
     );

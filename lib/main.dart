@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:house_rent/screens/splash/splash_screen.dart';
+import 'package:house_rent/theme/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -14,9 +15,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'House Rent',
-      theme: ThemeData(
-        primarySwatch: Colors.green,
-      ),
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightTheme,
       home: const SplashScreen(),
     );
   }

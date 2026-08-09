@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:house_rent/screens/profile/profile.dart';
 import 'package:house_rent/screens/my_listings/my_listings.dart';
+import 'package:house_rent/theme/app_colors.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   const CustomAppBar({Key? key}) : super(key: key);
@@ -13,61 +14,36 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 15),
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            IconButton(
-              onPressed: () {
-                showModalBottomSheet(
-                  context: context,
-                  builder: (context) {
-                    return Container(
-                      height: 320,
-                      child: Column(
-                        children: [
-                          ListTile(
-                            leading: Icon(Icons.home),
-                            title: Text('Home'),
-                            onTap: () {
-                              Navigator.pop(context);
-                            },
-                          ),
-                          ListTile(
-                            leading: Icon(Icons.account_circle),
-                            title: Text('Profile'),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => const ProfileScreen()),
-                              );
-                            },
-                          ),
-                          ListTile(
-                            leading: Icon(Icons.list),
-                            title: Text('My Listings'),
-                            onTap: () {
-                              Navigator.pop(context);
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => const MyListingsScreen()),
-                              );
-                            },
-                          ),
-                          ListTile(
-                            leading: Icon(Icons.settings),
-                            title: Text('Settings'),
-                            onTap: () {
-                              Navigator.pop(context);
-                            },
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                );
+            GestureDetector(
+              onTap: () {
+                // Menu action (simplified for production look)
+                Scaffold.of(context).openDrawer(); // Alternatively, use a bottom sheet
               },
-              icon: SvgPicture.asset('assets/icons/menu.svg'),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceContainer,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.divider, width: 1),
+                ),
+                child: SvgPicture.asset(
+                  'assets/icons/menu.svg',
+                  width: 20,
+                  height: 20,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            const Text(
+              "Home",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             GestureDetector(
               onTap: () {
@@ -85,14 +61,14 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   @override
-  Size get preferredSize => const Size.fromHeight(50);
+  Size get preferredSize => const Size.fromHeight(60);
 }
 
 class ProfileAvatar extends StatefulWidget {
   const ProfileAvatar({Key? key}) : super(key: key);
 
   @override
-  _ProfileAvatarState createState() => _ProfileAvatarState();
+  State<ProfileAvatar> createState() => _ProfileAvatarState();
 }
 
 class _ProfileAvatarState extends State<ProfileAvatar> {
@@ -105,51 +81,44 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
   }
 
   Future<void> _fetchProfileImage() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? accessToken = prefs.getString('access_token');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? accessToken = prefs.getString('access_token');
 
-    if (accessToken != null) {
-      print('Access Token: $accessToken'); // Print the access token
+      if (accessToken != null) {
+        final response = await http.get(
+          Uri.parse('http://localhost:8000/api/check-login-status'),
+          headers: {'Authorization': 'Bearer $accessToken'},
+        );
 
-      final response = await http.get(
-        Uri.parse('http://localhost:8000/api/check-login-status'),
-        headers: {
-          'Authorization': 'Bearer $accessToken',
-        },
-      );
-
-      print('Request URL: ${response.request?.url}');
-      print('Request Headers: ${response.request?.headers}');
-      print('Response Status Code: ${response.statusCode}');
-      print('Response Body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final String? profilePicture = data['user']?['profile_picture'];
-        if (profilePicture != null) {
-          final String sanitizedProfilePicture = profilePicture.replaceAll("\\", "");
-          print('Profile Picture: $sanitizedProfilePicture');
-          setState(() {
-            profileImageUrl = "http://localhost:8000/storage/$sanitizedProfilePicture";
-          });
-        } else {
-          // Handle missing profile picture
-          print('Profile picture not found in response');
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          final String? profilePicture = data['user']?['profile_picture'];
+          if (profilePicture != null && mounted) {
+            final String sanitized = profilePicture.replaceAll("\\", "");
+            setState(() {
+              profileImageUrl = "http://localhost:8000/storage/$sanitized";
+            });
+          }
         }
-      } else {
-        // Handle error
-        print('Failed to load profile image');
       }
-    } else {
-      // Handle missing token
-      print('Access token not found');
+    } catch (e) {
+      // Handle gracefully
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return CircleAvatar(
-      backgroundImage: NetworkImage(profileImageUrl),
+    return Container(
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: AppColors.primary, width: 2),
+      ),
+      child: CircleAvatar(
+        radius: 20,
+        backgroundImage: NetworkImage(profileImageUrl),
+      ),
     );
   }
 }

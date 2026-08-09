@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:house_rent/screens/home/all_houses_screen.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/screens/details/details.dart';
-import 'package:house_rent/widgets/circle_icon_button.dart';
+import 'package:house_rent/theme/app_colors.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class BestOffer extends StatefulWidget {
   const BestOffer({Key? key}) : super(key: key);
 
   @override
-  _BestOfferState createState() => _BestOfferState();
+  State<BestOffer> createState() => _BestOfferState();
 }
 
 class _BestOfferState extends State<BestOffer> {
@@ -16,10 +18,10 @@ class _BestOfferState extends State<BestOffer> {
   @override
   void initState() {
     super.initState();
-    _offerList = House.fetchHouses(filters: {'status': 'For Sale'}); // Fetch "Best Offer" houses
+    _offerList = House.fetchHouses(filters: {'status': 'For Sale'});
   }
 
-  _handleNavigateToDetails(BuildContext context, House house) {
+  void _handleNavigateToDetails(BuildContext context, House house) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => Details(house: house),
@@ -30,136 +32,168 @@ class _BestOfferState extends State<BestOffer> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                'Best Offer',
-                style: Theme.of(context).textTheme.displayLarge!.copyWith(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                'Best Offers',
+                style: Theme.of(context).textTheme.headlineMedium,
               ),
-              Text(
-                'See All',
-                style: Theme.of(context).textTheme.bodyLarge!.copyWith(
-                      fontSize: 14,
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AllHousesScreen(
+                        title: 'Best Offers',
+                        filters: {'status': 'For Sale'},
+                      ),
                     ),
+                  );
+                },
+                child: Text(
+                  'See All',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 16),
           FutureBuilder<List<House>>(
             future: _offerList,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
+                return const Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                );
               } else if (snapshot.hasError) {
-                return Center(child: Text('Error: ${snapshot.error}'));
+                return const Center(
+                  child: Text('Failed to load offers.'),
+                );
               } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
                 return const Center(child: Text('No offers available'));
               }
 
               final offerList = snapshot.data!;
               return Column(
-                children: offerList
-                    .map(
-                      (offer) => GestureDetector(
-                        onTap: () => _handleNavigateToDetails(context, offer),
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8),
+                children: offerList.take(3).map((offer) {
+                  return GestureDetector(
+                    onTap: () => _handleNavigateToDetails(context, offer),
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 15,
+                            offset: const Offset(0, 10),
                           ),
-                          child: Stack(
-                            children: [
-                              Row(
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          // Image
+                          Hero(
+                            tag: 'offer_image_${offer.id}',
+                            child: Container(
+                              width: 120,
+                              height: 120,
+                              decoration: BoxDecoration(
+                                borderRadius: const BorderRadius.horizontal(
+                                  left: Radius.circular(20),
+                                ),
+                                image: DecorationImage(
+                                  image: NetworkImage(offer.imageUrl),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                          ),
+                          // Details
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.all(12.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Container(
-                                    width: 150,
-                                    height: 80,
-                                    decoration: BoxDecoration(
-                                      image: DecorationImage(
-                                        image: NetworkImage(offer.imageUrl),
-                                        fit: BoxFit.cover,
-                                      ),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
+                                  Text(
+                                    offer.name,
+                                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                  const SizedBox(width: 10),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.location_on_outlined, size: 14, color: AppColors.textSecondary),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          offer.address,
+                                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                fontSize: 12,
+                                              ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        offer.name,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .displayLarge!
-                                            .copyWith(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                            ),
+                                        '\$${offer.pricePurchase}',
+                                        style: const TextStyle(
+                                          color: AppColors.primary,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
                                       ),
-                                      const SizedBox(height: 10),
-                                      Text(
-                                        offer.address,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodyLarge!
-                                            .copyWith(
-                                              fontSize: 14,
-                                            ),
-                                      ),
-                                      const SizedBox(height: 5),
-                                      Row(
-                                        children: [
-                                          if (offer.isVerified)
-                                            const Icon(Icons.verified, color: Colors.blue, size: 14),
-                                          if (offer.isVerified)
-                                            const SizedBox(width: 4),
-                                          const Icon(Icons.star, color: Colors.amber, size: 14),
-                                          const SizedBox(width: 2),
-                                          Text(
-                                            '${offer.averageRating.toStringAsFixed(1)} (${offer.totalReviews})',
-                                            style: Theme.of(context).textTheme.bodySmall!.copyWith(fontSize: 10, fontWeight: FontWeight.bold),
+                                      GestureDetector(
+                                        onTap: () async {
+                                          final isSaved = await House.toggleSaveHouse(offer.id);
+                                          setState(() {
+                                            offer.isSaved = isSaved;
+                                          });
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: const BoxDecoration(
+                                            color: AppColors.surfaceContainer,
+                                            shape: BoxShape.circle,
                                           ),
-                                        ],
+                                          child: Icon(
+                                            offer.isSaved ? Icons.bookmark : Icons.bookmark_border,
+                                            color: AppColors.primary,
+                                            size: 16,
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),
                                 ],
                               ),
-                              if (offer.isSaved)
-                                Positioned(
-                                  right: 0,
-                                  child: CircleIconButton(
-                                    iconUrl: 'assets/icons/heart.svg',
-                                    color: Theme.of(context).primaryColor,
-                                    iconColor: Colors.white,
-                                    onTap: () async {
-                                      final isSaved = await House.toggleSaveHouse(offer.id);
-                                      setState(() {
-                                        offer.isSaved = isSaved;
-                                      });
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text(isSaved ? 'House saved!' : 'House removed from saved')),
-                                        );
-                                      }
-                                    },
-                                  ),
-                                ),
-                            ],
+                            ),
                           ),
-                        ),
+                        ],
                       ),
-                    )
-                    .toList(),
+                    ),
+                  );
+                }).toList(),
               );
             },
           ),
