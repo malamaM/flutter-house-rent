@@ -32,26 +32,27 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   color: Colors.white, size: 23),
             ),
             const SizedBox(width: 11),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('HAVEN',
+                  const Text('HAVEN',
                       style: TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 16,
                           letterSpacing: 1.2)),
                   Text('Find where you belong',
                       style: TextStyle(
-                          color: AppColors.textSecondary, fontSize: 10)),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontSize: 10)),
                 ],
               ),
             ),
             Material(
-              color: AppColors.surface,
-              shape: const CircleBorder(
-                  side: BorderSide(color: AppColors.divider)),
+              color: Theme.of(context).colorScheme.surface,
+              shape: CircleBorder(
+                  side: BorderSide(color: Theme.of(context).dividerColor)),
               child: InkWell(
                 onTap: () => Navigator.push(context,
                     MaterialPageRoute(builder: (_) => const ProfileScreen())),

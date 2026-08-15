@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:house_rent/config/api_config.dart';
-import 'package:house_rent/screens/home/home.dart';
+import 'package:house_rent/screens/home/app_shell.dart';
 import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:http/http.dart' as http;
@@ -46,7 +46,7 @@ class _SignInScreenState extends State<SignInScreen> {
         await SessionService.currentUser(forceRefresh: true);
         if (mounted) {
           Navigator.pushReplacement(
-              context, MaterialPageRoute(builder: (_) => const Home()));
+              context, MaterialPageRoute(builder: (_) => const AppShell()));
         }
         return;
       }

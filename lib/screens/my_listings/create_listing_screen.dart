@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
+import 'package:house_rent/services/premium_haptics.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/listing_form_components.dart';
 import 'package:house_rent/widgets/map_location_picker.dart';
@@ -39,6 +40,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   bool pool = false;
   bool garage = false;
   bool submitting = false;
+  double uploadProgress = 0;
   File? coverImage;
   File? reelVideo;
   final List<File> galleryImages = [];
@@ -165,7 +167,10 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   }
 
   Future<void> submit() async {
-    setState(() => submitting = true);
+    setState(() {
+      submitting = true;
+      uploadProgress = 0;
+    });
     final payload = <String, dynamic>{
       'title': title.text.trim(),
       'description': description.text.trim(),
@@ -195,10 +200,14 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       galleryImages.map((image) => image.path).toList(),
       videoPaths: videos.map((video) => video.path).toList(),
       reelVideoPath: reelVideo?.path,
+      onProgress: (value) {
+        if (mounted) setState(() => uploadProgress = value);
+      },
     );
     if (!mounted) return;
     setState(() => submitting = false);
     if (success) {
+      PremiumHaptics.success();
       _message('Your listing is now live.');
       Navigator.pop(context, true);
     } else {
@@ -594,11 +603,15 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
             child: ElevatedButton(
               onPressed: submitting ? null : next,
               child: submitting
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2))
+                  ? Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2)),
+                      const SizedBox(width: 10),
+                      Text('Uploading ${(uploadProgress * 100).round()}%'),
+                    ])
                   : Text(step == 3 ? 'Publish listing' : 'Continue'),
             ),
           ),

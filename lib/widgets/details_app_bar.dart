@@ -50,6 +50,7 @@ class _DetailsAppBarState extends State<DetailsAppBar> {
         children: [
           CachedNetworkImage(
             imageUrl: widget.house.imageUrl,
+            memCacheWidth: 1440,
             fit: BoxFit.cover,
             placeholder: (_, __) =>
                 Container(color: AppColors.surfaceContainer),

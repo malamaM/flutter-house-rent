@@ -10,8 +10,13 @@ import 'package:house_rent/widgets/lister_trust_badges.dart';
 import 'package:house_rent/widgets/recommended_house.dart';
 import 'package:house_rent/widgets/property_card.dart';
 import 'package:house_rent/theme/app_theme.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  sqfliteFfiInit();
+  databaseFactory = databaseFactoryFfi;
+
   test('all listings use monthly rental pricing', () {
     final rental = House(
       'Rental home',

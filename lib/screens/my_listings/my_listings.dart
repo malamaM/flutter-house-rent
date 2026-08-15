@@ -96,6 +96,7 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
               await listings;
             },
             child: ListView.separated(
+              key: const PageStorageKey('my-listings'),
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
               itemCount: items.length,
               separatorBuilder: (_, __) => const SizedBox(height: 12),

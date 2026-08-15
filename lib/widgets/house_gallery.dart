@@ -81,7 +81,8 @@ class _HouseGalleryState extends State<HouseGallery> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(14),
                     child: CachedNetworkImage(
-                      imageUrl: items[index].url,
+                      imageUrl: items[index].thumbnailUrl,
+                      memCacheWidth: 520,
                       width: 148,
                       height: 112,
                       fit: BoxFit.cover,
@@ -157,6 +158,7 @@ class _FullScreenGalleryState extends State<FullScreenGallery> {
               child: Center(
                 child: CachedNetworkImage(
                   imageUrl: widget.images[page].url,
+                  memCacheWidth: 1440,
                   fit: BoxFit.contain,
                   placeholder: (_, __) => const CircularProgressIndicator(),
                   errorWidget: (_, __, ___) => const Icon(

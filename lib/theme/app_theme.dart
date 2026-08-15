@@ -3,6 +3,114 @@ import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
 class AppTheme {
+  static ThemeData get darkTheme {
+    const background = Color(0xFF101311);
+    const surface = Color(0xFF191D1B);
+    const container = Color(0xFF222725);
+    const text = Color(0xFFF3F5F4);
+    const muted = Color(0xFFA7B0AC);
+    final scheme = ColorScheme.fromSeed(
+      seedColor: AppColors.primary,
+      brightness: Brightness.dark,
+      surface: surface,
+    ).copyWith(
+      primary: const Color(0xFF78D6B5),
+      secondary: const Color(0xFFF0A365),
+      surfaceContainer: container,
+      surfaceContainerHighest: const Color(0xFF2A302D),
+      outline: const Color(0xFF3A423E),
+      onSurface: text,
+      onSurfaceVariant: muted,
+    );
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      colorScheme: scheme,
+      primaryColor: scheme.primary,
+      visualDensity: VisualDensity.standard,
+      splashFactory: InkRipple.splashFactory,
+      scaffoldBackgroundColor: background,
+      canvasColor: surface,
+      cardColor: surface,
+      textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme)
+          .apply(bodyColor: text, displayColor: text)
+          .copyWith(
+              bodyMedium:
+                  GoogleFonts.inter(color: muted, fontSize: 14, height: 1.45)),
+      appBarTheme: AppBarTheme(
+          backgroundColor: background.withValues(alpha: .94),
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          titleTextStyle: GoogleFonts.inter(
+              color: text, fontSize: 20, fontWeight: FontWeight.w700),
+          iconTheme: const IconThemeData(color: text)),
+      cardTheme: CardThemeData(
+          color: surface,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: const BorderSide(color: Color(0xFF303633)))),
+      inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: container,
+          labelStyle: const TextStyle(color: muted),
+          hintStyle: const TextStyle(color: muted),
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Color(0xFF39413D))),
+          enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Color(0xFF39413D))),
+          focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: scheme.primary, width: 1.5))),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+              backgroundColor: scheme.primary,
+              foregroundColor: const Color(0xFF07130F),
+              minimumSize: const Size(double.infinity, 56),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)))),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+              foregroundColor: scheme.primary,
+              backgroundColor: container,
+              side: const BorderSide(color: Color(0xFF39413D)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)))),
+      dividerColor: const Color(0xFF303633),
+      chipTheme: ChipThemeData(
+        backgroundColor: container,
+        selectedColor: const Color(0xFF29483D),
+        side: const BorderSide(color: Color(0xFF39413D)),
+        labelStyle: const TextStyle(color: text),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
+        showCheckmark: false,
+      ),
+      switchTheme: SwitchThemeData(
+        trackColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.selected)
+                ? scheme.primary
+                : const Color(0xFF39413D)),
+        thumbColor: const WidgetStatePropertyAll(Color(0xFFF3F5F4)),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+          backgroundColor: surface,
+          surfaceTintColor: Colors.transparent,
+          modalBarrierColor: Color(0x99000000),
+          showDragHandle: true),
+      dialogTheme: DialogThemeData(
+          backgroundColor: surface,
+          surfaceTintColor: Colors.transparent,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24))),
+      snackBarTheme: SnackBarThemeData(
+          backgroundColor: container,
+          contentTextStyle: GoogleFonts.inter(color: text),
+          behavior: SnackBarBehavior.floating),
+    );
+  }
+
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,

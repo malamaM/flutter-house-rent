@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
-import 'package:house_rent/theme/app_colors.dart';
 
 class HouseInfo extends StatelessWidget {
   final House house;
@@ -51,12 +50,12 @@ class _Fact extends StatelessWidget {
       margin: const EdgeInsets.only(right: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-          color: AppColors.surface,
-          border: Border.all(color: AppColors.divider),
+          color: Theme.of(context).colorScheme.surface,
+          border: Border.all(color: Theme.of(context).dividerColor),
           borderRadius: BorderRadius.circular(16)),
       child: Row(
         children: [
-          Icon(icon, color: AppColors.primary, size: 22),
+          Icon(icon, color: Theme.of(context).colorScheme.primary, size: 22),
           const SizedBox(width: 9),
           Expanded(
             child: Column(
@@ -69,8 +68,9 @@ class _Fact extends StatelessWidget {
                 Text(label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        color: AppColors.textSecondary, fontSize: 10)),
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontSize: 10)),
               ],
             ),
           ),

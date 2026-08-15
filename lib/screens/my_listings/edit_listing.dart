@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/services/app_data_service.dart';
+import 'package:house_rent/services/premium_haptics.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/listing_form_components.dart';
 import 'package:image_picker/image_picker.dart';
@@ -48,6 +49,7 @@ class _EditListingScreenState extends State<EditListingScreen> {
   final List<int> deletedMediaIds = [];
   bool loadingImages = true;
   bool saving = false;
+  double uploadProgress = 0;
 
   @override
   void initState() {
@@ -174,7 +176,10 @@ class _EditListingScreenState extends State<EditListingScreen> {
   Future<void> _save() async {
     FocusScope.of(context).unfocus();
     if (!formKey.currentState!.validate()) return;
-    setState(() => saving = true);
+    setState(() {
+      saving = true;
+      uploadProgress = 0;
+    });
     final data = <String, dynamic>{
       'title': title.text.trim(),
       'city': city.text.trim(),
@@ -207,10 +212,14 @@ class _EditListingScreenState extends State<EditListingScreen> {
       videoPaths: newVideos.map((video) => video.path).toList(),
       reelVideoPath: newReelVideo?.path,
       deletedMediaIds: deletedMediaIds,
+      onProgress: (value) {
+        if (mounted) setState(() => uploadProgress = value);
+      },
     );
     if (!mounted) return;
     setState(() => saving = false);
     if (success) {
+      PremiumHaptics.success();
       _message('Your listing changes are live.');
       Navigator.pop(context, true);
     } else {
@@ -351,11 +360,15 @@ class _EditListingScreenState extends State<EditListingScreen> {
           child: ElevatedButton(
             onPressed: saving ? null : _save,
             child: saving
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2))
+                ? Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2)),
+                    const SizedBox(width: 10),
+                    Text('Uploading ${(uploadProgress * 100).round()}%'),
+                  ])
                 : const Text('Save changes'),
           ),
         ),
@@ -572,6 +585,7 @@ class _NetworkThumb extends StatelessWidget {
         onRemove: onRemove,
         child: CachedNetworkImage(
             imageUrl: url,
+            memCacheWidth: 264,
             width: 88,
             height: 88,
             fit: BoxFit.cover,

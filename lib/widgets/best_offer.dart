@@ -3,13 +3,14 @@ import 'package:house_rent/models/house.dart';
 import 'package:house_rent/screens/details/details.dart';
 import 'package:house_rent/screens/home/all_houses_screen.dart';
 import 'package:house_rent/services/app_cache.dart';
-import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/property_card.dart';
 
 class BestOffer extends StatefulWidget {
   final Map<String, String> filters;
+  final List<House>? initialHouses;
 
-  const BestOffer({Key? key, this.filters = const {}}) : super(key: key);
+  const BestOffer({Key? key, this.filters = const {}, this.initialHouses})
+      : super(key: key);
 
   @override
   State<BestOffer> createState() => _BestOfferState();
@@ -23,8 +24,21 @@ class _BestOfferState extends State<BestOffer> {
   @override
   void initState() {
     super.initState();
-    offers = House.fetchHouses(filters: dealFilters);
+    offers = widget.initialHouses == null
+        ? House.fetchHouses(filters: dealFilters)
+        : Future.value(widget.initialHouses);
     AppCache.instance.refreshes.addListener(_handleRefresh);
+  }
+
+  @override
+  void didUpdateWidget(covariant BestOffer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialHouses != null &&
+        !identical(widget.initialHouses, oldWidget.initialHouses)) {
+      setState(() {
+        offers = Future<List<House>>.value(widget.initialHouses!);
+      });
+    }
   }
 
   void _handleRefresh() {
@@ -74,7 +88,7 @@ class _BestOfferState extends State<BestOffer> {
       ),
       const SizedBox(height: 16),
       SizedBox(
-        height: 323,
+        height: 355,
         child: FutureBuilder<List<House>>(
           future: offers,
           builder: (context, snapshot) {
@@ -87,7 +101,7 @@ class _BestOfferState extends State<BestOffer> {
                 itemBuilder: (_, __) => Container(
                   width: 278,
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: Theme.of(context).colorScheme.surfaceContainer,
                     borderRadius: BorderRadius.circular(22),
                   ),
                 ),

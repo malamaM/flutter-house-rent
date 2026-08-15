@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/services/app_cache.dart';
+import 'package:house_rent/services/performance_monitor.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -14,6 +15,7 @@ class House {
   static const _feedKeepFor = Duration(days: 14);
   static const _privateFreshFor = Duration(minutes: 2);
   static const _privateKeepFor = Duration(days: 30);
+  static const _homeFeedCacheVersion = 2;
 
   static final ValueNotifier<HouseCacheState> cacheState =
       ValueNotifier(const HouseCacheState());
@@ -21,6 +23,7 @@ class House {
   String name;
   String address;
   String imageUrl;
+  String thumbnailUrl;
   int id;
   int bedrooms;
   int bathrooms;
@@ -31,6 +34,8 @@ class House {
   String? country;
   String? province;
   String? district;
+  int? cityId;
+  int? areaId;
   String? houseNumber;
   String? type;
   int priceRental;
@@ -49,12 +54,16 @@ class House {
   double averageRating;
   int totalReviews;
   bool isFromCache;
+  List<HouseReelAsset> reelAssets;
+  double recommendationScore;
+  List<String> recommendationReasons;
 
   House(
     this.name,
     this.address,
     this.imageUrl, {
     this.id = 0,
+    String? thumbnailUrl,
     this.bedrooms = 0,
     this.bathrooms = 0,
     this.size = 0,
@@ -64,6 +73,8 @@ class House {
     this.country,
     this.province,
     this.district,
+    this.cityId,
+    this.areaId,
     this.houseNumber,
     this.type,
     this.priceRental = 0,
@@ -82,7 +93,10 @@ class House {
     this.averageRating = 0,
     this.totalReviews = 0,
     this.isFromCache = false,
-  });
+    this.reelAssets = const [],
+    this.recommendationScore = 0,
+    this.recommendationReasons = const [],
+  }) : thumbnailUrl = thumbnailUrl ?? imageUrl;
 
   String get listingStatusLabel => 'For Rent';
 
@@ -93,6 +107,9 @@ class House {
       map['title'] ?? 'Unknown property',
       map['city'] ?? map['address'] ?? 'Location unavailable',
       ApiConfig.storageUrl(cover),
+      thumbnailUrl: ApiConfig.storageUrl(map['thumbnail-cover']).isEmpty
+          ? ApiConfig.storageUrl(cover)
+          : ApiConfig.storageUrl(map['thumbnail-cover']),
       id: _parseInt(map['id']),
       bedrooms: _parseInt(map['bedrooms']),
       bathrooms: _parseInt(map['bathrooms']),
@@ -103,6 +120,8 @@ class House {
       country: map['country'],
       province: map['province'],
       district: map['district'],
+      cityId: _parseNullableInt(map['city_id']),
+      areaId: _parseNullableInt(map['area_id']),
       houseNumber: map['house_number'],
       type: map['type'],
       priceRental: _parseInt(map['price-rental'] ?? map['price_rental']),
@@ -124,6 +143,13 @@ class House {
           user == null ? 0 : _parseDouble(user['average_rating']) ?? 0,
       totalReviews: user == null ? 0 : _parseInt(user['total_reviews']),
       isFromCache: fromCache,
+      reelAssets: _reelAssets(map),
+      recommendationScore: _parseDouble(map['recommendation_score']) ?? 0,
+      recommendationReasons: (map['recommendation_reasons'] is List
+              ? map['recommendation_reasons'] as List
+              : const [])
+          .map((item) => item.toString())
+          .toList(),
     );
   }
 
@@ -134,6 +160,9 @@ class House {
         'image-cover': imageUrl.startsWith('$_storageBase/')
             ? imageUrl.substring('$_storageBase/'.length)
             : imageUrl,
+        'thumbnail-cover': thumbnailUrl.startsWith('$_storageBase/')
+            ? thumbnailUrl.substring('$_storageBase/'.length)
+            : thumbnailUrl,
         'bedrooms': bedrooms,
         'bathrooms': bathrooms,
         'size': size,
@@ -143,6 +172,8 @@ class House {
         'country': country,
         'province': province,
         'district': district,
+        'city_id': cityId,
+        'area_id': areaId,
         'house_number': houseNumber,
         'type': type,
         'price-rental': priceRental,
@@ -151,6 +182,8 @@ class House {
         'garage': garage,
         'views': views,
         'demand_label': demandLabel,
+        'recommendation_score': recommendationScore,
+        'recommendation_reasons': recommendationReasons,
         'latitude': latitude,
         'longitude': longitude,
         'is_saved': isSaved,
@@ -167,7 +200,141 @@ class House {
                 'average_rating': averageRating,
                 'total_reviews': totalReviews,
               },
+        'media': reelAssets
+            .where((asset) => asset.isVideo)
+            .map((asset) => {
+                  'path': asset.url,
+                  'kind': asset.featured ? 'reel_video' : 'video',
+                })
+            .toList(),
+        'images': reelAssets
+            .where((asset) => !asset.isVideo && asset.url != imageUrl)
+            .map((asset) => {'image': asset.url})
+            .toList(),
       };
+
+  static List<HouseReelAsset> _reelAssets(Map<String, dynamic> map) {
+    final assets = <HouseReelAsset>[];
+    final media = map['media'];
+    if (media is List) {
+      for (final item in media.whereType<Map>()) {
+        final value = Map<String, dynamic>.from(item);
+        final url = ApiConfig.storageUrl(value['path']);
+        if (url.isNotEmpty) {
+          assets.add(HouseReelAsset.video(
+            url,
+            featured: value['kind'] == 'reel_video',
+            posterUrl: ApiConfig.storageUrl(map['image-cover']),
+          ));
+        }
+      }
+      assets
+          .sort((a, b) => a.featured == b.featured ? 0 : (a.featured ? -1 : 1));
+    }
+    final seen = <String>{};
+    final cover =
+        ApiConfig.storageUrl(map['image-cover'] ?? map['image_cover']);
+    if (cover.isNotEmpty && seen.add(cover)) {
+      assets.add(HouseReelAsset.image(cover));
+    }
+    final images = map['images'];
+    if (images is List) {
+      for (final item in images.whereType<Map>()) {
+        final url = ApiConfig.storageUrl(item['image']);
+        if (url.isNotEmpty && seen.add(url)) {
+          assets.add(HouseReelAsset.image(url));
+        }
+      }
+    }
+    return assets;
+  }
+
+  static Future<HomeFeedData> fetchHomeFeed({
+    String? type,
+    bool forceRefresh = false,
+  }) async {
+    final token = await _token();
+    final filter = type == null || type.isEmpty ? 'all' : type;
+    final scope = token == null
+        ? AppCache.instance.publicKey('home_feed_v$_homeFeedCacheVersion')
+        : await AppCache.instance
+            .privateKey('home_feed_v$_homeFeedCacheVersion');
+    final key = '$scope:$filter';
+    final cached = await AppCache.instance.read(key);
+    if (!forceRefresh && cached != null && !cached.isExpired) {
+      if (!cached.isFresh) {
+        unawaited(fetchHomeFeed(type: type, forceRefresh: true));
+      }
+      return HomeFeedData.fromMap(Map<String, dynamic>.from(cached.value),
+          fromCache: true);
+    }
+    try {
+      final uri = Uri.parse('$_apiBase/home-feed')
+          .replace(queryParameters: filter == 'all' ? null : {'type': filter});
+      final response = await PerformanceMonitor.instance.measure(
+        'home_feed',
+        () => http
+            .get(uri, headers: _headers(token))
+            .timeout(const Duration(seconds: 12)),
+      );
+      if (response.statusCode != 200) {
+        throw HttpException('Could not load home feed', response.statusCode);
+      }
+      final value = Map<String, dynamic>.from(json.decode(response.body));
+      await AppCache.instance
+          .write(key, value, freshFor: _feedFreshFor, keepFor: _feedKeepFor);
+      return HomeFeedData.fromMap(value);
+    } catch (_) {
+      if (cached != null) {
+        return HomeFeedData.fromMap(Map<String, dynamic>.from(cached.value),
+            fromCache: true);
+      }
+      rethrow;
+    }
+  }
+
+  static Future<ReelsPageData> fetchReelsPage({
+    String? cursor,
+    bool forceRefresh = false,
+  }) async {
+    final token = await _token();
+    final scope = token == null
+        ? AppCache.instance.publicKey('reels')
+        : await AppCache.instance.privateKey('reels');
+    final key = '$scope:${cursor ?? 'first'}';
+    final cached = cursor == null ? await AppCache.instance.read(key) : null;
+    if (!forceRefresh && cached != null && !cached.isExpired) {
+      return ReelsPageData.fromMap(Map<String, dynamic>.from(cached.value),
+          fromCache: true);
+    }
+    try {
+      final uri = Uri.parse('$_apiBase/reels').replace(queryParameters: {
+        'per_page': '20',
+        if (cursor != null) 'cursor': cursor,
+      });
+      final response = await PerformanceMonitor.instance.measure(
+        'reels',
+        () => http
+            .get(uri, headers: _headers(token))
+            .timeout(const Duration(seconds: 12)),
+      );
+      if (response.statusCode != 200) {
+        throw HttpException('Could not load tours', response.statusCode);
+      }
+      final value = Map<String, dynamic>.from(json.decode(response.body));
+      if (cursor == null) {
+        await AppCache.instance.write(key, value,
+            freshFor: const Duration(minutes: 3), keepFor: _feedKeepFor);
+      }
+      return ReelsPageData.fromMap(value);
+    } catch (_) {
+      if (cached != null) {
+        return ReelsPageData.fromMap(Map<String, dynamic>.from(cached.value),
+            fromCache: true);
+      }
+      rethrow;
+    }
+  }
 
   static Future<List<House>> fetchHouses({
     Map<String, String>? filters,
@@ -306,7 +473,7 @@ class House {
     required Future<List<dynamic>> Function() fetch,
   }) {
     return AppCache.instance.deduplicate<List<House>>('refresh:$key', () async {
-      final raw = await fetch();
+      final raw = await PerformanceMonitor.instance.measure(resource, fetch);
       await AppCache.instance.write(
         key,
         raw,
@@ -389,12 +556,14 @@ class House {
     List<String>? videoPaths,
     String? reelVideoPath,
     List<int>? deletedMediaIds,
+    void Function(double progress)? onProgress,
   }) async {
     try {
       final token = await _requiredToken();
-      final request = http.MultipartRequest(
+      final request = _ProgressMultipartRequest(
         'POST',
         Uri.parse('$_apiBase/houses/$id'),
+        onProgress,
       )..headers.addAll(_headers(token));
       request.fields['_method'] = 'PUT';
       data.forEach((key, value) => request.fields[key] = value.toString());
@@ -441,12 +610,15 @@ class House {
 
   static Future<bool> createHouse(Map<String, dynamic> data,
       String coverImagePath, List<String> galleryImagePaths,
-      {List<String> videoPaths = const [], String? reelVideoPath}) async {
+      {List<String> videoPaths = const [],
+      String? reelVideoPath,
+      void Function(double progress)? onProgress}) async {
     try {
       final token = await _requiredToken();
-      final request = http.MultipartRequest(
+      final request = _ProgressMultipartRequest(
         'POST',
         Uri.parse('$_apiBase/houses'),
+        onProgress,
       )..headers.addAll(_headers(token));
       data.forEach((key, value) => request.fields[key] = value.toString());
       request.files.add(
@@ -480,6 +652,8 @@ class House {
     await AppCache.instance.removeMatching(
       (key) =>
           key.contains(':houses:') ||
+          key.contains(':home_feed') ||
+          key.contains(':reels:') ||
           key.endsWith(':my_houses') ||
           key.endsWith(':saved_houses') ||
           (id != null && key.contains('house:$id')),
@@ -553,6 +727,11 @@ class House {
     return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 
+  static int? _parseNullableInt(dynamic value) {
+    if (value == null) return null;
+    return int.tryParse('$value');
+  }
+
   static double? _parseDouble(dynamic value) {
     if (value is num) return value.toDouble();
     return double.tryParse(value?.toString() ?? '');
@@ -591,6 +770,74 @@ class HouseCacheState {
   });
 }
 
+class HouseReelAsset {
+  final String url;
+  final bool isVideo;
+  final bool featured;
+  final String? posterUrl;
+
+  const HouseReelAsset._(this.url,
+      {required this.isVideo, this.featured = false, this.posterUrl});
+  factory HouseReelAsset.image(String url) =>
+      HouseReelAsset._(url, isVideo: false);
+  factory HouseReelAsset.video(String url,
+          {required bool featured, String? posterUrl}) =>
+      HouseReelAsset._(url,
+          isVideo: true, featured: featured, posterUrl: posterUrl);
+}
+
+class HomeFeedData {
+  final List<House> recommended;
+  final List<House> deals;
+  final List<House> all;
+  final bool fromCache;
+
+  const HomeFeedData(
+      {required this.recommended,
+      required this.deals,
+      required this.all,
+      this.fromCache = false});
+
+  factory HomeFeedData.fromMap(Map<String, dynamic> map,
+      {bool fromCache = false}) {
+    List<House> parse(String key) =>
+        (map[key] is List ? map[key] as List : const [])
+            .whereType<Map>()
+            .map((item) => House.fromMap(Map<String, dynamic>.from(item),
+                fromCache: fromCache))
+            .toList();
+    return HomeFeedData(
+      recommended: parse('recommended'),
+      deals: parse('deals'),
+      all: parse('all'),
+      fromCache: fromCache,
+    );
+  }
+}
+
+class ReelsPageData {
+  final List<House> houses;
+  final String? nextCursor;
+  final bool fromCache;
+
+  const ReelsPageData(
+      {required this.houses, this.nextCursor, this.fromCache = false});
+
+  factory ReelsPageData.fromMap(Map<String, dynamic> map,
+      {bool fromCache = false}) {
+    final raw = map['data'] is List ? map['data'] as List : const [];
+    return ReelsPageData(
+      houses: raw
+          .whereType<Map>()
+          .map((item) => House.fromMap(Map<String, dynamic>.from(item),
+              fromCache: fromCache))
+          .toList(),
+      nextCursor: map['next_cursor']?.toString(),
+      fromCache: fromCache,
+    );
+  }
+}
+
 class HttpException implements Exception {
   final String message;
   final int statusCode;
@@ -606,4 +853,24 @@ class AuthenticationException implements Exception {
 
   @override
   String toString() => 'Sign in required';
+}
+
+class _ProgressMultipartRequest extends http.MultipartRequest {
+  final void Function(double progress)? onProgress;
+
+  _ProgressMultipartRequest(super.method, super.url, this.onProgress);
+
+  @override
+  http.ByteStream finalize() {
+    final total = contentLength;
+    var sent = 0;
+    final stream = super.finalize().transform<List<int>>(
+      StreamTransformer.fromHandlers(handleData: (chunk, sink) {
+        sent += chunk.length;
+        if (total > 0) onProgress?.call((sent / total).clamp(0, 1));
+        sink.add(chunk);
+      }),
+    );
+    return http.ByteStream(stream);
+  }
 }

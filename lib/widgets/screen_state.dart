@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:house_rent/theme/app_colors.dart';
 
 class ScreenState extends StatelessWidget {
   final IconData icon;
@@ -28,9 +27,11 @@ class ScreenState extends StatelessWidget {
             Container(
               width: 72,
               height: 72,
-              decoration: const BoxDecoration(
-                  color: AppColors.primaryLight, shape: BoxShape.circle),
-              child: Icon(icon, color: AppColors.primary, size: 30),
+              decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  shape: BoxShape.circle),
+              child: Icon(icon,
+                  color: Theme.of(context).colorScheme.primary, size: 30),
             ),
             const SizedBox(height: 20),
             Text(title,
@@ -67,7 +68,8 @@ class PropertyListSkeleton extends StatelessWidget {
       itemBuilder: (_, __) => Container(
         height: 138,
         decoration: BoxDecoration(
-            color: AppColors.surface, borderRadius: BorderRadius.circular(18)),
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(18)),
       ),
     );
   }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/screens/details/details.dart';
-import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/property_card.dart';
 import 'package:house_rent/widgets/screen_state.dart';
 
@@ -22,7 +21,9 @@ class _AllHousesScreenState extends State<AllHousesScreen> {
   @override
   void initState() {
     super.initState();
-    _reload();
+    // A full-results screen should be authoritative rather than remaining on
+    // a recently cached, shorter homepage snapshot.
+    _reload(forceRefresh: true);
   }
 
   void _reload({bool forceRefresh = false}) {
@@ -70,6 +71,7 @@ class _AllHousesScreenState extends State<AllHousesScreen> {
           return RefreshIndicator(
             onRefresh: _refresh,
             child: ListView.separated(
+              key: PageStorageKey('all-houses-${widget.title}'),
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
               itemCount: items.length,
               separatorBuilder: (_, __) => const SizedBox(height: 12),
@@ -86,7 +88,7 @@ class _AllHousesScreenState extends State<AllHousesScreen> {
           );
         },
       ),
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
     );
   }
 }

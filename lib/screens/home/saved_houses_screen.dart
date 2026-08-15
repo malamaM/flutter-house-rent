@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/screens/details/details.dart';
 import 'package:house_rent/theme/app_colors.dart';
-import 'package:house_rent/widgets/custom_bottom_navigation_bar.dart';
 import 'package:house_rent/widgets/property_card.dart';
 import 'package:house_rent/widgets/screen_state.dart';
 
@@ -77,6 +76,7 @@ class _SavedHousesScreenState extends State<SavedHousesScreen> {
               await houses;
             },
             child: ListView.separated(
+              key: const PageStorageKey('saved-houses'),
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 112),
               itemCount: items.length,
               separatorBuilder: (_, __) => const SizedBox(height: 12),
@@ -93,8 +93,7 @@ class _SavedHousesScreenState extends State<SavedHousesScreen> {
           );
         },
       ),
-      backgroundColor: AppColors.background,
-      bottomNavigationBar: const CustomBottomNavigationBar(currentIndex: 3),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
     );
   }
 }

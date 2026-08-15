@@ -4,11 +4,14 @@ import 'package:house_rent/screens/details/details.dart';
 import 'package:house_rent/screens/home/all_houses_screen.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/property_card.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AllHomes extends StatefulWidget {
   final Map<String, String> filters;
+  final List<House>? initialHouses;
 
-  const AllHomes({Key? key, this.filters = const {}}) : super(key: key);
+  const AllHomes({Key? key, this.filters = const {}, this.initialHouses})
+      : super(key: key);
 
   @override
   State<AllHomes> createState() => _AllHomesState();
@@ -35,7 +38,40 @@ class _AllHomesState extends State<AllHomes> {
   @override
   void initState() {
     super.initState();
-    _loadFirstPage();
+    _initialize();
+  }
+
+  @override
+  void didUpdateWidget(covariant AllHomes oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialHouses != null &&
+        !identical(widget.initialHouses, oldWidget.initialHouses) &&
+        sort == 'newest') {
+      setState(() {
+        homes = widget.initialHouses!;
+        page = 1;
+        hasMore = homes.length == pageSize;
+        loadingInitial = false;
+        loadFailed = false;
+      });
+    }
+  }
+
+  Future<void> _initialize() async {
+    final prefs = await SharedPreferences.getInstance();
+    sort = prefs.getString('all_homes_sort') ?? 'newest';
+    final initial = widget.initialHouses;
+    if (initial != null && sort == 'newest') {
+      if (!mounted) return;
+      setState(() {
+        homes = initial;
+        page = 1;
+        hasMore = initial.length == pageSize;
+        loadingInitial = false;
+      });
+      return;
+    }
+    await _loadFirstPage();
   }
 
   Future<List<House>> _fetchPage(int nextPage) {
@@ -96,6 +132,8 @@ class _AllHomesState extends State<AllHomes> {
       loadingInitial = true;
       loadFailed = false;
     });
+    SharedPreferences.getInstance()
+        .then((prefs) => prefs.setString('all_homes_sort', value));
     _loadFirstPage();
   }
 
@@ -159,7 +197,10 @@ class _AllHomesState extends State<AllHomes> {
               context,
               MaterialPageRoute(
                 builder: (_) => AllHousesScreen(
-                    title: 'All rental homes', filters: baseFilters),
+                    title: widget.filters['type'] == null
+                        ? 'All rental homes'
+                        : '${widget.filters['type']} rental homes',
+                    filters: baseFilters),
               ),
             ),
             child: const Text('View all'),

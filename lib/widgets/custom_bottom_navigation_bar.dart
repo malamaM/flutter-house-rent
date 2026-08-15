@@ -1,30 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:house_rent/screens/home/explore.dart';
-import 'package:house_rent/screens/home/reels_screen.dart';
-import 'package:house_rent/screens/home/saved_houses_screen.dart';
 import 'package:house_rent/theme/app_colors.dart';
 
 class CustomBottomNavigationBar extends StatelessWidget {
   final int currentIndex;
+  final ValueChanged<int>? onSelected;
 
-  const CustomBottomNavigationBar({Key? key, this.currentIndex = 0})
-      : super(key: key);
-
-  void _open(BuildContext context, int index) {
-    if (index == currentIndex) return;
-    if (index == 0) {
-      Navigator.popUntil(context, (route) => route.isFirst);
-    } else if (index == 1) {
-      Navigator.push(
-          context, MaterialPageRoute(builder: (_) => const Explore()));
-    } else if (index == 2) {
-      Navigator.push(
-          context, MaterialPageRoute(builder: (_) => const ReelsScreen()));
-    } else {
-      Navigator.push(context,
-          MaterialPageRoute(builder: (_) => const SavedHousesScreen()));
-    }
-  }
+  const CustomBottomNavigationBar({
+    Key? key,
+    required this.currentIndex,
+    this.onSelected,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +50,7 @@ class CustomBottomNavigationBar extends StatelessWidget {
             final selected = index == currentIndex;
             return Expanded(
               child: InkWell(
-                onTap: () => _open(context, index),
+                onTap: () => onSelected?.call(index),
                 borderRadius: BorderRadius.circular(16),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 220),

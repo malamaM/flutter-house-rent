@@ -5,6 +5,7 @@ import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/screens/login/login.dart';
 import 'package:house_rent/screens/my_listings/my_listings.dart';
 import 'package:house_rent/screens/myaccount/myaccount.dart';
+import 'package:house_rent/screens/profile/verification_request_screen.dart';
 import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:http/http.dart' as http;
@@ -187,6 +188,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       MaterialPageRoute(builder: (_) => const MyAccount())),
                 ),
                 _ProfileItem(
+                  icon: Icons.verified_user_outlined,
+                  title: 'Lister verification',
+                  subtitle: 'Request a trusted identity badge',
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const VerificationRequestScreen())),
+                ),
+                _ProfileItem(
                   icon: Icons.help_outline_rounded,
                   title: 'Help and support',
                   subtitle: 'Get help using Haven',
@@ -223,7 +233,7 @@ class _ProfileItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.surface,
+      color: Theme.of(context).colorScheme.surface,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),

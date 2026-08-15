@@ -266,6 +266,9 @@ class PropertyDetailsService {
       return GalleryImageData(
         id: map['id'] is int ? map['id'] : int.tryParse('${map['id']}'),
         url: ApiConfig.storageUrl(map['image']),
+        thumbnailUrl: ApiConfig.storageUrl(map['thumbnail']).isEmpty
+            ? ApiConfig.storageUrl(map['image'])
+            : ApiConfig.storageUrl(map['thumbnail']),
         caption: map['caption'] ?? '',
         fromCache: fromCache,
       );
@@ -284,12 +287,14 @@ class PropertyDetailsService {
 class GalleryImageData {
   final int? id;
   final String url;
+  final String thumbnailUrl;
   final String caption;
   final bool fromCache;
 
   const GalleryImageData({
     this.id,
     required this.url,
+    required this.thumbnailUrl,
     required this.caption,
     this.fromCache = false,
   });

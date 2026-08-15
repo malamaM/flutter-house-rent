@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:house_rent/theme/app_colors.dart';
+import 'package:house_rent/services/premium_haptics.dart';
 
 class Categories extends StatelessWidget {
   final String? selectedType;
@@ -32,27 +33,41 @@ class Categories extends StatelessWidget {
           final item = categories[index];
           final selected = selectedType == item.type;
           return InkWell(
-            onTap: () => onSelected(item.type),
+            onTap: () {
+              if (!selected) PremiumHaptics.selection();
+              onSelected(item.type);
+            },
             borderRadius: BorderRadius.circular(16),
             child: Container(
               width: 94,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
               decoration: BoxDecoration(
-                color: selected ? AppColors.primaryLight : AppColors.surface,
+                color: selected
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.surface,
                 border: Border.all(
-                    color:
-                        selected ? AppColors.primaryLight : AppColors.divider),
+                    color: selected
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.outlineVariant),
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: selected ? null : AppColors.premiumShadow,
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(item.icon, size: 23, color: AppColors.primary),
+                  Icon(item.icon,
+                      size: 23,
+                      color: selected
+                          ? Theme.of(context).colorScheme.onPrimary
+                          : Theme.of(context).colorScheme.primary),
                   const SizedBox(height: 7),
                   Text(item.label,
-                      style: const TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w700)),
+                      style: TextStyle(
+                          color: selected
+                              ? Theme.of(context).colorScheme.onPrimary
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700)),
                 ],
               ),
             ),

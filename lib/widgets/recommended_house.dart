@@ -3,14 +3,16 @@ import 'package:house_rent/models/house.dart';
 import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/screens/details/details.dart';
 import 'package:house_rent/screens/home/all_houses_screen.dart';
-import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/property_card.dart';
 import 'package:house_rent/widgets/screen_state.dart';
 
 class RecommendedHouse extends StatefulWidget {
   final Map<String, String> filters;
+  final List<House>? initialHouses;
 
-  const RecommendedHouse({Key? key, this.filters = const {}}) : super(key: key);
+  const RecommendedHouse(
+      {Key? key, this.filters = const {}, this.initialHouses})
+      : super(key: key);
 
   @override
   State<RecommendedHouse> createState() => _RecommendedHouseState();
@@ -27,8 +29,21 @@ class _RecommendedHouseState extends State<RecommendedHouse> {
   @override
   void initState() {
     super.initState();
-    houses = House.fetchHouses(filters: recommendedFilters);
+    houses = widget.initialHouses == null
+        ? House.fetchHouses(filters: recommendedFilters)
+        : Future.value(widget.initialHouses);
     AppCache.instance.refreshes.addListener(_handleRefresh);
+  }
+
+  @override
+  void didUpdateWidget(covariant RecommendedHouse oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialHouses != null &&
+        !identical(widget.initialHouses, oldWidget.initialHouses)) {
+      setState(() {
+        houses = Future<List<House>>.value(widget.initialHouses!);
+      });
+    }
   }
 
   void _handleRefresh() {
@@ -66,7 +81,7 @@ class _RecommendedHouseState extends State<RecommendedHouse> {
         ),
         const SizedBox(height: 16),
         SizedBox(
-          height: 323,
+          height: 355,
           child: FutureBuilder<List<House>>(
             future: houses,
             builder: (context, snapshot) {
@@ -79,7 +94,7 @@ class _RecommendedHouseState extends State<RecommendedHouse> {
                   itemBuilder: (_, __) => Container(
                     width: 278,
                     decoration: BoxDecoration(
-                        color: AppColors.surface,
+                        color: Theme.of(context).colorScheme.surfaceContainer,
                         borderRadius: BorderRadius.circular(22)),
                   ),
                 );

@@ -1,98 +1,150 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:house_rent/screens/home/home.dart';
+import 'package:house_rent/screens/home/app_shell.dart';
 import 'package:house_rent/screens/login/login.dart';
 import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/theme/app_colors.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
-
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends State<SplashScreen>
+    with TickerProviderStateMixin {
+  late final AnimationController _entrance;
+  late final AnimationController _progress;
+  late final Animation<double> _fade;
+  late final Animation<Offset> _slide;
+
   @override
   void initState() {
     super.initState();
+    _entrance = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 760));
+    _progress = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1450));
+    final curve =
+        CurvedAnimation(parent: _entrance, curve: Curves.easeOutCubic);
+    _fade = CurvedAnimation(
+        parent: _entrance,
+        curve: const Interval(0, .82, curve: Curves.easeOut));
+    _slide =
+        Tween(begin: const Offset(0, .08), end: Offset.zero).animate(curve);
+    _entrance.forward();
+    unawaited(_progress.animateTo(.84, curve: Curves.easeOutCubic));
     _continue();
   }
 
   Future<void> _continue() async {
-    await Future.delayed(const Duration(milliseconds: 1300));
-    final user = await SessionService.currentUser(
-      forceRefresh: true,
-      allowExpired: true,
-    );
-    final authenticated = user != null;
+    final userFuture =
+        SessionService.currentUser(forceRefresh: true, allowExpired: true);
+    await Future.delayed(const Duration(milliseconds: 950));
+    final user = await userFuture;
+    if (!mounted) return;
+    await _progress.animateTo(1,
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeInOutCubic);
     if (!mounted) return;
     Navigator.pushReplacement(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (_, __, ___) =>
-            authenticated ? const Home() : const SignInScreen(),
-        transitionsBuilder: (_, animation, __, child) =>
-            FadeTransition(opacity: animation, child: child),
-        transitionDuration: const Duration(milliseconds: 450),
-      ),
-    );
+        context,
+        PageRouteBuilder(
+          pageBuilder: (_, __, ___) =>
+              user != null ? const AppShell() : const SignInScreen(),
+          transitionsBuilder: (_, animation, __, child) => FadeTransition(
+              opacity: CurvedAnimation(
+                  parent: animation, curve: Curves.easeOutCubic),
+              child: child),
+          transitionDuration: const Duration(milliseconds: 380),
+        ));
   }
 
   @override
   Widget build(BuildContext context) {
+    const backdrop = Color(0xFF102A24);
     return Scaffold(
-      backgroundColor: AppColors.surfaceDark,
-      body: Stack(
-        children: [
+        backgroundColor: backdrop,
+        body: Stack(children: [
           Positioned(
-            right: -90,
-            top: -80,
-            child: Container(
-              width: 280,
-              height: 280,
-              decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.primary.withValues(alpha: .35)),
-            ),
-          ),
+              right: -92,
+              top: -94,
+              child: AnimatedBuilder(
+                  animation: _entrance,
+                  builder: (_, __) => Transform.scale(
+                      scale: .88 + (_entrance.value * .12),
+                      child: Container(
+                          width: 300,
+                          height: 300,
+                          decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: RadialGradient(colors: [
+                                AppColors.primary.withValues(alpha: .48),
+                                Colors.transparent
+                              ])))))),
+          Positioned(
+              left: -130,
+              bottom: -170,
+              child: Container(
+                  width: 360,
+                  height: 360,
+                  decoration: const BoxDecoration(
+                      shape: BoxShape.circle, color: Color(0x0FF0A365)))),
           SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Spacer(),
-                  Container(
-                    width: 68,
-                    height: 68,
-                    decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20)),
-                    child: const Icon(Icons.roofing_rounded,
-                        color: AppColors.primary, size: 36),
-                  ),
-                  const SizedBox(height: 24),
-                  const Text('HAVEN',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 36,
-                          letterSpacing: 3)),
-                  const SizedBox(height: 8),
-                  const Text('Find where you belong.',
-                      style: TextStyle(color: Colors.white70, fontSize: 17)),
-                  const Spacer(),
-                  const LinearProgressIndicator(
-                    minHeight: 3,
-                    backgroundColor: Colors.white12,
-                    color: AppColors.accent,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+              child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: FadeTransition(
+                      opacity: _fade,
+                      child: SlideTransition(
+                          position: _slide,
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Spacer(),
+                                Container(
+                                    width: 70,
+                                    height: 70,
+                                    decoration: BoxDecoration(
+                                        color: const Color(0xFFF4F7F5),
+                                        borderRadius: BorderRadius.circular(22),
+                                        boxShadow: const [
+                                          BoxShadow(
+                                              color: Color(0x35000000),
+                                              blurRadius: 30,
+                                              offset: Offset(0, 12))
+                                        ]),
+                                    child: const Icon(Icons.roofing_rounded,
+                                        color: AppColors.primary, size: 37)),
+                                const SizedBox(height: 25),
+                                const Text('HAVEN',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 36,
+                                        letterSpacing: 3)),
+                                const SizedBox(height: 7),
+                                const Text('Find where you belong.',
+                                    style: TextStyle(
+                                        color: Color(0xFFB8CBC4),
+                                        fontSize: 17)),
+                                const Spacer(),
+                                AnimatedBuilder(
+                                    animation: _progress,
+                                    builder: (_, __) => ClipRRect(
+                                        borderRadius: BorderRadius.circular(99),
+                                        child: LinearProgressIndicator(
+                                            value: _progress.value,
+                                            minHeight: 4,
+                                            backgroundColor: Colors.white10,
+                                            color: const Color(0xFFF0A365)))),
+                              ]))))),
+        ]));
+  }
+
+  @override
+  void dispose() {
+    _entrance.dispose();
+    _progress.dispose();
+    super.dispose();
   }
 }

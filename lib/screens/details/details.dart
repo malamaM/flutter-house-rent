@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/services/app_data_service.dart';
+import 'package:house_rent/services/recommendation_service.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/about.dart';
 import 'package:house_rent/widgets/content_intro.dart';
@@ -32,7 +34,11 @@ class _DetailsState extends State<Details> {
   @override
   void initState() {
     super.initState();
-    if (!widget.isOwnerView) House.recordView(widget.house.id);
+    if (!widget.isOwnerView) {
+      House.recordView(widget.house.id);
+      unawaited(RecommendationService.instance
+          .track('details', widget.house.id, surface: 'details'));
+    }
   }
 
   Future<Map<String, dynamic>> _fetchOwner() async {
@@ -167,6 +173,8 @@ class _DetailsState extends State<Details> {
   }
 
   void _showContact() {
+    unawaited(RecommendationService.instance
+        .track('contact', widget.house.id, surface: 'details'));
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -227,7 +235,7 @@ class _DetailsState extends State<Details> {
   Widget build(BuildContext context) {
     final ownerName = widget.house.ownerName ?? 'Property owner';
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(child: DetailsAppBar(house: widget.house)),

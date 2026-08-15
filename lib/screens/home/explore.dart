@@ -6,7 +6,6 @@ import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/screens/details/details.dart';
 import 'package:house_rent/screens/home/filter_screen.dart';
 import 'package:house_rent/theme/app_colors.dart';
-import 'package:house_rent/widgets/custom_bottom_navigation_bar.dart';
 import 'package:house_rent/widgets/property_card.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -73,16 +72,17 @@ class _ExploreState extends State<Explore> {
     }
   }
 
-  void _preview(House house) {
-    showModalBottomSheet(
+  Future<void> _preview(House house) async {
+    final tabNavigator = Navigator.of(context);
+    await showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (context) => Container(
         padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
-        decoration: const BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -99,7 +99,7 @@ class _ExploreState extends State<Explore> {
               house: house,
               onTap: () {
                 Navigator.pop(context);
-                Navigator.push(context,
+                tabNavigator.push(
                     MaterialPageRoute(builder: (_) => Details(house: house)));
               },
             ),
@@ -111,21 +111,59 @@ class _ExploreState extends State<Explore> {
 
   @override
   Widget build(BuildContext context) {
+    final darkMap = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       extendBody: true,
       body: Stack(
         children: [
           FlutterMap(
             mapController: mapController,
-            options: MapOptions(center: LatLng(-15.3875, 28.3228), zoom: 12),
+            options: MapOptions(
+                center: LatLng(-15.3875, 28.3228), zoom: 12, maxZoom: 18),
             children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.malamachiluwe.houserent',
-              ),
+              if (darkMap)
+                ColorFiltered(
+                  colorFilter: const ColorFilter.matrix([
+                    .68,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    .68,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    .68,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1,
+                    0,
+                  ]),
+                  child: TileLayer(
+                    urlTemplate:
+                        'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                    subdomains: const ['a', 'b', 'c', 'd'],
+                    userAgentPackageName: 'com.malamachiluwe.houserent',
+                  ),
+                )
+              else
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.malamachiluwe.houserent',
+                ),
               MarkerClusterLayerWidget(
                 options: MarkerClusterLayerOptions(
                   maxClusterRadius: 45,
+                  disableClusteringAtZoom: 18,
+                  zoomToBoundsOnClick: true,
+                  spiderfyCluster: true,
+                  spiderfyCircleRadius: 48,
                   size: const Size(46, 46),
                   anchor: AnchorPos.align(AnchorAlign.center),
                   fitBoundsOptions: const FitBoundsOptions(
@@ -176,18 +214,9 @@ class _ExploreState extends State<Explore> {
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
               child: Row(
                 children: [
-                  Material(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(15),
-                    elevation: 2,
-                    child: IconButton(
-                        onPressed: () => Navigator.maybePop(context),
-                        icon: const Icon(Icons.arrow_back_rounded)),
-                  ),
-                  const SizedBox(width: 10),
                   Expanded(
                     child: Material(
-                      color: AppColors.surface,
+                      color: Theme.of(context).colorScheme.surface,
                       borderRadius: BorderRadius.circular(15),
                       elevation: 2,
                       child: InkWell(
@@ -200,10 +229,12 @@ class _ExploreState extends State<Explore> {
                             children: [
                               const Icon(Icons.search_rounded, size: 21),
                               const SizedBox(width: 10),
-                              const Expanded(
+                              Expanded(
                                   child: Text('Search this area',
                                       style: TextStyle(
-                                          color: AppColors.textSecondary))),
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant))),
                               const Icon(Icons.tune_rounded,
                                   color: AppColors.primary, size: 20),
                               if (filters.isNotEmpty) ...[
@@ -251,9 +282,31 @@ class _ExploreState extends State<Explore> {
               ),
             ),
           ),
+          Positioned(
+            right: 12,
+            bottom: 100,
+            child: IgnorePointer(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .surface
+                      .withValues(alpha: .84),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  darkMap ? '© OpenStreetMap © CARTO' : '© OpenStreetMap',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 8,
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
-      bottomNavigationBar: const CustomBottomNavigationBar(currentIndex: 1),
     );
   }
 }

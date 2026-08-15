@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:house_rent/screens/myaccount/changepassword/change_password.dart';
 import 'package:house_rent/screens/myaccount/update/update_profile.dart';
 import 'package:house_rent/theme/app_colors.dart';
+import 'package:house_rent/theme/theme_controller.dart';
 
 class MyAccount extends StatelessWidget {
   const MyAccount({Key? key}) : super(key: key);
@@ -40,6 +41,20 @@ class MyAccount extends StatelessWidget {
             subtitle: 'Name, email, phone and profile photo',
             onTap: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const EditProfileScreen())),
+          ),
+          Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: ListenableBuilder(
+              listenable: ThemeController.instance,
+              builder: (context, _) => SwitchListTile(
+                secondary: const Icon(Icons.dark_mode_outlined),
+                title: const Text('Dark mode',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: const Text('Use Haven’s calm evening appearance'),
+                value: ThemeController.instance.isDark,
+                onChanged: ThemeController.instance.setDark,
+              ),
+            ),
           ),
           _AccountItem(
             icon: Icons.lock_outline_rounded,
@@ -82,7 +97,7 @@ class _AccountItem extends StatelessWidget {
           height: 40,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-              color: AppColors.surfaceContainer,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12)),
           child: Icon(icon, color: AppColors.primary, size: 20),
         ),

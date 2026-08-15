@@ -4,6 +4,7 @@ import 'package:house_rent/models/house.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/demand_badge.dart';
 import 'package:house_rent/widgets/lister_trust_badges.dart';
+import 'package:house_rent/services/premium_haptics.dart';
 
 String formatPropertyPrice(House house) {
   final value = house.priceRental;
@@ -43,10 +44,15 @@ class _PropertyCardState extends State<PropertyCard> {
 
   Future<void> _toggleSave() async {
     if (_saving) return;
-    setState(() => _saving = true);
+    final previous = widget.house.isSaved;
+    setState(() {
+      _saving = true;
+      widget.house.isSaved = !previous;
+    });
+    PremiumHaptics.action();
     final saved = await House.toggleSaveHouse(
       widget.house.id,
-      currentlySaved: widget.house.isSaved,
+      currentlySaved: previous,
     );
     if (!mounted) return;
     setState(() {
@@ -57,13 +63,17 @@ class _PropertyCardState extends State<PropertyCard> {
 
   Widget _image(
       {required double width, required double height, BorderRadius? radius}) {
+    final logicalWidth = width.isFinite && width > 0 ? width : 278.0;
+    final pixelWidth =
+        (logicalWidth * MediaQuery.devicePixelRatioOf(context)).round();
     return ClipRRect(
       borderRadius: radius ?? BorderRadius.zero,
       child: Stack(
         fit: StackFit.expand,
         children: [
           CachedNetworkImage(
-            imageUrl: widget.house.imageUrl,
+            imageUrl: widget.house.thumbnailUrl,
+            memCacheWidth: pixelWidth.clamp(320, 1200),
             fit: BoxFit.cover,
             fadeInDuration: const Duration(milliseconds: 180),
             placeholder: (_, __) => Container(
@@ -137,7 +147,7 @@ class _PropertyCardState extends State<PropertyCard> {
         child: Container(
           width: 278,
           decoration: BoxDecoration(
-            color: AppColors.glassSurface,
+            color: Theme.of(context).colorScheme.surface,
             border: Border.all(color: AppColors.glassBorder, width: .8),
             borderRadius: BorderRadius.circular(22),
             boxShadow: AppColors.premiumShadow,
@@ -149,7 +159,7 @@ class _PropertyCardState extends State<PropertyCard> {
                 height: 176,
                 width: double.infinity,
                 child: _image(
-                  width: double.infinity,
+                  width: 278,
                   height: 176,
                   radius: const BorderRadius.vertical(top: Radius.circular(21)),
                 ),
@@ -175,7 +185,7 @@ class _PropertyCardState extends State<PropertyCard> {
         child: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: AppColors.glassSurface,
+            color: Theme.of(context).colorScheme.surface,
             border: Border.all(color: AppColors.glassBorder, width: .8),
             borderRadius: BorderRadius.circular(18),
             boxShadow: AppColors.premiumShadow,
@@ -238,7 +248,7 @@ class _PropertyCopy extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: AppColors.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
             fontSize: compact ? 15 : 17,
             fontWeight: FontWeight.w700,
             letterSpacing: -.2,
@@ -255,16 +265,18 @@ class _PropertyCopy extends StatelessWidget {
         const SizedBox(height: 6),
         Row(
           children: [
-            const Icon(Icons.location_on_outlined,
-                size: 15, color: AppColors.textSecondary),
+            Icon(Icons.location_on_outlined,
+                size: 15,
+                color: Theme.of(context).colorScheme.onSurfaceVariant),
             const SizedBox(width: 4),
             Expanded(
               child: Text(
                 house.address,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    color: AppColors.textSecondary, fontSize: 12),
+                style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 12),
               ),
             ),
           ],
@@ -309,11 +321,13 @@ class _MiniFact extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 15, color: AppColors.textSecondary),
+        Icon(icon,
+            size: 15, color: Theme.of(context).colorScheme.onSurfaceVariant),
         const SizedBox(width: 4),
         Text(value,
-            style:
-                const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+            style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 12)),
       ],
     );
   }
