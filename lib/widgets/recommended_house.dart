@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
+import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/screens/details/details.dart';
 import 'package:house_rent/screens/home/all_houses_screen.dart';
 import 'package:house_rent/theme/app_colors.dart';
@@ -20,6 +21,22 @@ class _RecommendedHouseState extends State<RecommendedHouse> {
   void initState() {
     super.initState();
     houses = House.fetchHouses();
+    AppCache.instance.refreshes.addListener(_handleRefresh);
+  }
+
+  void _handleRefresh() {
+    if (AppCache.instance.refreshes.value?.resource == 'houses' && mounted) {
+      final refreshedHouses = House.fetchHouses();
+      setState(() {
+        houses = refreshedHouses;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    AppCache.instance.refreshes.removeListener(_handleRefresh);
+    super.dispose();
   }
 
   @override

@@ -1,9 +1,8 @@
-import 'dart:convert';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:house_rent/screens/profile/profile.dart';
+import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/theme/app_colors.dart';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   const CustomAppBar({Key? key}) : super(key: key);
@@ -81,21 +80,11 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
 
   Future<void> _fetchProfileImage() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('access_token');
-      if (token == null) return;
-      final response = await http.get(
-        Uri.parse('http://localhost:8000/api/check-login-status'),
-        headers: {'Authorization': 'Bearer $token'},
-      );
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final user = data['user'];
-        final picture = user == null ? null : user['profile_picture'];
-        if (picture != null && mounted) {
-          setState(() => profileImageUrl =
-              'http://localhost:8000/storage/${picture.toString().replaceAll("\\", "")}');
-        }
+      final user = await SessionService.currentUser();
+      final picture = user?['profile_picture'];
+      if (picture != null && mounted) {
+        setState(() => profileImageUrl =
+            'http://localhost:8000/storage/${picture.toString().replaceAll("\\", "")}');
       }
     } catch (_) {}
   }
@@ -105,8 +94,9 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
     return CircleAvatar(
       radius: 19,
       backgroundColor: AppColors.primaryLight,
-      backgroundImage:
-          profileImageUrl == null ? null : NetworkImage(profileImageUrl!),
+      backgroundImage: profileImageUrl == null
+          ? null
+          : CachedNetworkImageProvider(profileImageUrl!),
       child: profileImageUrl == null
           ? const Icon(Icons.person_outline_rounded,
               color: AppColors.primary, size: 21)

@@ -20,7 +20,8 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
   @override
   void initState() {
     super.initState();
-    _selectedLocation = widget.initialLocation ?? LatLng(-15.3875, 28.3228); // Default to Lusaka
+    _selectedLocation = widget.initialLocation ??
+        LatLng(-15.3875, 28.3228); // Default to Lusaka
   }
 
   Future<void> _getCurrentLocation() async {
@@ -47,10 +48,12 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
       }
 
       if (permission == LocationPermission.deniedForever) {
-        throw Exception('Location permissions are permanently denied, we cannot request permissions.');
+        throw Exception(
+            'Location permissions are permanently denied, we cannot request permissions.');
       }
 
-      final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      final position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
       final newLocation = LatLng(position.latitude, position.longitude);
 
       setState(() {
@@ -59,7 +62,8 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
       _mapController.move(newLocation, 15.0);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.toString())));
       }
     } finally {
       if (mounted) {
@@ -83,7 +87,8 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
             onPressed: () {
               Navigator.of(context).pop(_selectedLocation);
             },
-            child: const Text('Confirm', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            child: const Text('Confirm',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           ),
         ],
       ),
@@ -102,7 +107,8 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=YOUR_MAPBOX_TOKEN_HERE',
+                urlTemplate:
+                    'https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=YOUR_MAPBOX_TOKEN_HERE',
                 userAgentPackageName: 'com.malamachiluwe.houserent',
                 fallbackUrl: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
               ),
@@ -130,7 +136,11 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
               onPressed: _isLoadingLocation ? null : _getCurrentLocation,
               backgroundColor: Colors.blue,
               child: _isLoadingLocation
-                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2))
                   : const Icon(Icons.my_location),
             ),
           ),

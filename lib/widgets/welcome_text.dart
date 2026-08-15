@@ -1,8 +1,6 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/theme/app_colors.dart';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 class WelcomeText extends StatefulWidget {
   const WelcomeText({Key? key}) : super(key: key);
@@ -22,19 +20,8 @@ class _WelcomeTextState extends State<WelcomeText> {
 
   Future<void> _loadName() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('access_token');
-      if (token == null) return;
-      final response = await http.get(
-        Uri.parse('http://localhost:8000/api/check-login-status'),
-        headers: {'Authorization': 'Bearer $token'},
-      );
-      dynamic value;
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final user = data['user'];
-        value = user == null ? null : user['first_name'];
-      }
+      final user = await SessionService.currentUser();
+      final value = user?['first_name'];
       if (value != null && mounted) setState(() => firstName = value);
     } catch (_) {}
   }

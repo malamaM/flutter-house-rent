@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:house_rent/models/house.dart';
+import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/screens/details/details.dart';
 import 'package:house_rent/screens/home/filter_screen.dart';
 import 'package:house_rent/theme/app_colors.dart';
@@ -25,11 +26,24 @@ class _ExploreState extends State<Explore> {
   @override
   void initState() {
     super.initState();
+    AppCache.instance.refreshes.addListener(_handleCacheRefresh);
     _fetch();
   }
 
-  Future<void> _fetch() async {
-    setState(() => loading = true);
+  void _handleCacheRefresh() {
+    if (AppCache.instance.refreshes.value?.resource == 'houses' && mounted) {
+      _fetch(showLoading: false);
+    }
+  }
+
+  @override
+  void dispose() {
+    AppCache.instance.refreshes.removeListener(_handleCacheRefresh);
+    super.dispose();
+  }
+
+  Future<void> _fetch({bool showLoading = true}) async {
+    if (showLoading) setState(() => loading = true);
     try {
       final result = await House.fetchHouses(filters: filters);
       if (!mounted) return;

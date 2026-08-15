@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/theme/app_colors.dart';
@@ -24,7 +25,10 @@ class _DetailsAppBarState extends State<DetailsAppBar> {
   Future<void> _save() async {
     if (loading) return;
     setState(() => loading = true);
-    final result = await House.toggleSaveHouse(widget.house.id);
+    final result = await House.toggleSaveHouse(
+      widget.house.id,
+      currentlySaved: saved,
+    );
     if (!mounted) return;
     setState(() {
       saved = result;
@@ -43,10 +47,12 @@ class _DetailsAppBarState extends State<DetailsAppBar> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image.network(
-            widget.house.imageUrl,
+          CachedNetworkImage(
+            imageUrl: widget.house.imageUrl,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(
+            placeholder: (_, __) =>
+                Container(color: AppColors.surfaceContainer),
+            errorWidget: (_, __, ___) => Container(
               color: AppColors.surfaceContainer,
               child: const Icon(Icons.home_work_outlined,
                   color: AppColors.textSecondary, size: 54),
@@ -91,7 +97,7 @@ class _DetailsAppBarState extends State<DetailsAppBar> {
                   color: AppColors.surfaceDark.withOpacity(.88),
                   borderRadius: BorderRadius.circular(20)),
               child: Text(
-                widget.house.status ?? widget.house.type ?? 'Available',
+                widget.house.listingStatusLabel,
                 style: const TextStyle(
                     color: Colors.white,
                     fontSize: 11,

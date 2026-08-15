@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:house_rent/screens/home/home.dart';
+import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -41,6 +42,7 @@ class _SignInScreenState extends State<SignInScreen> {
         final token = jsonDecode(response.body)['access_token'];
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('access_token', token);
+        await SessionService.currentUser(forceRefresh: true);
         if (mounted)
           Navigator.pushReplacement(
               context, MaterialPageRoute(builder: (_) => const Home()));

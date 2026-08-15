@@ -1,9 +1,10 @@
-import 'dart:convert';
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:house_rent/screens/login/login.dart';
 import 'package:house_rent/screens/my_listings/my_listings.dart';
 import 'package:house_rent/screens/myaccount/myaccount.dart';
+import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
@@ -30,18 +31,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadProfile() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('access_token');
-      if (token == null) return;
-      final response = await http.get(
-        Uri.parse('http://localhost:8000/api/check-login-status'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json'
-        },
-      );
-      if (response.statusCode == 200) {
-        final user = json.decode(response.body)['user'];
+      final user = await SessionService.currentUser();
+      if (user != null) {
         final picture = user['profile_picture'];
         if (mounted) {
           setState(() {
@@ -74,6 +65,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'profile_picture', File(image.path).path));
     final response = await request.send();
     if (response.statusCode == 200) {
+      await SessionService.currentUser(forceRefresh: true);
       await _loadProfile();
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
@@ -95,6 +87,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ).timeout(const Duration(seconds: 5));
       } catch (_) {}
     }
+    await SessionService.clear();
     await prefs.remove('access_token');
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(context,
@@ -125,7 +118,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             backgroundColor: AppColors.primaryLight,
                             backgroundImage: imageUrl == null
                                 ? null
-                                : NetworkImage(imageUrl!),
+                                : CachedNetworkImageProvider(imageUrl!),
                             child: imageUrl == null
                                 ? const Icon(Icons.person_rounded,
                                     color: AppColors.primary, size: 36)

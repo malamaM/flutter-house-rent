@@ -4,7 +4,8 @@ import 'package:house_rent/screens/login/login.dart';
 import 'package:house_rent/theme/app_theme.dart';
 
 void main() {
-  testWidgets('sign-in screen presents the core account actions', (tester) async {
+  testWidgets('sign-in screen presents the core account actions',
+      (tester) async {
     await tester.pumpWidget(
       MaterialApp(theme: AppTheme.lightTheme, home: const SignInScreen()),
     );

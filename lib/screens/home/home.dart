@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:house_rent/models/house.dart';
 import 'package:house_rent/screens/home/explore.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/best_offer.dart';
+import 'package:house_rent/widgets/cache_status_banner.dart';
 import 'package:house_rent/widgets/categories.dart';
 import 'package:house_rent/widgets/custom_app_bar.dart';
 import 'package:house_rent/widgets/custom_bottom_navigation_bar.dart';
@@ -19,8 +21,9 @@ class Home extends StatelessWidget {
       appBar: const CustomAppBar(),
       extendBody: true,
       body: RefreshIndicator(
-        onRefresh: () async => Navigator.pushReplacement(
-            context, MaterialPageRoute(builder: (_) => const Home())),
+        onRefresh: () async {
+          await House.fetchHouses(forceRefresh: true);
+        },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.only(bottom: 112),
@@ -28,6 +31,7 @@ class Home extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const WelcomeText(),
+              const CacheStatusBanner(resource: 'houses'),
               SearchInput(
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const Explore()))),

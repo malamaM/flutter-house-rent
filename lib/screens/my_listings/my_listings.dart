@@ -23,7 +23,8 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
     _reload();
   }
 
-  void _reload() => listings = House.fetchMyHouses();
+  void _reload({bool forceRefresh = false}) =>
+      listings = House.fetchMyHouses(forceRefresh: forceRefresh);
 
   Future<void> _create() async {
     final created = await Navigator.push(context,
@@ -79,7 +80,7 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
           }
           return RefreshIndicator(
             onRefresh: () async {
-              setState(_reload);
+              setState(() => _reload(forceRefresh: true));
               await listings;
             },
             child: ListView.separated(

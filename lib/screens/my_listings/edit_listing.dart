@@ -1,9 +1,12 @@
 import 'dart:io';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:house_rent/models/house.dart';
+import 'package:house_rent/services/app_data_service.dart';
+import 'package:house_rent/theme/app_colors.dart';
+import 'package:house_rent/widgets/listing_form_components.dart';
+import 'package:image_picker/image_picker.dart';
 
 class EditListingScreen extends StatefulWidget {
   final House house;
@@ -11,429 +14,484 @@ class EditListingScreen extends StatefulWidget {
   const EditListingScreen({Key? key, required this.house}) : super(key: key);
 
   @override
-  _EditListingScreenState createState() => _EditListingScreenState();
+  State<EditListingScreen> createState() => _EditListingScreenState();
 }
 
 class _EditListingScreenState extends State<EditListingScreen> {
-  final _formKey = GlobalKey<FormState>();
+  final formKey = GlobalKey<FormState>();
+  final picker = ImagePicker();
 
-  late TextEditingController _titleController;
-  late TextEditingController _addressController; // city
-  late TextEditingController _descriptionController;
-  late TextEditingController _bedroomsController;
-  late TextEditingController _bathroomsController;
-  late TextEditingController _sizeController;
-  late TextEditingController _statusController;
-  late TextEditingController _countryController;
-  late TextEditingController _provinceController;
-  late TextEditingController _districtController;
-  late TextEditingController _houseNumberController;
-  late TextEditingController _typeController;
-  late TextEditingController _priceRentalController;
-  late TextEditingController _pricePurchaseController;
-  late TextEditingController _gymController;
-  late TextEditingController _swimmingPoolController;
-  late TextEditingController _garageController;
-  late TextEditingController _carGarageController;
+  late final TextEditingController title;
+  late final TextEditingController city;
+  late final TextEditingController description;
+  late final TextEditingController bedrooms;
+  late final TextEditingController bathrooms;
+  late final TextEditingController size;
+  late final TextEditingController country;
+  late final TextEditingController province;
+  late final TextEditingController district;
+  late final TextEditingController houseNumber;
+  late final TextEditingController rentalPrice;
+  late final TextEditingController purchasePrice;
+  late final TextEditingController parking;
 
-  File? _newCoverImage;
-  List<File> _newGalleryImages = [];
-  final ImagePicker _picker = ImagePicker();
-
-  List<Map<String, dynamic>> _existingGalleryImages = [];
-  List<int> _deletedImageIds = [];
-  bool _isLoadingImages = true;
-
-  bool _isLoading = false;
+  late String propertyType;
+  late String listingStatus;
+  late bool gym;
+  late bool pool;
+  late bool garage;
+  File? newCoverImage;
+  final List<File> newGalleryImages = [];
+  final List<Map<String, dynamic>> existingGalleryImages = [];
+  final List<int> deletedImageIds = [];
+  bool loadingImages = true;
+  bool saving = false;
 
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(text: widget.house.name);
-    _addressController = TextEditingController(text: widget.house.address); // city
-    _descriptionController = TextEditingController(text: widget.house.description ?? '');
-    _bedroomsController = TextEditingController(text: widget.house.bedrooms.toString());
-    _bathroomsController = TextEditingController(text: widget.house.bathrooms.toString());
-    _sizeController = TextEditingController(text: widget.house.size.toString());
-    _statusController = TextEditingController(text: widget.house.status ?? '');
-    _countryController = TextEditingController(text: widget.house.country ?? '');
-    _provinceController = TextEditingController(text: widget.house.province ?? '');
-    _districtController = TextEditingController(text: widget.house.district ?? '');
-    _houseNumberController = TextEditingController(text: widget.house.houseNumber ?? '');
-    _typeController = TextEditingController(text: widget.house.type ?? '');
-    _priceRentalController = TextEditingController(text: widget.house.priceRental.toString());
-    _pricePurchaseController = TextEditingController(text: widget.house.pricePurchase.toString());
-    _gymController = TextEditingController(text: widget.house.gym.toString());
-    _swimmingPoolController = TextEditingController(text: widget.house.swimmingPool.toString());
-    _garageController = TextEditingController(text: widget.house.garage.toString());
-    _carGarageController = TextEditingController(text: widget.house.carGarage.toString());
-    _fetchExistingGallery();
+    final house = widget.house;
+    title = TextEditingController(text: house.name);
+    city = TextEditingController(text: house.address);
+    description = TextEditingController(text: house.description ?? '');
+    bedrooms = TextEditingController(text: house.bedrooms.toString());
+    bathrooms = TextEditingController(text: house.bathrooms.toString());
+    size = TextEditingController(text: house.size.toString());
+    country = TextEditingController(text: house.country ?? '');
+    province = TextEditingController(text: house.province ?? '');
+    district = TextEditingController(text: house.district ?? '');
+    houseNumber = TextEditingController(text: house.houseNumber ?? '');
+    rentalPrice = TextEditingController(text: house.priceRental.toString());
+    purchasePrice = TextEditingController(text: house.pricePurchase.toString());
+    parking = TextEditingController(text: house.carGarage.toString());
+    propertyType = _option(
+        house.type, const ['House', 'Apartment', 'Townhouse', 'Land'], 'House');
+    listingStatus =
+        _option(house.status, const ['For Rent', 'For Sale'], 'For Rent');
+    gym = house.gym == 1;
+    pool = house.swimmingPool == 1;
+    garage = house.garage == 1;
+    _fetchGallery();
   }
 
-  Future<void> _fetchExistingGallery() async {
-    final url = Uri.parse('http://127.0.0.1:8000/api/houses/images');
+  String _option(String? value, List<String> values, String fallback) {
+    return values.contains(value) ? value! : fallback;
+  }
+
+  Future<void> _fetchGallery() async {
     try {
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
-        body: json.encode({'house_id': widget.house.id}),
-      );
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['images'] != null && data['images'] is List) {
-          setState(() {
-            _existingGalleryImages = List<Map<String, dynamic>>.from(data['images']);
-            _isLoadingImages = false;
-          });
-          return;
-        }
-      } else if (response.statusCode == 418) {
-        // 418 means no images found
-        setState(() {
-          _isLoadingImages = false;
-        });
-        return;
-      }
-    } catch (e) {
-      print('Error fetching images: $e');
+      final images = await PropertyDetailsService.gallery(widget.house.id);
+      if (!mounted) return;
+      setState(() {
+        existingGalleryImages
+            .addAll(images.map((image) => {'id': image.id, 'url': image.url}));
+        loadingImages = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => loadingImages = false);
     }
-    setState(() {
-      _isLoadingImages = false;
-    });
   }
 
   @override
   void dispose() {
-    _titleController.dispose();
-    _addressController.dispose();
-    _descriptionController.dispose();
-    _bedroomsController.dispose();
-    _bathroomsController.dispose();
-    _sizeController.dispose();
-    _statusController.dispose();
-    _countryController.dispose();
-    _provinceController.dispose();
-    _districtController.dispose();
-    _houseNumberController.dispose();
-    _typeController.dispose();
-    _priceRentalController.dispose();
-    _pricePurchaseController.dispose();
-    _gymController.dispose();
-    _swimmingPoolController.dispose();
-    _garageController.dispose();
-    _carGarageController.dispose();
+    for (final controller in [
+      title,
+      city,
+      description,
+      bedrooms,
+      bathrooms,
+      size,
+      country,
+      province,
+      district,
+      houseNumber,
+      rentalPrice,
+      purchasePrice,
+      parking
+    ]) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
-  Future<void> _pickCoverImage() async {
-    final pickedFile = await _picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 50,
-      maxWidth: 1200,
-      maxHeight: 1200,
-    );
-    if (pickedFile != null) {
-      setState(() {
-        _newCoverImage = File(pickedFile.path);
-      });
-    }
-  }
-
-  Future<void> _pickGalleryImages() async {
-    final pickedFiles = await _picker.pickMultiImage(
-      imageQuality: 50,
-      maxWidth: 1200,
-      maxHeight: 1200,
-    );
-    if (pickedFiles.isNotEmpty) {
-      setState(() {
-        _newGalleryImages.addAll(pickedFiles.map((e) => File(e.path)).toList());
-      });
-    }
-  }
-
-  Future<void> _submitForm() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    final updateData = {
-      'title': _titleController.text,
-      'city': _addressController.text,
-      'description': _descriptionController.text,
-      'bedrooms': int.tryParse(_bedroomsController.text) ?? widget.house.bedrooms,
-      'bathrooms': int.tryParse(_bathroomsController.text) ?? widget.house.bathrooms,
-      'size': int.tryParse(_sizeController.text) ?? widget.house.size,
-      'status': _statusController.text,
-      'country': _countryController.text,
-      'province': _provinceController.text,
-      'district': _districtController.text,
-      'house_number': _houseNumberController.text,
-      'type': _typeController.text,
-      'price_rental': int.tryParse(_priceRentalController.text) ?? widget.house.priceRental,
-      'price_purchase': int.tryParse(_pricePurchaseController.text) ?? widget.house.pricePurchase,
-      'gym': int.tryParse(_gymController.text) ?? widget.house.gym,
-      'swimming_pool': int.tryParse(_swimmingPoolController.text) ?? widget.house.swimmingPool,
-      'garage': int.tryParse(_garageController.text) ?? widget.house.garage,
-      'car_garage': int.tryParse(_carGarageController.text) ?? widget.house.carGarage,
-    };
-
-    final success = await House.updateHouse(
-      widget.house.id, 
-      updateData,
-      coverImagePath: _newCoverImage?.path,
-      galleryImagePaths: _newGalleryImages.isNotEmpty ? _newGalleryImages.map((f) => f.path).toList() : null,
-      deletedImageIds: _deletedImageIds,
-    );
-
-    setState(() {
-      _isLoading = false;
-    });
-
-    if (success) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Listing updated successfully!')),
-        );
-        Navigator.pop(context, true); // Return true to indicate success
+  Future<void> _pickCover() async {
+    try {
+      final image = await picker.pickImage(
+          source: ImageSource.gallery, imageQuality: 78, maxWidth: 1800);
+      if (image != null && mounted) {
+        setState(() => newCoverImage = File(image.path));
       }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to update listing')),
-        );
-      }
+    } catch (_) {
+      _message(
+          'Haven could not open your photo library. Check photo permissions.');
     }
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, {bool isNumber = false, int maxLines = 1}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
-      child: TextFormField(
-        controller: controller,
-        decoration: InputDecoration(
-          labelText: label,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-        keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-        maxLines: maxLines,
-        validator: (value) {
-          if (value == null || value.isEmpty) {
-            return 'Please enter $label';
+  Future<void> _pickGallery() async {
+    try {
+      final images =
+          await picker.pickMultiImage(imageQuality: 75, maxWidth: 1800);
+      if (images.isNotEmpty && mounted) {
+        setState(() {
+          newGalleryImages.addAll(images.map((image) => File(image.path)));
+          final available = (12 - existingGalleryImages.length).clamp(0, 12);
+          if (newGalleryImages.length > available) {
+            newGalleryImages.removeRange(available, newGalleryImages.length);
           }
-          return null;
-        },
-      ),
+        });
+      }
+    } catch (_) {
+      _message(
+          'Haven could not open your photo library. Check photo permissions.');
+    }
+  }
+
+  Future<void> _save() async {
+    FocusScope.of(context).unfocus();
+    if (!formKey.currentState!.validate()) return;
+    setState(() => saving = true);
+    final data = <String, dynamic>{
+      'title': title.text.trim(),
+      'city': city.text.trim(),
+      'address': city.text.trim(),
+      'description': description.text.trim(),
+      'bedrooms': int.tryParse(bedrooms.text) ?? widget.house.bedrooms,
+      'bathrooms': int.tryParse(bathrooms.text) ?? widget.house.bathrooms,
+      'size': int.tryParse(size.text) ?? widget.house.size,
+      'status': listingStatus,
+      'country': country.text.trim(),
+      'province': province.text.trim(),
+      'district': district.text.trim(),
+      'house_number': houseNumber.text.trim(),
+      'type': propertyType,
+      'price_rental': listingStatus == 'For Rent'
+          ? int.tryParse(rentalPrice.text) ?? widget.house.priceRental
+          : 0,
+      'price_purchase': listingStatus == 'For Sale'
+          ? int.tryParse(purchasePrice.text) ?? widget.house.pricePurchase
+          : 0,
+      'gym': gym ? 1 : 0,
+      'swimming_pool': pool ? 1 : 0,
+      'garage': garage ? 1 : 0,
+      'car_garage': int.tryParse(parking.text) ?? widget.house.carGarage,
+    };
+    final success = await House.updateHouse(
+      widget.house.id,
+      data,
+      coverImagePath: newCoverImage?.path,
+      galleryImagePaths: newGalleryImages.isEmpty
+          ? null
+          : newGalleryImages.map((image) => image.path).toList(),
+      deletedImageIds: deletedImageIds,
     );
+    if (!mounted) return;
+    setState(() => saving = false);
+    if (success) {
+      _message('Your listing changes are live.');
+      Navigator.pop(context, true);
+    } else {
+      _message('The listing could not be updated. Please try again.');
+    }
+  }
+
+  void _message(String value) {
+    if (mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(value)));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Edit Listing'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Edit Listing'),
+            Text('Keep every detail accurate and inviting',
+                style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w400)),
+          ],
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            children: [
-              _buildTextField(_titleController, 'Title'),
-              _buildTextField(_descriptionController, 'Description', maxLines: 3),
-              _buildTextField(_typeController, 'Type (e.g., House, Apartment)'),
-              _buildTextField(_statusController, 'Status (e.g., For Sale, For Rent)'),
-              
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8.0),
-                child: Text('Location Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              ),
-              _buildTextField(_countryController, 'Country'),
-              _buildTextField(_provinceController, 'Province/State'),
-              _buildTextField(_districtController, 'District'),
-              _buildTextField(_addressController, 'City'),
-              _buildTextField(_houseNumberController, 'House/Street Number'),
-              
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8.0),
-                child: Text('Pricing & Dimensions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              ),
-              Row(
-                children: [
-                  Expanded(child: _buildTextField(_priceRentalController, 'Rental Price', isNumber: true)),
-                  const SizedBox(width: 16),
-                  Expanded(child: _buildTextField(_pricePurchaseController, 'Purchase Price', isNumber: true)),
-                ],
-              ),
-              Row(
-                children: [
-                  Expanded(child: _buildTextField(_bedroomsController, 'Bedrooms', isNumber: true)),
-                  const SizedBox(width: 16),
-                  Expanded(child: _buildTextField(_bathroomsController, 'Bathrooms', isNumber: true)),
-                ],
-              ),
-              _buildTextField(_sizeController, 'Size (sq ft)', isNumber: true),
-
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8.0),
-                child: Text('Amenities', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              ),
-              Row(
-                children: [
-                  Expanded(child: _buildTextField(_gymController, 'Gym (0/1)', isNumber: true)),
-                  const SizedBox(width: 16),
-                  Expanded(child: _buildTextField(_swimmingPoolController, 'Pool (0/1)', isNumber: true)),
-                ],
-              ),
-              Row(
-                children: [
-                  Expanded(child: _buildTextField(_garageController, 'Garage', isNumber: true)),
-                  const SizedBox(width: 16),
-                  Expanded(child: _buildTextField(_carGarageController, 'Car Garage', isNumber: true)),
-                ],
-              ),
-
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8.0),
-                child: Text('Images', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              ),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  children: [
-                    const Text('Cover Image', style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    if (_newCoverImage != null)
-                      Image.file(_newCoverImage!, height: 150, width: double.infinity, fit: BoxFit.cover)
-                    else
-                      Image.network(widget.house.imageUrl, height: 150, width: double.infinity, fit: BoxFit.cover, errorBuilder: (c, e, s) => Container(height: 150, color: Colors.grey[200], child: const Center(child: Icon(Icons.broken_image)))),
-                    const SizedBox(height: 8),
-                    ElevatedButton.icon(
-                      onPressed: _pickCoverImage,
-                      icon: const Icon(Icons.image),
-                      label: const Text('Change Cover Image'),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.blue),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Gallery Images', style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 16),
-                    if (_isLoadingImages)
-                      const Center(child: CircularProgressIndicator())
-                    else ...[
-                      if (_existingGalleryImages.isEmpty && _newGalleryImages.isEmpty)
-                        const Text('No gallery images.', style: TextStyle(color: Colors.grey)),
-                      
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          // Existing images
-                          ..._existingGalleryImages.map((img) {
-                            return Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.network('http://127.0.0.1:8000/storage/${img['image']}', width: 80, height: 80, fit: BoxFit.cover, errorBuilder: (c,e,s) => Container(width: 80, height: 80, color: Colors.grey[300])),
-                                ),
-                                Positioned(
-                                  top: -12,
-                                  right: -12,
-                                  child: IconButton(
-                                    icon: const Icon(Icons.cancel, color: Colors.red),
-                                    onPressed: () {
-                                      setState(() {
-                                        _deletedImageIds.add(img['id']);
-                                        _existingGalleryImages.remove(img);
-                                      });
-                                    },
-                                  ),
-                                ),
-                              ],
-                            );
-                          }).toList(),
-                          
-                          // New images
-                          ..._newGalleryImages.map((file) {
-                            return Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.file(file, width: 80, height: 80, fit: BoxFit.cover),
-                                ),
-                                Positioned(
-                                  top: -12,
-                                  right: -12,
-                                  child: IconButton(
-                                    icon: const Icon(Icons.cancel, color: Colors.red),
-                                    onPressed: () {
-                                      setState(() {
-                                        _newGalleryImages.remove(file);
-                                      });
-                                    },
-                                  ),
-                                ),
-                              ],
-                            );
-                          }).toList(),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Center(
-                        child: ElevatedButton.icon(
-                          onPressed: _pickGalleryImages,
-                          icon: const Icon(Icons.add_photo_alternate),
-                          label: const Text('Add Gallery Images'),
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.blue),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: _isLoading ? null : _submitForm,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                child: _isLoading
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('Save Changes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              ),
-            ],
+      body: Form(
+        key: formKey,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
+          children: [
+            const ListingSectionHeader(
+                eyebrow: 'Property details',
+                title: 'Refine your listing',
+                description:
+                    'Fresh details and strong photos help renters and buyers decide with confidence.'),
+            const SizedBox(height: 26),
+            ListingTextField(
+                controller: title, label: 'Listing title', requiredField: true),
+            ListingTextField(
+                controller: description,
+                label: 'Description',
+                requiredField: true,
+                maxLines: 5),
+            ListingChoice(
+                label: 'Property type',
+                options: const ['House', 'Apartment', 'Townhouse', 'Land'],
+                selected: propertyType,
+                onChanged: (value) => setState(() => propertyType = value)),
+            ListingChoice(
+                label: 'Available for',
+                options: const ['For Rent', 'For Sale'],
+                selected: listingStatus,
+                onChanged: (value) => setState(() => listingStatus = value)),
+            _section('Price & features', 'Set expectations clearly'),
+            if (listingStatus == 'For Rent')
+              ListingTextField(
+                  controller: rentalPrice,
+                  label: 'Monthly rent',
+                  suffix: 'ZMW',
+                  numeric: true,
+                  requiredField: true)
+            else
+              ListingTextField(
+                  controller: purchasePrice,
+                  label: 'Purchase price',
+                  suffix: 'ZMW',
+                  numeric: true,
+                  requiredField: true),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Expanded(
+                  child: ListingTextField(
+                      controller: bedrooms,
+                      label: 'Bedrooms',
+                      numeric: true,
+                      requiredField: true)),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: ListingTextField(
+                      controller: bathrooms,
+                      label: 'Bathrooms',
+                      numeric: true,
+                      requiredField: true)),
+            ]),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Expanded(
+                  child: ListingTextField(
+                      controller: size,
+                      label: 'Floor size',
+                      suffix: 'm²',
+                      numeric: true,
+                      requiredField: true)),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: ListingTextField(
+                      controller: parking, label: 'Parking', numeric: true)),
+            ]),
+            AmenityTile(
+                icon: Icons.fitness_center_rounded,
+                label: 'Gym',
+                value: gym,
+                onChanged: (value) => setState(() => gym = value)),
+            const SizedBox(height: 10),
+            AmenityTile(
+                icon: Icons.pool_rounded,
+                label: 'Swimming pool',
+                value: pool,
+                onChanged: (value) => setState(() => pool = value)),
+            const SizedBox(height: 10),
+            AmenityTile(
+                icon: Icons.garage_outlined,
+                label: 'Garage',
+                value: garage,
+                onChanged: (value) => setState(() => garage = value)),
+            _section('Location', 'Help people understand the neighbourhood'),
+            ListingTextField(
+                controller: city, label: 'City or town', requiredField: true),
+            ListingTextField(controller: district, label: 'District'),
+            ListingTextField(controller: province, label: 'Province'),
+            ListingTextField(
+                controller: country, label: 'Country', requiredField: true),
+            ListingTextField(
+                controller: houseNumber, label: 'Street or house number'),
+            _section('Photos', 'Keep the presentation bright and current'),
+            _coverCard(),
+            const SizedBox(height: 16),
+            _galleryCard(),
+          ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
+          decoration: const BoxDecoration(
+              color: AppColors.surface,
+              border: Border(top: BorderSide(color: AppColors.divider))),
+          child: ElevatedButton(
+            onPressed: saving ? null : _save,
+            child: saving
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2))
+                : const Text('Save changes'),
           ),
         ),
       ),
     );
   }
+
+  Widget _section(String title, String subtitle) => Padding(
+        padding: const EdgeInsets.fromLTRB(0, 20, 0, 16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 4),
+          Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
+        ]),
+      );
+
+  Widget _coverCard() => ListingSurface(
+        padding: EdgeInsets.zero,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Column(children: [
+            SizedBox(
+              height: 200,
+              width: double.infinity,
+              child: newCoverImage != null
+                  ? Image.file(newCoverImage!, fit: BoxFit.cover)
+                  : CachedNetworkImage(
+                      imageUrl: widget.house.imageUrl,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) =>
+                          const Center(child: CircularProgressIndicator()),
+                      errorWidget: (_, __, ___) => const ColoredBox(
+                          color: AppColors.primaryLight,
+                          child: Center(
+                              child: Icon(Icons.home_work_outlined,
+                                  color: AppColors.primary, size: 42))),
+                    ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(children: [
+                const Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                      Text('Cover photo',
+                          style: TextStyle(fontWeight: FontWeight.w700)),
+                      SizedBox(height: 3),
+                      Text('The first image people see',
+                          style: TextStyle(
+                              color: AppColors.textSecondary, fontSize: 12))
+                    ])),
+                TextButton.icon(
+                    onPressed: _pickCover,
+                    icon: const Icon(Icons.swap_horiz_rounded),
+                    label: const Text('Replace')),
+              ]),
+            ),
+          ]),
+        ),
+      );
+
+  Widget _galleryCard() => ListingSurface(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Expanded(
+                child: Text(
+                    'Gallery · ${existingGalleryImages.length + newGalleryImages.length}/12',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 16))),
+            TextButton.icon(
+                onPressed: _pickGallery,
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Add')),
+          ]),
+          const SizedBox(height: 10),
+          if (loadingImages)
+            const Center(
+                child: Padding(
+                    padding: EdgeInsets.all(18),
+                    child: CircularProgressIndicator()))
+          else if (existingGalleryImages.isEmpty && newGalleryImages.isEmpty)
+            const Padding(
+                padding: EdgeInsets.symmetric(vertical: 18),
+                child: Text(
+                    'No gallery photos yet. Add a few views of the property.',
+                    style: TextStyle(color: AppColors.textSecondary)))
+          else
+            Wrap(spacing: 9, runSpacing: 9, children: [
+              ...existingGalleryImages.map((image) => _NetworkThumb(
+                    url: image['url'] as String,
+                    onRemove: () => setState(() {
+                      deletedImageIds.add(image['id'] as int);
+                      existingGalleryImages.remove(image);
+                    }),
+                  )),
+              ...newGalleryImages.map((image) => _FileThumb(
+                  image: image,
+                  onRemove: () =>
+                      setState(() => newGalleryImages.remove(image)))),
+            ]),
+        ]),
+      );
+}
+
+class _NetworkThumb extends StatelessWidget {
+  final String url;
+  final VoidCallback onRemove;
+  const _NetworkThumb({required this.url, required this.onRemove});
+
+  @override
+  Widget build(BuildContext context) => _ThumbFrame(
+        onRemove: onRemove,
+        child: CachedNetworkImage(
+            imageUrl: url,
+            width: 88,
+            height: 88,
+            fit: BoxFit.cover,
+            errorWidget: (_, __, ___) =>
+                const ColoredBox(color: AppColors.primaryLight)),
+      );
+}
+
+class _FileThumb extends StatelessWidget {
+  final File image;
+  final VoidCallback onRemove;
+  const _FileThumb({required this.image, required this.onRemove});
+
+  @override
+  Widget build(BuildContext context) => _ThumbFrame(
+      onRemove: onRemove,
+      child: Image.file(image, width: 88, height: 88, fit: BoxFit.cover));
+}
+
+class _ThumbFrame extends StatelessWidget {
+  final Widget child;
+  final VoidCallback onRemove;
+  const _ThumbFrame({required this.child, required this.onRemove});
+
+  @override
+  Widget build(BuildContext context) =>
+      Stack(clipBehavior: Clip.none, children: [
+        ClipRRect(borderRadius: BorderRadius.circular(13), child: child),
+        Positioned(
+          right: -7,
+          top: -7,
+          child: Material(
+              color: AppColors.surfaceDark,
+              shape: const CircleBorder(),
+              child: InkWell(
+                  onTap: onRemove,
+                  customBorder: const CircleBorder(),
+                  child: const Padding(
+                      padding: EdgeInsets.all(5),
+                      child: Icon(Icons.close_rounded,
+                          color: Colors.white, size: 15)))),
+        ),
+      ]);
 }

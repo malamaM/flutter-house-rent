@@ -1,10 +1,15 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/theme/app_colors.dart';
+import 'package:house_rent/widgets/demand_badge.dart';
+import 'package:house_rent/widgets/lister_trust_badges.dart';
 
 String formatPropertyPrice(House house) {
-  final isRental = house.priceRental > 0;
+  final isRental =
+      house.isForRent || (!house.isForSale && house.priceRental > 0);
   final value = isRental ? house.priceRental : house.pricePurchase;
+  if (value <= 0) return 'Price on request';
   final digits = value.toString();
   final formatted = digits.replaceAllMapped(
     RegExp(r'\B(?=(\d{3})+(?!\d))'),
@@ -41,7 +46,10 @@ class _PropertyCardState extends State<PropertyCard> {
   Future<void> _toggleSave() async {
     if (_saving) return;
     setState(() => _saving = true);
-    final saved = await House.toggleSaveHouse(widget.house.id);
+    final saved = await House.toggleSaveHouse(
+      widget.house.id,
+      currentlySaved: widget.house.isSaved,
+    );
     if (!mounted) return;
     setState(() {
       widget.house.isSaved = saved;
@@ -56,10 +64,20 @@ class _PropertyCardState extends State<PropertyCard> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image.network(
-            widget.house.imageUrl,
+          CachedNetworkImage(
+            imageUrl: widget.house.imageUrl,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(
+            fadeInDuration: const Duration(milliseconds: 180),
+            placeholder: (_, __) => Container(
+              color: AppColors.surfaceContainer,
+              alignment: Alignment.center,
+              child: const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+            errorWidget: (_, __, ___) => Container(
               color: AppColors.surfaceContainer,
               alignment: Alignment.center,
               child: const Icon(Icons.home_work_outlined,
@@ -69,9 +87,17 @@ class _PropertyCardState extends State<PropertyCard> {
           Positioned(
             left: 12,
             top: 12,
-            child: _StatusPill(
-                label: widget.house.status ?? widget.house.type ?? 'Property'),
+            child: _StatusPill(label: widget.house.listingStatusLabel),
           ),
+          if (widget.house.demandLabel != null)
+            Positioned(
+              left: 12,
+              bottom: 12,
+              child: DemandBadge(
+                demandLabel: widget.house.demandLabel,
+                compact: widget.horizontal,
+              ),
+            ),
           if (widget.showSave)
             Positioned(
               right: 10,
@@ -221,6 +247,14 @@ class _PropertyCopy extends StatelessWidget {
             letterSpacing: -.2,
           ),
         ),
+        if (house.isVerified || house.isTopRated) ...[
+          const SizedBox(height: 7),
+          ListerTrustBadges(
+            verified: house.isVerified,
+            topRated: house.isTopRated,
+            compact: true,
+          ),
+        ],
         const SizedBox(height: 6),
         Row(
           children: [

@@ -22,7 +22,8 @@ class _SavedHousesScreenState extends State<SavedHousesScreen> {
     _reload();
   }
 
-  void _reload() => houses = House.fetchSavedHouses();
+  void _reload({bool forceRefresh = false}) =>
+      houses = House.fetchSavedHouses(forceRefresh: forceRefresh);
 
   @override
   Widget build(BuildContext context) {
@@ -68,7 +69,7 @@ class _SavedHousesScreenState extends State<SavedHousesScreen> {
           }
           return RefreshIndicator(
             onRefresh: () async {
-              setState(_reload);
+              setState(() => _reload(forceRefresh: true));
               await houses;
             },
             child: ListView.separated(

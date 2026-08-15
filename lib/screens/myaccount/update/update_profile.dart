@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:house_rent/services/app_data_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -24,7 +26,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchProfileImage();
     _fetchUserProfile();
   }
 
@@ -37,52 +38,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.dispose();
   }
 
-  Future<void> _fetchProfileImage() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? accessToken = prefs.getString('access_token');
-
-    if (accessToken != null) {
-      final response = await http.get(
-        Uri.parse('http://localhost:8000/api/check-login-status'),
-        headers: {
-          'Authorization': 'Bearer $accessToken',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final String? profilePicture = data['user']?['profile_picture'];
-        if (profilePicture != null) {
-          final String sanitizedProfilePicture = profilePicture.replaceAll("\\", "");
-          setState(() {
-            profileImageUrl = "http://localhost:8000/storage/$sanitizedProfilePicture";
-          });
-        }
-      }
-    }
-  }
-
   Future<void> _fetchUserProfile() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? accessToken = prefs.getString('access_token');
-
-    if (accessToken != null) {
-      final response = await http.get(
-        Uri.parse('http://localhost:8000/api/check-login-status'),
-        headers: {
-          'Authorization': 'Bearer $accessToken',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        setState(() {
-          _firstNameController.text = data['user']?['first_name'] ?? "";
-          _lastNameController.text = data['user']?['last_name'] ?? "";
-          _emailController.text = data['user']?['email'] ?? "";
-          _phoneController.text = data['user']?['phone_number'] ?? "";
-        });
-      }
+    final data = await SessionService.currentUser();
+    if (data != null && mounted) {
+      final profilePicture = data['profile_picture'];
+      setState(() {
+        _firstNameController.text = data['first_name'] ?? "";
+        _lastNameController.text = data['last_name'] ?? "";
+        _emailController.text = data['email'] ?? "";
+        _phoneController.text = data['phone_number'] ?? "";
+        if (profilePicture != null) {
+          profileImageUrl =
+              "http://localhost:8000/storage/${profilePicture.toString().replaceAll("\\", "")}";
+        }
+      });
     }
   }
 
@@ -118,6 +87,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         print('Response Body: ${response.body}');
 
         if (response.statusCode == 200) {
+          await SessionService.updateCachedUser({
+            'first_name': _firstNameController.text,
+            'last_name': _lastNameController.text,
+            'email': _emailController.text,
+            'phone_number': _phoneController.text,
+          });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Profile updated successfully')),
           );
@@ -147,7 +122,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         Uri.parse('http://localhost:8000/api/update-profile-picture'),
       );
       request.headers['Authorization'] = 'Bearer $accessToken';
-      request.files.add(await http.MultipartFile.fromPath('profile_picture', image.path));
+      request.files.add(
+          await http.MultipartFile.fromPath('profile_picture', image.path));
 
       print('Request URL: ${request.url}');
       print('Request Headers: ${request.headers}');
@@ -159,13 +135,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       if (response.statusCode == 200) {
         print('Profile picture updated successfully');
-        setState(() {
-          profileImageUrl = image.path;
-        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Picture updated')),
         );
-        _fetchProfileImage(); // Refresh the profile image
+        await SessionService.currentUser(forceRefresh: true);
+        _fetchUserProfile();
       } else {
         print('Failed to update profile picture');
       }
@@ -340,7 +314,7 @@ class ProfilePic extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 50,
-            backgroundImage: NetworkImage(image),
+            backgroundImage: CachedNetworkImageProvider(image),
           ),
           InkWell(
             onTap: imageUploadBtnPress,

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
+import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/about.dart';
 import 'package:house_rent/widgets/content_intro.dart';
@@ -8,6 +9,8 @@ import 'package:house_rent/widgets/details_app_bar.dart';
 import 'package:house_rent/widgets/house_gallery.dart';
 import 'package:house_rent/widgets/house_info.dart';
 import 'package:house_rent/widgets/house_location_map.dart';
+import 'package:house_rent/widgets/lister_reviews_section.dart';
+import 'package:house_rent/widgets/lister_trust_badges.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -23,6 +26,7 @@ class Details extends StatefulWidget {
 }
 
 class _DetailsState extends State<Details> {
+  int _reviewVersion = 0;
   @override
   void initState() {
     super.initState();
@@ -30,11 +34,7 @@ class _DetailsState extends State<Details> {
   }
 
   Future<Map<String, dynamic>> _fetchOwner() async {
-    final response = await http.get(
-        Uri.parse('http://127.0.0.1:8000/api/houses/${widget.house.id}/owner'));
-    if (response.statusCode != 200)
-      throw Exception('Owner details are unavailable');
-    return json.decode(response.body)['user'] ?? {};
+    return PropertyDetailsService.owner(widget.house.id);
   }
 
   Future<void> _submitReview(int rating, String comment) async {
@@ -54,21 +54,30 @@ class _DetailsState extends State<Details> {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        body: json.encode({'rating': rating, 'comment': comment}),
+        body: json.encode({
+          'house_id': widget.house.id,
+          'rating': rating,
+          'comment': comment,
+        }),
       );
       final data = json.decode(response.body);
-      _notice(response.statusCode == 201
-          ? 'Thanks—your review was submitted.'
-          : data['error'] ?? 'Could not submit your review.');
+      if (response.statusCode == 201 || response.statusCode == 202) {
+        await ListerReviewsService.invalidate(widget.house.ownerId!);
+        if (mounted) setState(() => _reviewVersion++);
+        _notice(data['message'] ?? 'Thanks—your review was received.');
+      } else {
+        _notice(data['error'] ?? 'Could not submit your review.');
+      }
     } catch (_) {
       _notice('Could not submit your review. Try again later.');
     }
   }
 
   void _notice(String value) {
-    if (mounted)
+    if (mounted) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(value)));
+    }
   }
 
   void _showReview() {
@@ -102,7 +111,8 @@ class _DetailsState extends State<Details> {
                 Text('Share your experience',
                     style: Theme.of(context).textTheme.headlineMedium),
                 const SizedBox(height: 6),
-                Text('Your review helps other renters make informed choices.',
+                Text(
+                    'Review the lister based on a genuine property enquiry or experience.',
                     style: Theme.of(context).textTheme.bodyMedium),
                 const SizedBox(height: 14),
                 Row(
@@ -123,10 +133,25 @@ class _DetailsState extends State<Details> {
                     controller: comment,
                     maxLines: 3,
                     decoration: const InputDecoration(
-                        hintText: 'Add an optional comment')),
+                        hintText:
+                            'What went well, or what should others know?')),
+                const SizedBox(height: 10),
+                const Text(
+                  'Reviews must be honest, specific, and at least 20 characters. Suspicious activity may be held for moderation.',
+                  style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 11,
+                      height: 1.4),
+                ),
                 const SizedBox(height: 18),
                 ElevatedButton(
                   onPressed: () {
+                    if (comment.text.trim().length < 20) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text(
+                              'Please add at least 20 characters about your experience.')));
+                      return;
+                    }
                     Navigator.pop(context);
                     _submitReview(rating, comment.text.trim());
                   },
@@ -214,27 +239,6 @@ class _DetailsState extends State<Details> {
                   ContentIntro(house: widget.house),
                   const SizedBox(height: 24),
                   HouseInfo(house: widget.house),
-                  if (widget.isOwnerView) ...[
-                    const SizedBox(height: 18),
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 20),
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                          color: AppColors.surfaceDark,
-                          borderRadius: BorderRadius.circular(18)),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.insights_rounded,
-                              color: AppColors.accent),
-                          const SizedBox(width: 12),
-                          Text('${widget.house.views} listing views',
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700)),
-                        ],
-                      ),
-                    ),
-                  ],
                   const SizedBox(height: 28),
                   HouseGallery(houseId: widget.house.id),
                   const SizedBox(height: 30),
@@ -266,25 +270,26 @@ class _DetailsState extends State<Details> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Row(children: [
-                                    Flexible(
-                                        child: Text(ownerName,
-                                            style: const TextStyle(
-                                                fontWeight: FontWeight.w700,
-                                                fontSize: 16))),
-                                    if (widget.house.isVerified)
-                                      const Padding(
-                                          padding: EdgeInsets.only(left: 5),
-                                          child: Icon(Icons.verified_rounded,
-                                              color: AppColors.primary,
-                                              size: 18)),
-                                  ]),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                      '${widget.house.averageRating.toStringAsFixed(1)} rating · ${widget.house.totalReviews} reviews',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium),
+                                  Text(ownerName,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 16)),
+                                  if (widget.house.isVerified ||
+                                      widget.house.isTopRated) ...[
+                                    const SizedBox(height: 7),
+                                    ListerTrustBadges(
+                                        verified: widget.house.isVerified,
+                                        topRated: widget.house.isTopRated,
+                                        compact: true),
+                                  ],
+                                  if (widget.house.totalReviews > 0) ...[
+                                    const SizedBox(height: 6),
+                                    Text(
+                                        '${widget.house.averageRating.toStringAsFixed(1)} rating · ${widget.house.totalReviews} reviews',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium),
+                                  ],
                                 ],
                               ),
                             ),
@@ -301,6 +306,14 @@ class _DetailsState extends State<Details> {
                       ],
                     ),
                   ),
+                  if (widget.house.ownerId != null) ...[
+                    const SizedBox(height: 30),
+                    ListerReviewsSection(
+                      key: ValueKey('${widget.house.ownerId}:$_reviewVersion'),
+                      listerId: widget.house.ownerId!,
+                      onAddReview: widget.isOwnerView ? null : _showReview,
+                    ),
+                  ],
                 ],
               ),
             ),

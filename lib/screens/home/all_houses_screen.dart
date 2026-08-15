@@ -25,10 +25,13 @@ class _AllHousesScreenState extends State<AllHousesScreen> {
     _reload();
   }
 
-  void _reload() => houses = House.fetchHouses(filters: widget.filters ?? {});
+  void _reload({bool forceRefresh = false}) => houses = House.fetchHouses(
+        filters: widget.filters ?? {},
+        forceRefresh: forceRefresh,
+      );
 
   Future<void> _refresh() async {
-    setState(_reload);
+    setState(() => _reload(forceRefresh: true));
     await houses;
   }
 

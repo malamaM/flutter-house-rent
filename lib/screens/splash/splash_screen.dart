@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:house_rent/screens/home/home.dart';
 import 'package:house_rent/screens/login/login.dart';
+import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/theme/app_colors.dart';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -21,21 +20,11 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _continue() async {
     await Future.delayed(const Duration(milliseconds: 1300));
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('access_token');
-    var authenticated = false;
-    if (token != null) {
-      try {
-        final response = await http.get(
-          Uri.parse('http://localhost:8000/api/check-login-status'),
-          headers: {
-            'Accept': 'application/json',
-            'Authorization': 'Bearer $token'
-          },
-        ).timeout(const Duration(seconds: 5));
-        authenticated = response.statusCode == 200;
-      } catch (_) {}
-    }
+    final user = await SessionService.currentUser(
+      forceRefresh: true,
+      allowExpired: true,
+    );
+    final authenticated = user != null;
     if (!mounted) return;
     Navigator.pushReplacement(
       context,

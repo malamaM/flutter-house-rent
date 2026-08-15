@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/property_card.dart';
+import 'package:house_rent/widgets/demand_badge.dart';
 
 class ContentIntro extends StatelessWidget {
   final House house;
@@ -28,6 +29,10 @@ class ContentIntro extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(house.name, style: Theme.of(context).textTheme.headlineLarge),
+          if (house.demandLabel != null) ...[
+            const SizedBox(height: 10),
+            DemandBadge(demandLabel: house.demandLabel),
+          ],
           const SizedBox(height: 8),
           Row(
             children: [
