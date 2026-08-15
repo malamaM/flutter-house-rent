@@ -1,24 +1,25 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // Primary
-  static const Color primary = Color(0xFF00BF6D);
-  static const Color primaryLight = Color(0xFFE5F9F0);
-  
-  // Background & Surfaces
-  static const Color background = Color(0xFFFBFBFB);
-  static const Color surface = Colors.white;
-  static const Color surfaceContainer = Color(0xFFF5FCF9);
+  // A grounded, architectural palette: forest, warm stone and charcoal.
+  static const Color primary = Color(0xFF176B55);
+  static const Color primaryDark = Color(0xFF0D4638);
+  static const Color primaryLight = Color(0xFFE1F0EA);
+  static const Color accent = Color(0xFFE89A55);
 
-  // Text
-  static const Color textPrimary = Color(0xFF1D1D20);
-  static const Color textSecondary = Color(0xFF7B7B82);
-  
+  static const Color background = Color(0xFFF7F6F2);
+  static const Color surface = Colors.white;
+  static const Color surfaceContainer = Color(0xFFF0F1EC);
+  static const Color surfaceDark = Color(0xFF17332D);
+
+  static const Color textPrimary = Color(0xFF18201E);
+  static const Color textSecondary = Color(0xFF66706D);
+  static const Color textOnDark = Color(0xFFF8FAF9);
+
   // States
-  static const Color error = Color(0xFFFF5252);
-  static const Color success = Color(0xFF4CAF50);
-  static const Color warning = Color(0xFFFFC107);
-  
-  // Others
-  static const Color divider = Color(0xFFEEEEEE);
+  static const Color error = Color(0xFFC84B4B);
+  static const Color success = Color(0xFF2E7D62);
+  static const Color warning = Color(0xFFE3A23B);
+
+  static const Color divider = Color(0xFFE4E6E1);
 }

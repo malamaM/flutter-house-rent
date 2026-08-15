@@ -1,105 +1,125 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-
 import 'package:house_rent/models/house.dart';
+import 'package:house_rent/theme/app_colors.dart';
 
 class DetailsAppBar extends StatefulWidget {
   final House house;
 
-  const DetailsAppBar({
-    Key? key,
-    required this.house,
-  }) : super(key: key);
+  const DetailsAppBar({Key? key, required this.house}) : super(key: key);
 
   @override
-  _DetailsAppBarState createState() => _DetailsAppBarState();
+  State<DetailsAppBar> createState() => _DetailsAppBarState();
 }
 
 class _DetailsAppBarState extends State<DetailsAppBar> {
-  bool _isLoading = false;
-  late bool _isSaved;
+  late bool saved;
+  bool loading = false;
 
   @override
   void initState() {
     super.initState();
-    _isSaved = widget.house.isSaved;
+    saved = widget.house.isSaved;
   }
 
-  _handleNavigateBack(BuildContext context) {
-    Navigator.of(context).pop();
-  }
-
-  void _handleSave() async {
-    setState(() => _isLoading = true);
-    final isSaved = await House.toggleSaveHouse(widget.house.id);
+  Future<void> _save() async {
+    if (loading) return;
+    setState(() => loading = true);
+    final result = await House.toggleSaveHouse(widget.house.id);
+    if (!mounted) return;
     setState(() {
-      _isLoading = false;
-      _isSaved = isSaved;
-      widget.house.isSaved = isSaved;
+      saved = result;
+      widget.house.isSaved = result;
+      loading = false;
     });
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(isSaved ? 'House saved to bookmarks!' : 'House removed from bookmarks.')),
-      );
-    }
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content:
+            Text(saved ? 'Added to saved homes' : 'Removed from saved homes')));
   }
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 400,
+      height: 390,
       child: Stack(
+        fit: StackFit.expand,
         children: [
           Image.network(
             widget.house.imageUrl,
             fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => 
-              Container(
-                color: Colors.grey[300],
-                child: Icon(Icons.error_outline),
+            errorBuilder: (_, __, ___) => Container(
+              color: AppColors.surfaceContainer,
+              child: const Icon(Icons.home_work_outlined,
+                  color: AppColors.textSecondary, size: 54),
+            ),
+          ),
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.black45, Colors.transparent, Colors.black38],
+                stops: [0, .55, 1],
               ),
+            ),
           ),
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  GestureDetector(
-                    onTap: () => _handleNavigateBack(context),
-                    child: Container(
-                      height: 40,
-                      width: 40,
-                      padding: const EdgeInsets.all(8),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: SvgPicture.asset('assets/icons/arrow.svg'),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: _isLoading ? null : _handleSave,
-                    child: Container(
-                      height: 40,
-                      width: 40,
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: _isSaved ? Theme.of(context).primaryColor : Theme.of(context).colorScheme.secondary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: _isLoading 
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : SvgPicture.asset('assets/icons/mark.svg', color: _isSaved ? Colors.white : null),
-                    ),
+                  _RoundAction(
+                      icon: Icons.arrow_back_rounded,
+                      onTap: () => Navigator.pop(context)),
+                  _RoundAction(
+                    icon: saved
+                        ? Icons.bookmark_rounded
+                        : Icons.bookmark_border_rounded,
+                    onTap: loading ? null : _save,
                   ),
                 ],
               ),
             ),
           ),
+          Positioned(
+            left: 20,
+            bottom: 18,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+              decoration: BoxDecoration(
+                  color: AppColors.surfaceDark.withOpacity(.88),
+                  borderRadius: BorderRadius.circular(20)),
+              child: Text(
+                widget.house.status ?? widget.house.type ?? 'Available',
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
         ],
       ),
+    );
+  }
+}
+
+class _RoundAction extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback? onTap;
+
+  const _RoundAction({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withOpacity(.94),
+      shape: const CircleBorder(),
+      child: IconButton(
+          onPressed: onTap,
+          icon: Icon(icon, color: AppColors.textPrimary),
+          iconSize: 21),
     );
   }
 }

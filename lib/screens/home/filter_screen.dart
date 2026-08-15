@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 class FilterScreen extends StatefulWidget {
   final Map<String, String> initialFilters;
 
-  const FilterScreen({Key? key, required this.initialFilters}) : super(key: key);
+  const FilterScreen({Key? key, required this.initialFilters})
+      : super(key: key);
 
   @override
   _FilterScreenState createState() => _FilterScreenState();
@@ -13,7 +14,7 @@ class _FilterScreenState extends State<FilterScreen> {
   final TextEditingController _keywordController = TextEditingController();
   final TextEditingController _minPriceController = TextEditingController();
   final TextEditingController _maxPriceController = TextEditingController();
-  
+
   String? _selectedType;
   String? _selectedStatus;
   int _minBedrooms = 0;
@@ -25,15 +26,17 @@ class _FilterScreenState extends State<FilterScreen> {
     _keywordController.text = widget.initialFilters['keyword'] ?? '';
     _minPriceController.text = widget.initialFilters['min_price'] ?? '';
     _maxPriceController.text = widget.initialFilters['max_price'] ?? '';
-    
+
     _selectedType = widget.initialFilters['type'];
     if (_selectedType != null && _selectedType!.isEmpty) _selectedType = null;
-    
+
     _selectedStatus = widget.initialFilters['status'];
-    if (_selectedStatus != null && _selectedStatus!.isEmpty) _selectedStatus = null;
-    
+    if (_selectedStatus != null && _selectedStatus!.isEmpty)
+      _selectedStatus = null;
+
     _minBedrooms = int.tryParse(widget.initialFilters['bedrooms'] ?? '0') ?? 0;
-    _minBathrooms = int.tryParse(widget.initialFilters['bathrooms'] ?? '0') ?? 0;
+    _minBathrooms =
+        int.tryParse(widget.initialFilters['bathrooms'] ?? '0') ?? 0;
   }
 
   @override
@@ -46,11 +49,14 @@ class _FilterScreenState extends State<FilterScreen> {
 
   void _applyFilters() {
     Map<String, String> filters = {};
-    if (_keywordController.text.isNotEmpty) filters['keyword'] = _keywordController.text.trim();
+    if (_keywordController.text.isNotEmpty)
+      filters['keyword'] = _keywordController.text.trim();
     if (_selectedType != null) filters['type'] = _selectedType!;
     if (_selectedStatus != null) filters['status'] = _selectedStatus!;
-    if (_minPriceController.text.isNotEmpty) filters['min_price'] = _minPriceController.text.trim();
-    if (_maxPriceController.text.isNotEmpty) filters['max_price'] = _maxPriceController.text.trim();
+    if (_minPriceController.text.isNotEmpty)
+      filters['min_price'] = _minPriceController.text.trim();
+    if (_maxPriceController.text.isNotEmpty)
+      filters['max_price'] = _maxPriceController.text.trim();
     if (_minBedrooms > 0) filters['bedrooms'] = _minBedrooms.toString();
     if (_minBathrooms > 0) filters['bathrooms'] = _minBathrooms.toString();
 
@@ -61,11 +67,13 @@ class _FilterScreenState extends State<FilterScreen> {
     Navigator.pop(context, <String, String>{});
   }
 
-  Widget _buildCounter(String label, int value, VoidCallback onDecrement, VoidCallback onIncrement) {
+  Widget _buildCounter(String label, int value, VoidCallback onDecrement,
+      VoidCallback onIncrement) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        Text(label,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         Row(
           children: [
             IconButton(
@@ -73,7 +81,9 @@ class _FilterScreenState extends State<FilterScreen> {
               onPressed: value > 0 ? onDecrement : null,
               color: value > 0 ? Colors.blue : Colors.grey,
             ),
-            Text('$value+', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text('$value+',
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             IconButton(
               icon: const Icon(Icons.add_circle_outline),
               onPressed: onIncrement,
@@ -106,7 +116,8 @@ class _FilterScreenState extends State<FilterScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Search Keyword', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('Search Keyword',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             TextField(
               controller: _keywordController,
@@ -114,12 +125,14 @@ class _FilterScreenState extends State<FilterScreen> {
                 hintText: 'City, title, or description...',
                 filled: true,
                 fillColor: Colors.grey[100],
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none),
               ),
             ),
             const SizedBox(height: 24),
-            
-            const Text('Property Details', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('Property Details',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -130,10 +143,13 @@ class _FilterScreenState extends State<FilterScreen> {
                     decoration: InputDecoration(
                       filled: true,
                       fillColor: Colors.grey[100],
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide.none),
                     ),
                     items: ['House', 'Apartment', 'Condo', 'Villa']
-                        .map((type) => DropdownMenuItem(value: type, child: Text(type)))
+                        .map((type) =>
+                            DropdownMenuItem(value: type, child: Text(type)))
                         .toList(),
                     onChanged: (val) => setState(() => _selectedType = val),
                   ),
@@ -146,10 +162,13 @@ class _FilterScreenState extends State<FilterScreen> {
                     decoration: InputDecoration(
                       filled: true,
                       fillColor: Colors.grey[100],
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide.none),
                     ),
                     items: ['For Sale', 'For Rent']
-                        .map((status) => DropdownMenuItem(value: status, child: Text(status)))
+                        .map((status) => DropdownMenuItem(
+                            value: status, child: Text(status)))
                         .toList(),
                     onChanged: (val) => setState(() => _selectedStatus = val),
                   ),
@@ -157,8 +176,8 @@ class _FilterScreenState extends State<FilterScreen> {
               ],
             ),
             const SizedBox(height: 24),
-
-            const Text('Price Range', style: TextStyle(fontWeight: FontWeight.bold)),
+            const Text('Price Range',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -170,7 +189,9 @@ class _FilterScreenState extends State<FilterScreen> {
                       hintText: 'Min Price',
                       filled: true,
                       fillColor: Colors.grey[100],
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide.none),
                     ),
                   ),
                 ),
@@ -186,23 +207,26 @@ class _FilterScreenState extends State<FilterScreen> {
                       hintText: 'Max Price',
                       filled: true,
                       fillColor: Colors.grey[100],
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide.none),
                     ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 32),
-
-            _buildCounter('Bedrooms', _minBedrooms, 
-              () => setState(() => _minBedrooms--), 
-              () => setState(() => _minBedrooms++)
-            ),
+            _buildCounter(
+                'Bedrooms',
+                _minBedrooms,
+                () => setState(() => _minBedrooms--),
+                () => setState(() => _minBedrooms++)),
             const SizedBox(height: 16),
-            _buildCounter('Bathrooms', _minBathrooms, 
-              () => setState(() => _minBathrooms--), 
-              () => setState(() => _minBathrooms++)
-            ),
+            _buildCounter(
+                'Bathrooms',
+                _minBathrooms,
+                () => setState(() => _minBathrooms--),
+                () => setState(() => _minBathrooms++)),
           ],
         ),
       ),
@@ -210,7 +234,12 @@ class _FilterScreenState extends State<FilterScreen> {
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: Colors.white,
-          boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: const Offset(0, -2))],
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black12,
+                blurRadius: 10,
+                offset: const Offset(0, -2))
+          ],
         ),
         child: ElevatedButton(
           onPressed: _applyFilters,
@@ -218,9 +247,11 @@ class _FilterScreenState extends State<FilterScreen> {
             backgroundColor: Theme.of(context).primaryColor,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
-          child: const Text('Apply Filters', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          child: const Text('Apply Filters',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         ),
       ),
     );

@@ -1,248 +1,229 @@
-import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/material.dart';
 import 'package:house_rent/screens/home/home.dart';
 import 'package:house_rent/theme/app_colors.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SignInScreen extends StatefulWidget {
-  const SignInScreen({super.key});
+  const SignInScreen({Key? key}) : super(key: key);
 
   @override
   State<SignInScreen> createState() => _SignInScreenState();
 }
 
 class _SignInScreenState extends State<SignInScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  bool _isLoading = false;
-  bool _obscurePassword = true;
+  final formKey = GlobalKey<FormState>();
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+  bool loading = false;
+  bool obscurePassword = true;
 
-  Future<void> _signIn(BuildContext context) async {
-    if (!_formKey.currentState!.validate()) return;
-    
-    setState(() => _isLoading = true);
-    
+  Future<void> _signIn() async {
+    if (!formKey.currentState!.validate()) return;
+    FocusScope.of(context).unfocus();
+    setState(() => loading = true);
     try {
-      final response = await http.post(
-        Uri.parse('http://localhost:8000/api/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': _emailController.text,
-          'password': _passwordController.text,
-        }),
-      );
-
+      final response = await http
+          .post(
+            Uri.parse('http://localhost:8000/api/login'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: jsonEncode({
+              'email': emailController.text.trim(),
+              'password': passwordController.text
+            }),
+          )
+          .timeout(const Duration(seconds: 12));
       if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
-        final accessToken = responseData['access_token'];
-
+        final token = jsonDecode(response.body)['access_token'];
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('access_token', accessToken);
-
-        if (mounted) {
+        await prefs.setString('access_token', token);
+        if (mounted)
           Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const Home()),
-          );
-        }
-      } else {
-        String errorMessage = 'Authentication failed. Please check credentials.';
-        if (response.statusCode == 404) errorMessage = 'Server not found.';
-        if (response.statusCode == 500) errorMessage = 'Internal server error.';
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(errorMessage),
-              backgroundColor: AppColors.error,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          );
-        }
+              context, MaterialPageRoute(builder: (_) => const Home()));
+        return;
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Network error. Please try again later.'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
-      }
+      var message = 'Those details do not match an account.';
+      try {
+        message = jsonDecode(response.body)['message'] ?? message;
+      } catch (_) {}
+      _showMessage(message);
+    } catch (_) {
+      _showMessage(
+          'We could not reach Haven. Check your connection and try again.');
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => loading = false);
     }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _notAvailable(String feature) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+        decoration: const BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: AppColors.divider,
+                    borderRadius: BorderRadius.circular(4))),
+            const SizedBox(height: 24),
+            const Icon(Icons.construction_rounded,
+                color: AppColors.primary, size: 34),
+            const SizedBox(height: 14),
+            Text('$feature is coming soon',
+                style: Theme.of(context).textTheme.headlineMedium),
+            const SizedBox(height: 8),
+            Text('For now, ask the Haven team to help you with your account.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          // Background graphic
-          Positioned(
-            top: -150,
-            right: -100,
-            child: Container(
-              width: 300,
-              height: 300,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.primary.withOpacity(0.1),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -50,
-            left: -100,
-            child: Container(
-              width: 250,
-              height: 250,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.primary.withOpacity(0.05),
-              ),
-            ),
-          ),
-          
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Hero Logo Area
-                      Container(
-                        padding: const EdgeInsets.all(20),
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: Form(
+                key: formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Container(
+                        width: 56,
+                        height: 56,
                         decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
-                        ),
-                        child: Image.network(
-                          "https://i.postimg.cc/nz0YBQcH/Logo-light.png",
-                          height: 80,
-                          errorBuilder: (context, error, stackTrace) => const Icon(
-                            Icons.home_work_rounded,
-                            size: 80,
                             color: AppColors.primary,
-                          ),
+                            borderRadius: BorderRadius.circular(17)),
+                        child: const Icon(Icons.roofing_rounded,
+                            color: Colors.white, size: 30),
+                      ),
+                    ),
+                    const SizedBox(height: 36),
+                    Text('Welcome back.',
+                        style: Theme.of(context).textTheme.displayLarge),
+                    const SizedBox(height: 10),
+                    Text(
+                        'Sign in to continue your property search and manage your listings.',
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyLarge
+                            ?.copyWith(color: AppColors.textSecondary)),
+                    const SizedBox(height: 36),
+                    Text('Email address',
+                        style: Theme.of(context).textTheme.labelLarge),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      autofillHints: const [AutofillHints.email],
+                      decoration: const InputDecoration(
+                          hintText: 'you@example.com',
+                          prefixIcon: Icon(Icons.mail_outline_rounded)),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty)
+                          return 'Enter your email address';
+                        if (!value.contains('@'))
+                          return 'Enter a valid email address';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 18),
+                    Text('Password',
+                        style: Theme.of(context).textTheme.labelLarge),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: passwordController,
+                      obscureText: obscurePassword,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) => _signIn(),
+                      autofillHints: const [AutofillHints.password],
+                      decoration: InputDecoration(
+                        hintText: 'Enter your password',
+                        prefixIcon: const Icon(Icons.lock_outline_rounded),
+                        suffixIcon: IconButton(
+                          onPressed: () => setState(
+                              () => obscurePassword = !obscurePassword),
+                          icon: Icon(obscurePassword
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined),
                         ),
                       ),
-                      const SizedBox(height: 40),
-                      
-                      // Welcome Text
-                      Text(
-                        "Welcome Back",
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.displayLarge,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "Sign in to continue exploring top real estate.",
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      const SizedBox(height: 48),
-
-                      // Input Fields
-                      TextFormField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: const InputDecoration(
-                          hintText: 'Email Address',
-                          prefixIcon: Icon(Icons.email_outlined, color: AppColors.textSecondary),
-                        ),
-                        validator: (value) => 
-                          (value == null || value.isEmpty) ? 'Please enter your email' : null,
-                      ),
-                      const SizedBox(height: 20),
-                      
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        decoration: InputDecoration(
-                          hintText: 'Password',
-                          prefixIcon: const Icon(Icons.lock_outline, color: AppColors.textSecondary),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                              color: AppColors.textSecondary,
-                            ),
-                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                          ),
-                        ),
-                        validator: (value) => 
-                          (value == null || value.isEmpty) ? 'Please enter your password' : null,
-                      ),
-                      
-                      // Forgot Password
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: () {},
-                          child: const Text('Forgot Password?'),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Sign In Button
-                      ElevatedButton(
-                        onPressed: _isLoading ? null : () => _signIn(context),
-                        child: _isLoading 
+                      validator: (value) => value == null || value.isEmpty
+                          ? 'Enter your password'
+                          : null,
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                          onPressed: () => _notAvailable('Password recovery'),
+                          child: const Text('Forgot password?')),
+                    ),
+                    const SizedBox(height: 14),
+                    ElevatedButton(
+                      onPressed: loading ? null : _signIn,
+                      child: loading
                           ? const SizedBox(
-                              width: 24, 
-                              height: 24, 
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
-                            )
-                          : const Text("Sign In"),
-                      ),
-                      const SizedBox(height: 32),
-
-                      // Sign Up Prompt
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            "Don’t have an account?",
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                          TextButton(
-                            onPressed: () {},
-                            child: const Text('Sign Up'),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                  color: Colors.white, strokeWidth: 2))
+                          : const Text('Sign in'),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('New to Haven?',
+                            style: Theme.of(context).textTheme.bodyMedium),
+                        TextButton(
+                            onPressed: () =>
+                                _notAvailable('Account registration'),
+                            child: const Text('Create account')),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 
   @override
   void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
+    emailController.dispose();
+    passwordController.dispose();
     super.dispose();
   }
 }

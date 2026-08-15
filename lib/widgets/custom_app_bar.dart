@@ -1,11 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
+import 'package:house_rent/screens/profile/profile.dart';
+import 'package:house_rent/theme/app_colors.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:house_rent/screens/profile/profile.dart';
-import 'package:house_rent/screens/my_listings/my_listings.dart';
-import 'package:house_rent/theme/app_colors.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   const CustomAppBar({Key? key}) : super(key: key);
@@ -14,45 +12,46 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+        padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            GestureDetector(
-              onTap: () {
-                // Menu action (simplified for production look)
-                Scaffold.of(context).openDrawer(); // Alternatively, use a bottom sheet
-              },
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceContainer,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.divider, width: 1),
-                ),
-                child: SvgPicture.asset(
-                  'assets/icons/menu.svg',
-                  width: 20,
-                  height: 20,
-                  color: AppColors.textPrimary,
-                ),
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(13)),
+              child: const Icon(Icons.roofing_rounded,
+                  color: Colors.white, size: 23),
+            ),
+            const SizedBox(width: 11),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('HAVEN',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                          letterSpacing: 1.2)),
+                  Text('Find where you belong',
+                      style: TextStyle(
+                          color: AppColors.textSecondary, fontSize: 10)),
+                ],
               ),
             ),
-            const Text(
-              "Home",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+            Material(
+              color: AppColors.surface,
+              shape: const CircleBorder(
+                  side: BorderSide(color: AppColors.divider)),
+              child: InkWell(
+                onTap: () => Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const ProfileScreen())),
+                customBorder: const CircleBorder(),
+                child: const Padding(
+                    padding: EdgeInsets.all(4), child: ProfileAvatar()),
               ),
-            ),
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ProfileScreen()),
-                );
-              },
-              child: const ProfileAvatar(),
             ),
           ],
         ),
@@ -61,7 +60,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   @override
-  Size get preferredSize => const Size.fromHeight(60);
+  Size get preferredSize => const Size.fromHeight(64);
 }
 
 class ProfileAvatar extends StatefulWidget {
@@ -72,7 +71,7 @@ class ProfileAvatar extends StatefulWidget {
 }
 
 class _ProfileAvatarState extends State<ProfileAvatar> {
-  String profileImageUrl = "https://i.postimg.cc/0jqKB6mS/Profile-Image.png";
+  String? profileImageUrl;
 
   @override
   void initState() {
@@ -83,42 +82,35 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
   Future<void> _fetchProfileImage() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final String? accessToken = prefs.getString('access_token');
-
-      if (accessToken != null) {
-        final response = await http.get(
-          Uri.parse('http://localhost:8000/api/check-login-status'),
-          headers: {'Authorization': 'Bearer $accessToken'},
-        );
-
-        if (response.statusCode == 200) {
-          final data = json.decode(response.body);
-          final String? profilePicture = data['user']?['profile_picture'];
-          if (profilePicture != null && mounted) {
-            final String sanitized = profilePicture.replaceAll("\\", "");
-            setState(() {
-              profileImageUrl = "http://localhost:8000/storage/$sanitized";
-            });
-          }
+      final token = prefs.getString('access_token');
+      if (token == null) return;
+      final response = await http.get(
+        Uri.parse('http://localhost:8000/api/check-login-status'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final user = data['user'];
+        final picture = user == null ? null : user['profile_picture'];
+        if (picture != null && mounted) {
+          setState(() => profileImageUrl =
+              'http://localhost:8000/storage/${picture.toString().replaceAll("\\", "")}');
         }
       }
-    } catch (e) {
-      // Handle gracefully
-    }
+    } catch (_) {}
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: AppColors.primary, width: 2),
-      ),
-      child: CircleAvatar(
-        radius: 20,
-        backgroundImage: NetworkImage(profileImageUrl),
-      ),
+    return CircleAvatar(
+      radius: 19,
+      backgroundColor: AppColors.primaryLight,
+      backgroundImage:
+          profileImageUrl == null ? null : NetworkImage(profileImageUrl!),
+      child: profileImageUrl == null
+          ? const Icon(Icons.person_outline_rounded,
+              color: AppColors.primary, size: 21)
+          : null,
     );
   }
 }

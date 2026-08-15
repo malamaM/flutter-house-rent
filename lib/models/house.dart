@@ -34,14 +34,13 @@ class House {
   int totalReviews;
 
   House(
-    this.name, 
-    this.address, 
-    this.imageUrl, 
-    {
+    this.name,
+    this.address,
+    this.imageUrl, {
     this.id = 0,
-    this.bedrooms = 0, 
-    this.bathrooms = 0, 
-    this.size = 0, 
+    this.bedrooms = 0,
+    this.bathrooms = 0,
+    this.size = 0,
     this.carGarage = 0,
     this.description,
     this.status,
@@ -64,8 +63,7 @@ class House {
     this.isVerified = false,
     this.averageRating = 0.0,
     this.totalReviews = 0,
-    }
-  );
+  });
 
   static int _parseInt(dynamic value) {
     if (value == null) return 0;
@@ -83,14 +81,26 @@ class House {
     return null;
   }
 
+  static String? _ownerName(dynamic user) {
+    if (user == null) return null;
+    final directName = user['name']?.toString().trim();
+    if (directName != null && directName.isNotEmpty) return directName;
+    final parts = [user['first_name'], user['last_name']]
+        .where((value) => value != null && value.toString().trim().isNotEmpty)
+        .map((value) => value.toString().trim())
+        .toList();
+    return parts.isEmpty ? null : parts.join(' ');
+  }
+
   // Fetch recommended houses dynamically from the API
   static Future<List<House>> fetchHouses({Map<String, String>? filters}) async {
     String apiUrl = 'http://127.0.0.1:8000/api/houses';
-    
+
     if (filters != null && filters.isNotEmpty) {
       final queryParams = filters.entries
           .where((e) => e.value.isNotEmpty)
-          .map((e) => '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
+          .map((e) =>
+              '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
           .join('&');
       if (queryParams.isNotEmpty) {
         apiUrl += '?$queryParams';
@@ -132,8 +142,10 @@ class House {
             district: house['district'],
             houseNumber: house['house_number'],
             type: house['type'],
-            priceRental: _parseInt(house['price-rental'] ?? house['price_rental']),
-            pricePurchase: _parseInt(house['price-purchase'] ?? house['price_purchase']),
+            priceRental:
+                _parseInt(house['price-rental'] ?? house['price_rental']),
+            pricePurchase:
+                _parseInt(house['price-purchase'] ?? house['price_purchase']),
             gym: _parseInt(house['gym']),
             swimmingPool: _parseInt(house['swimming_pool']),
             garage: _parseInt(house['garage']),
@@ -142,9 +154,11 @@ class House {
             longitude: _parseDouble(house['longitude']),
             isSaved: house['is_saved'] == true || house['is_saved'] == 1,
             ownerId: house['user']?['id'],
-            ownerName: house['user']?['name'],
-            isVerified: house['user']?['is_verified'] == true || house['user']?['is_verified'] == 1,
-            averageRating: _parseDouble(house['user']?['average_rating']) ?? 0.0,
+            ownerName: _ownerName(house['user']),
+            isVerified: house['user']?['is_verified'] == true ||
+                house['user']?['is_verified'] == 1,
+            averageRating:
+                _parseDouble(house['user']?['average_rating']) ?? 0.0,
             totalReviews: _parseInt(house['user']?['total_reviews']),
           );
         }).toList();
@@ -207,7 +221,9 @@ class House {
           return House(
             house['title'] ?? 'Unknown',
             house['city'] ?? 'Unknown',
-            house['image-cover'] != null ? 'http://127.0.0.1:8000/storage/${house['image-cover']}' : 'https://via.placeholder.com/150',
+            house['image-cover'] != null
+                ? 'http://127.0.0.1:8000/storage/${house['image-cover']}'
+                : 'https://via.placeholder.com/150',
             id: _parseInt(house['id']),
             bedrooms: _parseInt(house['bedrooms']),
             bathrooms: _parseInt(house['bathrooms']),
@@ -220,8 +236,10 @@ class House {
             district: house['district'],
             houseNumber: house['house_number'],
             type: house['type'],
-            priceRental: _parseInt(house['price-rental'] ?? house['price_rental']),
-            pricePurchase: _parseInt(house['price-purchase'] ?? house['price_purchase']),
+            priceRental:
+                _parseInt(house['price-rental'] ?? house['price_rental']),
+            pricePurchase:
+                _parseInt(house['price-purchase'] ?? house['price_purchase']),
             gym: _parseInt(house['gym']),
             swimmingPool: _parseInt(house['swimming_pool']),
             garage: _parseInt(house['garage']),
@@ -230,9 +248,11 @@ class House {
             longitude: _parseDouble(house['longitude']),
             isSaved: house['is_saved'] == true || house['is_saved'] == 1,
             ownerId: house['user']?['id'],
-            ownerName: house['user']?['name'],
-            isVerified: house['user']?['is_verified'] == true || house['user']?['is_verified'] == 1,
-            averageRating: _parseDouble(house['user']?['average_rating']) ?? 0.0,
+            ownerName: _ownerName(house['user']),
+            isVerified: house['user']?['is_verified'] == true ||
+                house['user']?['is_verified'] == 1,
+            averageRating:
+                _parseDouble(house['user']?['average_rating']) ?? 0.0,
             totalReviews: _parseInt(house['user']?['total_reviews']),
           );
         }).toList();
@@ -264,13 +284,16 @@ class House {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final List<dynamic> housesData = data['data']; // Laravel pagination returns items inside 'data'
+        final List<dynamic> housesData =
+            data['data']; // Laravel pagination returns items inside 'data'
 
         return housesData.map((house) {
           return House(
             house['title'] ?? 'Unknown',
             house['city'] ?? 'Unknown',
-            house['image-cover'] != null ? 'http://127.0.0.1:8000/storage/${house['image-cover']}' : 'https://via.placeholder.com/150',
+            house['image-cover'] != null
+                ? 'http://127.0.0.1:8000/storage/${house['image-cover']}'
+                : 'https://via.placeholder.com/150',
             id: _parseInt(house['id']),
             bedrooms: _parseInt(house['bedrooms']),
             bathrooms: _parseInt(house['bathrooms']),
@@ -283,8 +306,10 @@ class House {
             district: house['district'],
             houseNumber: house['house_number'],
             type: house['type'],
-            priceRental: _parseInt(house['price-rental'] ?? house['price_rental']),
-            pricePurchase: _parseInt(house['price-purchase'] ?? house['price_purchase']),
+            priceRental:
+                _parseInt(house['price-rental'] ?? house['price_rental']),
+            pricePurchase:
+                _parseInt(house['price-purchase'] ?? house['price_purchase']),
             gym: _parseInt(house['gym']),
             swimmingPool: _parseInt(house['swimming_pool']),
             garage: _parseInt(house['garage']),
@@ -293,9 +318,11 @@ class House {
             longitude: _parseDouble(house['longitude']),
             isSaved: house['is_saved'] == true || house['is_saved'] == 1,
             ownerId: house['user']?['id'],
-            ownerName: house['user']?['name'],
-            isVerified: house['user']?['is_verified'] == true || house['user']?['is_verified'] == 1,
-            averageRating: _parseDouble(house['user']?['average_rating']) ?? 0.0,
+            ownerName: _ownerName(house['user']),
+            isVerified: house['user']?['is_verified'] == true ||
+                house['user']?['is_verified'] == 1,
+            averageRating:
+                _parseDouble(house['user']?['average_rating']) ?? 0.0,
             totalReviews: _parseInt(house['user']?['total_reviews']),
           );
         }).toList();
@@ -308,18 +335,21 @@ class House {
   }
 
   // Update house details
-  static Future<bool> updateHouse(int id, Map<String, dynamic> data, {String? coverImagePath, List<String>? galleryImagePaths, List<int>? deletedImageIds}) async {
+  static Future<bool> updateHouse(int id, Map<String, dynamic> data,
+      {String? coverImagePath,
+      List<String>? galleryImagePaths,
+      List<int>? deletedImageIds}) async {
     final String apiUrl = 'http://127.0.0.1:8000/api/houses/$id';
     try {
       final prefs = await SharedPreferences.getInstance();
       final String? accessToken = prefs.getString('access_token');
-      
+
       var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
       request.headers.addAll({
         'Authorization': 'Bearer $accessToken',
         'Accept': 'application/json',
       });
-      
+
       // Add _method=PUT to fake a PUT request for Laravel
       request.fields['_method'] = 'PUT';
 
@@ -328,12 +358,14 @@ class House {
       });
 
       if (coverImagePath != null) {
-        request.files.add(await http.MultipartFile.fromPath('image_cover', coverImagePath));
+        request.files.add(
+            await http.MultipartFile.fromPath('image_cover', coverImagePath));
       }
 
       if (galleryImagePaths != null && galleryImagePaths.isNotEmpty) {
         for (int i = 0; i < galleryImagePaths.length; i++) {
-          request.files.add(await http.MultipartFile.fromPath('images[$i]', galleryImagePaths[i]));
+          request.files.add(await http.MultipartFile.fromPath(
+              'images[$i]', galleryImagePaths[i]));
         }
       }
 
@@ -349,7 +381,8 @@ class House {
       if (response.statusCode == 200) {
         return true;
       } else {
-        print('Failed to update house: ${response.statusCode} - ${response.body}');
+        print(
+            'Failed to update house: ${response.statusCode} - ${response.body}');
         return false;
       }
     } catch (e) {
@@ -359,7 +392,8 @@ class House {
   }
 
   // Create new house listing
-  static Future<bool> createHouse(Map<String, dynamic> data, String coverImagePath, List<String> galleryImagePaths) async {
+  static Future<bool> createHouse(Map<String, dynamic> data,
+      String coverImagePath, List<String> galleryImagePaths) async {
     const String apiUrl = 'http://127.0.0.1:8000/api/houses';
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -378,7 +412,8 @@ class House {
       });
 
       // Add cover image
-      request.files.add(await http.MultipartFile.fromPath('image_cover', coverImagePath));
+      request.files.add(
+          await http.MultipartFile.fromPath('image_cover', coverImagePath));
 
       // Add gallery images
       for (var path in galleryImagePaths) {
@@ -391,7 +426,8 @@ class House {
       if (response.statusCode == 201 || response.statusCode == 200) {
         return true;
       } else {
-        print('Failed to create house: ${response.statusCode} - ${response.body}');
+        print(
+            'Failed to create house: ${response.statusCode} - ${response.body}');
         return false;
       }
     } catch (e) {

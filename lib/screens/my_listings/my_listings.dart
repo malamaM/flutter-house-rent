@@ -1,175 +1,116 @@
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/screens/details/details.dart';
-import 'package:house_rent/screens/my_listings/edit_listing.dart';
 import 'package:house_rent/screens/my_listings/create_listing_screen.dart';
+import 'package:house_rent/screens/my_listings/edit_listing.dart';
+import 'package:house_rent/theme/app_colors.dart';
+import 'package:house_rent/widgets/property_card.dart';
+import 'package:house_rent/widgets/screen_state.dart';
 
 class MyListingsScreen extends StatefulWidget {
   const MyListingsScreen({Key? key}) : super(key: key);
 
   @override
-  _MyListingsScreenState createState() => _MyListingsScreenState();
+  State<MyListingsScreen> createState() => _MyListingsScreenState();
 }
 
 class _MyListingsScreenState extends State<MyListingsScreen> {
-  late Future<List<House>> _myHousesList;
+  late Future<List<House>> listings;
 
   @override
   void initState() {
     super.initState();
-    _myHousesList = House.fetchMyHouses();
+    _reload();
   }
 
-  _handleNavigateToDetails(BuildContext context, House house) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => Details(house: house, isOwnerView: true),
-      ),
-    );
+  void _reload() => listings = House.fetchMyHouses();
+
+  Future<void> _create() async {
+    final created = await Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const CreateListingScreen()));
+    if (created == true && mounted) setState(_reload);
+  }
+
+  Future<void> _edit(House house) async {
+    final changed = await Navigator.push(context,
+        MaterialPageRoute(builder: (_) => EditListingScreen(house: house)));
+    if (changed == true && mounted) setState(_reload);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('My Listings'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add, color: Colors.blue),
-            onPressed: () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const CreateListingScreen()),
-              );
-              if (result == true) {
-                setState(() {
-                  _myHousesList = House.fetchMyHouses();
-                });
-              }
-            },
-          ),
-        ],
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('My listings'),
+            Text('Manage your published properties',
+                style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w400)),
+          ],
+        ),
       ),
       body: FutureBuilder<List<House>>(
-        future: _myHousesList,
+        future: listings,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('You have no listings yet.'));
+          if (snapshot.connectionState == ConnectionState.waiting)
+            return const PropertyListSkeleton();
+          if (snapshot.hasError) {
+            return ScreenState(
+              icon: Icons.cloud_off_outlined,
+              title: 'Could not load your listings',
+              message: 'Check your connection and try again.',
+              actionLabel: 'Try again',
+              onAction: () => setState(_reload),
+            );
           }
-
-          final houseList = snapshot.data!;
-          return ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 20),
-            itemCount: houseList.length,
-            itemBuilder: (context, index) {
-              final house = houseList[index];
-              return GestureDetector(
-                onTap: () => _handleNavigateToDetails(context, house),
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 15),
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.1),
-                        spreadRadius: 1,
-                        blurRadius: 5,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 120,
-                        height: 90,
-                        decoration: BoxDecoration(
-                          image: DecorationImage(
-                            image: NetworkImage(house.imageUrl),
-                            fit: BoxFit.cover,
-                          ),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      const SizedBox(width: 15),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    house.name,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.edit, size: 20, color: Colors.blue),
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                  onPressed: () async {
-                                    final result = await Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => EditListingScreen(house: house),
-                                      ),
-                                    );
-                                    if (result == true) {
-                                      setState(() {
-                                        _myHousesList = House.fetchMyHouses();
-                                      });
-                                    }
-                                  },
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              house.address,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                const Icon(Icons.bed, size: 16, color: Colors.grey),
-                                const SizedBox(width: 4),
-                                Text('${house.bedrooms}', style: const TextStyle(color: Colors.grey)),
-                                const SizedBox(width: 10),
-                                const Icon(Icons.bathtub, size: 16, color: Colors.grey),
-                                const SizedBox(width: 4),
-                                Text('${house.bathrooms}', style: const TextStyle(color: Colors.grey)),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
+          final items = snapshot.data ?? [];
+          if (items.isEmpty) {
+            return ScreenState(
+              icon: Icons.add_home_work_outlined,
+              title: 'List your first property',
+              message: 'Reach people looking for a new place across Zambia.',
+              actionLabel: 'Create listing',
+              onAction: _create,
+            );
+          }
+          return RefreshIndicator(
+            onRefresh: () async {
+              setState(_reload);
+              await listings;
             },
+            child: ListView.separated(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final house = items[index];
+                return PropertyCard(
+                  horizontal: true,
+                  showSave: false,
+                  house: house,
+                  secondaryLabel: 'Edit listing',
+                  onSecondaryAction: () => _edit(house),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              Details(house: house, isOwnerView: true))),
+                );
+              },
+            ),
           );
         },
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _create,
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('New listing'),
       ),
     );
   }

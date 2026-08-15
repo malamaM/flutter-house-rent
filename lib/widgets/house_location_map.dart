@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:house_rent/models/house.dart';
+import 'package:house_rent/theme/app_colors.dart';
 
 class HouseLocationMap extends StatelessWidget {
   final House house;
@@ -22,30 +23,21 @@ class HouseLocationMap extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Text(
-            'Approximate Location',
-            style: Theme.of(context).textTheme.displayLarge!.copyWith(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+            'Approximate location',
+            style: Theme.of(context).textTheme.headlineMedium,
           ),
         ),
         const SizedBox(height: 10),
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 20),
-          height: 250,
+          height: 220,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            color: Colors.grey[200],
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black12,
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            borderRadius: BorderRadius.circular(18),
+            color: AppColors.surfaceContainer,
+            border: Border.all(color: AppColors.divider),
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(18),
             child: FlutterMap(
               options: MapOptions(
                 center: center,
@@ -54,10 +46,8 @@ class HouseLocationMap extends StatelessWidget {
               ),
               children: [
                 TileLayer(
-                  urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=YOUR_MAPBOX_TOKEN_HERE',
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                   userAgentPackageName: 'com.malamachiluwe.houserent',
-                  // Fallback to OSM if token is missing
-                  fallbackUrl: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 ),
                 CircleLayer(
                   circles: [

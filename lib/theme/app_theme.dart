@@ -5,61 +5,75 @@ import 'app_colors.dart';
 class AppTheme {
   static ThemeData get lightTheme {
     return ThemeData(
+      useMaterial3: true,
       primaryColor: AppColors.primary,
       scaffoldBackgroundColor: AppColors.background,
       brightness: Brightness.light,
-      
-      // Typography
+      visualDensity: VisualDensity.standard,
+      splashFactory: InkSparkle.splashFactory,
       textTheme: GoogleFonts.interTextTheme(
         ThemeData.light().textTheme,
       ).copyWith(
         displayLarge: GoogleFonts.inter(
-          fontSize: 32,
-          fontWeight: FontWeight.bold,
+          fontSize: 36,
+          height: 1.08,
+          fontWeight: FontWeight.w700,
           color: AppColors.textPrimary,
-          letterSpacing: -1,
+          letterSpacing: -1.2,
+        ),
+        headlineLarge: GoogleFonts.inter(
+          fontSize: 28,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary,
+          letterSpacing: -0.7,
         ),
         headlineMedium: GoogleFonts.inter(
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
+          fontSize: 21,
+          fontWeight: FontWeight.w700,
           color: AppColors.textPrimary,
-          letterSpacing: -0.5,
+          letterSpacing: -0.35,
+        ),
+        titleLarge: GoogleFonts.inter(
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary,
         ),
         bodyLarge: GoogleFonts.inter(
           fontSize: 16,
+          height: 1.5,
           color: AppColors.textPrimary,
         ),
         bodyMedium: GoogleFonts.inter(
           fontSize: 14,
+          height: 1.45,
           color: AppColors.textSecondary,
         ),
+        labelLarge:
+            GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
       ),
-      
-      // Input Fields
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.surfaceContainer,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+        fillColor: AppColors.surface,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 18, vertical: 17),
         border: OutlineInputBorder(
-          borderSide: BorderSide.none,
-          borderRadius: BorderRadius.circular(50),
+          borderSide: const BorderSide(color: AppColors.divider),
+          borderRadius: BorderRadius.circular(16),
         ),
         enabledBorder: OutlineInputBorder(
-          borderSide: BorderSide.none,
-          borderRadius: BorderRadius.circular(50),
+          borderSide: const BorderSide(color: AppColors.divider),
+          borderRadius: BorderRadius.circular(16),
         ),
         focusedBorder: OutlineInputBorder(
-          borderSide: const BorderSide(color: AppColors.primary, width: 2),
-          borderRadius: BorderRadius.circular(50),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+          borderRadius: BorderRadius.circular(16),
         ),
         errorBorder: OutlineInputBorder(
-          borderSide: const BorderSide(color: AppColors.error, width: 2),
-          borderRadius: BorderRadius.circular(50),
+          borderSide: const BorderSide(color: AppColors.error),
+          borderRadius: BorderRadius.circular(16),
         ),
         hintStyle: GoogleFonts.inter(color: AppColors.textSecondary),
       ),
-      
-      // Buttons
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           elevation: 0,
@@ -67,7 +81,7 @@ class AppTheme {
           foregroundColor: Colors.white,
           minimumSize: const Size(double.infinity, 56),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
           ),
           textStyle: GoogleFonts.inter(
             fontSize: 16,
@@ -75,7 +89,6 @@ class AppTheme {
           ),
         ),
       ),
-      
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.primary,
@@ -84,33 +97,37 @@ class AppTheme {
           ),
         ),
       ),
-
-      // Cards
       cardTheme: CardThemeData(
         color: AppColors.surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(20),
           side: const BorderSide(color: AppColors.divider),
         ),
       ),
-      
-      // App Bar
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.background,
         elevation: 0,
-        centerTitle: true,
+        scrolledUnderElevation: 0,
+        centerTitle: false,
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
         titleTextStyle: GoogleFonts.inter(
           color: AppColors.textPrimary,
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
         ),
       ),
-      
+      dividerTheme:
+          const DividerThemeData(color: AppColors.divider, thickness: 1),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: AppColors.surfaceDark,
+        contentTextStyle: GoogleFonts.inter(color: Colors.white),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
       colorScheme: const ColorScheme.light(
         primary: AppColors.primary,
-        secondary: AppColors.primaryLight,
+        secondary: AppColors.accent,
         error: AppColors.error,
         surface: AppColors.surface,
       ),
