@@ -66,7 +66,9 @@ class _EditListingScreenState extends State<EditListingScreen> {
     rentalPrice = TextEditingController(text: house.priceRental.toString());
     parking = TextEditingController(text: house.carGarage.toString());
     propertyType = _option(
-        house.type, const ['House', 'Apartment', 'Townhouse', 'Land'], 'House');
+        house.type,
+        const ['House', 'Apartment', 'Bedsitter', 'Flat', 'Townhouse', 'Land'],
+        'House');
     gym = house.gym == 1;
     pool = house.swimmingPool == 1;
     garage = house.garage == 1;
@@ -260,7 +262,14 @@ class _EditListingScreenState extends State<EditListingScreen> {
                 maxLines: 5),
             ListingChoice(
                 label: 'Property type',
-                options: const ['House', 'Apartment', 'Townhouse', 'Land'],
+                options: const [
+                  'House',
+                  'Apartment',
+                  'Bedsitter',
+                  'Flat',
+                  'Townhouse',
+                  'Land'
+                ],
                 selected: propertyType,
                 onChanged: (value) => setState(() => propertyType = value)),
             _section('Price & features', 'Set expectations clearly'),

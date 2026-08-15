@@ -138,7 +138,14 @@ class _FilterScreenState extends State<FilterScreen> {
                     borderRadius: BorderRadius.circular(8),
                     borderSide: BorderSide.none),
               ),
-              items: ['House', 'Apartment', 'Townhouse', 'Villa']
+              items: [
+                'House',
+                'Apartment',
+                'Bedsitter',
+                'Flat',
+                'Townhouse',
+                'Villa'
+              ]
                   .map((type) =>
                       DropdownMenuItem(value: type, child: Text(type)))
                   .toList(),

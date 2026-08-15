@@ -292,7 +292,14 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
           ),
           ListingChoice(
             label: 'Property type',
-            options: const ['House', 'Apartment', 'Townhouse', 'Land'],
+            options: const [
+              'House',
+              'Apartment',
+              'Bedsitter',
+              'Flat',
+              'Townhouse',
+              'Land'
+            ],
             selected: propertyType,
             onChanged: (value) => setState(() => propertyType = value),
           ),

@@ -17,6 +17,8 @@ class Categories extends StatelessWidget {
       _Category('All homes', Icons.key_rounded, null),
       _Category('Apartments', Icons.apartment_rounded, 'Apartment'),
       _Category('Houses', Icons.home_work_outlined, 'House'),
+      _Category('Bedsitters', Icons.single_bed_rounded, 'Bedsitter'),
+      _Category('Flats', Icons.domain_rounded, 'Flat'),
       _Category('Other', Icons.holiday_village_outlined, 'Other'),
     ];
     return SizedBox(
