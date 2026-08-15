@@ -53,7 +53,8 @@ class HouseLocationMap extends StatelessWidget {
                   circles: [
                     CircleMarker(
                       point: center,
-                      color: Theme.of(context).primaryColor.withOpacity(0.3),
+                      color:
+                          Theme.of(context).primaryColor.withValues(alpha: 0.3),
                       borderColor: Theme.of(context).primaryColor,
                       borderStrokeWidth: 2,
                       useRadiusInMeter: true,

@@ -8,7 +8,8 @@ plugins {
 android {
     namespace = "com.example.house_rent"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    // Keep this aligned with the highest version required by native plugins.
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

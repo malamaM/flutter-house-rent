@@ -44,13 +44,16 @@ class _FilterScreenState extends State<FilterScreen> {
 
   void _applyFilters() {
     Map<String, String> filters = {};
-    if (_keywordController.text.isNotEmpty)
+    if (_keywordController.text.isNotEmpty) {
       filters['keyword'] = _keywordController.text.trim();
+    }
     if (_selectedType != null) filters['type'] = _selectedType!;
-    if (_minPriceController.text.isNotEmpty)
+    if (_minPriceController.text.isNotEmpty) {
       filters['min_price'] = _minPriceController.text.trim();
-    if (_maxPriceController.text.isNotEmpty)
+    }
+    if (_maxPriceController.text.isNotEmpty) {
       filters['max_price'] = _maxPriceController.text.trim();
+    }
     if (_minBedrooms > 0) filters['bedrooms'] = _minBedrooms.toString();
     if (_minBathrooms > 0) filters['bathrooms'] = _minBathrooms.toString();
 
@@ -208,13 +211,11 @@ class _FilterScreenState extends State<FilterScreen> {
       ),
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: Colors.white,
           boxShadow: [
             BoxShadow(
-                color: Colors.black12,
-                blurRadius: 10,
-                offset: const Offset(0, -2))
+                color: Colors.black12, blurRadius: 10, offset: Offset(0, -2))
           ],
         ),
         child: ElevatedButton(

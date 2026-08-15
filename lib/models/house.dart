@@ -2,13 +2,14 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/services/app_cache.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class House {
-  static const _apiBase = 'http://127.0.0.1:8000/api';
-  static const _storageBase = 'http://127.0.0.1:8000/storage';
+  static const _apiBase = ApiConfig.apiBase;
+  static const _storageBase = ApiConfig.storageBase;
   static const _feedFreshFor = Duration(minutes: 5);
   static const _feedKeepFor = Duration(days: 14);
   static const _privateFreshFor = Duration(minutes: 2);
@@ -91,7 +92,7 @@ class House {
     return House(
       map['title'] ?? 'Unknown property',
       map['city'] ?? map['address'] ?? 'Location unavailable',
-      cover == null ? '' : '$_storageBase/$cover',
+      ApiConfig.storageUrl(cover),
       id: _parseInt(map['id']),
       bedrooms: _parseInt(map['bedrooms']),
       bathrooms: _parseInt(map['bathrooms']),

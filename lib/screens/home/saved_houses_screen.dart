@@ -22,8 +22,9 @@ class _SavedHousesScreenState extends State<SavedHousesScreen> {
     _reload();
   }
 
-  void _reload({bool forceRefresh = false}) =>
-      houses = House.fetchSavedHouses(forceRefresh: forceRefresh);
+  void _reload({bool forceRefresh = false}) {
+    houses = House.fetchSavedHouses(forceRefresh: forceRefresh);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,8 +47,9 @@ class _SavedHousesScreenState extends State<SavedHousesScreen> {
       body: FutureBuilder<List<House>>(
         future: houses,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting)
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const PropertyListSkeleton();
+          }
           if (snapshot.hasError) {
             return ScreenState(
               icon: Icons.lock_outline_rounded,
@@ -55,7 +57,9 @@ class _SavedHousesScreenState extends State<SavedHousesScreen> {
               message:
                   'Your saved properties will appear here whenever you return.',
               actionLabel: 'Try again',
-              onAction: () => setState(_reload),
+              onAction: () => setState(() {
+                _reload(forceRefresh: true);
+              }),
             );
           }
           final items = snapshot.data ?? [];

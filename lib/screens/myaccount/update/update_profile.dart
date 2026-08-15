@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:house_rent/config/api_config.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -48,8 +49,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _emailController.text = data['email'] ?? "";
         _phoneController.text = data['phone_number'] ?? "";
         if (profilePicture != null) {
-          profileImageUrl =
-              "http://localhost:8000/storage/${profilePicture.toString().replaceAll("\\", "")}";
+          profileImageUrl = ApiConfig.storageUrl(profilePicture);
         }
       });
     }
@@ -61,7 +61,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final String? accessToken = prefs.getString('access_token');
 
       if (accessToken != null) {
-        final url = Uri.parse('http://localhost:8000/api/update-profile');
+        final url = Uri.parse('${ApiConfig.apiBase}/update-profile');
         final headers = {
           'Authorization': 'Bearer $accessToken',
           'Content-Type': 'application/json',
@@ -73,18 +73,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           'phone_number': _phoneController.text,
         });
 
-        print('Request URL: $url');
-        print('Request Headers: $headers');
-        print('Request Body: $body');
-
         final response = await http.post(
           url,
           headers: headers,
           body: body,
         );
-
-        print('Response Status Code: ${response.statusCode}');
-        print('Response Body: ${response.body}');
 
         if (response.statusCode == 200) {
           await SessionService.updateCachedUser({
@@ -119,32 +112,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (accessToken != null) {
       final request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://localhost:8000/api/update-profile-picture'),
+        Uri.parse('${ApiConfig.apiBase}/update-profile-picture'),
       );
       request.headers['Authorization'] = 'Bearer $accessToken';
       request.files.add(
           await http.MultipartFile.fromPath('profile_picture', image.path));
 
-      print('Request URL: ${request.url}');
-      print('Request Headers: ${request.headers}');
-      print('Request Files: ${request.files}');
-
       final response = await request.send();
 
-      print('Response Status Code: ${response.statusCode}');
-
       if (response.statusCode == 200) {
-        print('Profile picture updated successfully');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Picture updated')),
         );
         await SessionService.currentUser(forceRefresh: true);
         _fetchUserProfile();
-      } else {
-        print('Failed to update profile picture');
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not update profile picture')),
+        );
       }
     } else {
-      print('Access token not found');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please sign in again')),
+        );
+      }
     }
   }
 
@@ -178,7 +170,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       controller: _firstNameController,
                       decoration: InputDecoration(
                         filled: true,
-                        fillColor: const Color(0xFF00BF6D).withOpacity(0.05),
+                        fillColor:
+                            const Color(0xFF00BF6D).withValues(alpha: 0.05),
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16.0 * 1.5, vertical: 16.0),
                         border: const OutlineInputBorder(
@@ -194,7 +187,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       controller: _lastNameController,
                       decoration: InputDecoration(
                         filled: true,
-                        fillColor: const Color(0xFF00BF6D).withOpacity(0.05),
+                        fillColor:
+                            const Color(0xFF00BF6D).withValues(alpha: 0.05),
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16.0 * 1.5, vertical: 16.0),
                         border: const OutlineInputBorder(
@@ -210,7 +204,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       controller: _emailController,
                       decoration: InputDecoration(
                         filled: true,
-                        fillColor: const Color(0xFF00BF6D).withOpacity(0.05),
+                        fillColor:
+                            const Color(0xFF00BF6D).withValues(alpha: 0.05),
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16.0 * 1.5, vertical: 16.0),
                         border: const OutlineInputBorder(
@@ -226,7 +221,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       controller: _phoneController,
                       decoration: InputDecoration(
                         filled: true,
-                        fillColor: const Color(0xFF00BF6D).withOpacity(0.05),
+                        fillColor:
+                            const Color(0xFF00BF6D).withValues(alpha: 0.05),
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16.0 * 1.5, vertical: 16.0),
                         border: const OutlineInputBorder(
@@ -254,7 +250,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           .textTheme
                           .bodyLarge!
                           .color!
-                          .withOpacity(0.08),
+                          .withValues(alpha: 0.08),
                       foregroundColor: Colors.white,
                       minimumSize: const Size(double.infinity, 48),
                       shape: const StadiumBorder(),
@@ -305,8 +301,11 @@ class ProfilePic extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color:
-              Theme.of(context).textTheme.bodyLarge!.color!.withOpacity(0.08),
+          color: Theme.of(context)
+              .textTheme
+              .bodyLarge!
+              .color!
+              .withValues(alpha: 0.08),
         ),
       ),
       child: Stack(

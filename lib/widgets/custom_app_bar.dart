@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/screens/profile/profile.dart';
 import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/theme/app_colors.dart';
@@ -90,8 +91,7 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
       final user = await SessionService.currentUser();
       final picture = user?['profile_picture'];
       if (picture != null && mounted) {
-        setState(() => profileImageUrl =
-            'http://localhost:8000/storage/${picture.toString().replaceAll("\\", "")}');
+        setState(() => profileImageUrl = ApiConfig.storageUrl(picture));
       }
     } catch (_) {}
   }

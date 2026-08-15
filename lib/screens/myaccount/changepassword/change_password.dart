@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:house_rent/config/api_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -24,7 +25,7 @@ class _ChangePasswordState extends State<ChangePassword> {
       String? accessToken = prefs.getString('access_token');
 
       if (accessToken != null) {
-        final url = 'http://localhost:8000/api/change-password';
+        const url = '${ApiConfig.apiBase}/change-password';
         final headers = {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $accessToken',
@@ -36,10 +37,6 @@ class _ChangePasswordState extends State<ChangePassword> {
         });
 
         // Print request details
-        print('URL: $url');
-        print('Headers: $headers');
-        print('Body: $body');
-
         final response = await http.post(
           Uri.parse(url),
           headers: headers,
@@ -47,24 +44,21 @@ class _ChangePasswordState extends State<ChangePassword> {
         );
 
         // Print response details
-        print('Response status: ${response.statusCode}');
-        print('Response body: ${response.body}');
-
         if (response.statusCode == 200) {
           // Handle successful password change
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Password updated successfully')),
+            const SnackBar(content: Text('Password updated successfully')),
           );
         } else {
           // Handle error
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to update password')),
+            const SnackBar(content: Text('Failed to update password')),
           );
         }
       } else {
         // Handle missing access token
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Access token not found')),
+          const SnackBar(content: Text('Access token not found')),
         );
       }
     }
@@ -97,7 +91,8 @@ class _ChangePasswordState extends State<ChangePassword> {
                       decoration: InputDecoration(
                         hintText: "Current Password",
                         filled: true,
-                        fillColor: const Color(0xFF00BF6D).withOpacity(0.05),
+                        fillColor:
+                            const Color(0xFF00BF6D).withValues(alpha: 0.05),
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16.0 * 1.5, vertical: 16.0),
                         border: const OutlineInputBorder(
@@ -121,7 +116,8 @@ class _ChangePasswordState extends State<ChangePassword> {
                       decoration: InputDecoration(
                         hintText: "New Password",
                         filled: true,
-                        fillColor: const Color(0xFF00BF6D).withOpacity(0.05),
+                        fillColor:
+                            const Color(0xFF00BF6D).withValues(alpha: 0.05),
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16.0 * 1.5, vertical: 16.0),
                         border: const OutlineInputBorder(
@@ -145,7 +141,8 @@ class _ChangePasswordState extends State<ChangePassword> {
                       decoration: InputDecoration(
                         hintText: "Confirm New Password",
                         filled: true,
-                        fillColor: const Color(0xFF00BF6D).withOpacity(0.05),
+                        fillColor:
+                            const Color(0xFF00BF6D).withValues(alpha: 0.05),
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16.0 * 1.5, vertical: 16.0),
                         border: const OutlineInputBorder(
@@ -182,7 +179,7 @@ class _ChangePasswordState extends State<ChangePassword> {
                           .textTheme
                           .bodyLarge!
                           .color!
-                          .withOpacity(0.08),
+                          .withValues(alpha: 0.08),
                       foregroundColor: Colors.white,
                       minimumSize: const Size(double.infinity, 48),
                       shape: const StadiumBorder(),

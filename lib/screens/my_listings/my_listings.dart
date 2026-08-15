@@ -23,19 +23,28 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
     _reload();
   }
 
-  void _reload({bool forceRefresh = false}) =>
-      listings = House.fetchMyHouses(forceRefresh: forceRefresh);
+  void _reload({bool forceRefresh = false}) {
+    listings = House.fetchMyHouses(forceRefresh: forceRefresh);
+  }
 
   Future<void> _create() async {
     final created = await Navigator.push(context,
         MaterialPageRoute(builder: (_) => const CreateListingScreen()));
-    if (created == true && mounted) setState(_reload);
+    if (created == true && mounted) {
+      setState(() {
+        _reload(forceRefresh: true);
+      });
+    }
   }
 
   Future<void> _edit(House house) async {
     final changed = await Navigator.push(context,
         MaterialPageRoute(builder: (_) => EditListingScreen(house: house)));
-    if (changed == true && mounted) setState(_reload);
+    if (changed == true && mounted) {
+      setState(() {
+        _reload(forceRefresh: true);
+      });
+    }
   }
 
   @override
@@ -57,15 +66,18 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
       body: FutureBuilder<List<House>>(
         future: listings,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting)
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const PropertyListSkeleton();
+          }
           if (snapshot.hasError) {
             return ScreenState(
               icon: Icons.cloud_off_outlined,
               title: 'Could not load your listings',
               message: 'Check your connection and try again.',
               actionLabel: 'Try again',
-              onAction: () => setState(_reload),
+              onAction: () => setState(() {
+                _reload(forceRefresh: true);
+              }),
             );
           }
           final items = snapshot.data ?? [];

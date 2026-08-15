@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/screens/login/login.dart';
 import 'package:house_rent/screens/my_listings/my_listings.dart';
 import 'package:house_rent/screens/myaccount/myaccount.dart';
@@ -39,9 +40,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             name =
                 '${user['first_name'] ?? ''} ${user['last_name'] ?? ''}'.trim();
             email = user['email'] ?? '';
-            imageUrl = picture == null
-                ? null
-                : 'http://localhost:8000/storage/${picture.toString().replaceAll("\\", "")}';
+            imageUrl = picture == null ? null : ApiConfig.storageUrl(picture);
           });
         }
       }
@@ -59,7 +58,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final token = prefs.getString('access_token');
     if (token == null) return;
     final request = http.MultipartRequest(
-        'POST', Uri.parse('http://localhost:8000/api/update-profile-picture'));
+        'POST', Uri.parse('${ApiConfig.apiBase}/update-profile-picture'));
     request.headers['Authorization'] = 'Bearer $token';
     request.files.add(await http.MultipartFile.fromPath(
         'profile_picture', File(image.path).path));
@@ -67,9 +66,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (response.statusCode == 200) {
       await SessionService.currentUser(forceRefresh: true);
       await _loadProfile();
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Profile photo updated')));
+      }
     }
   }
 
@@ -79,7 +79,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (token != null) {
       try {
         await http.post(
-          Uri.parse('http://localhost:8000/api/logout'),
+          Uri.parse('${ApiConfig.apiBase}/logout'),
           headers: {
             'Authorization': 'Bearer $token',
             'Accept': 'application/json'

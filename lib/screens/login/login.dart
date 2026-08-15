@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/screens/home/home.dart';
 import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/theme/app_colors.dart';
@@ -27,7 +28,7 @@ class _SignInScreenState extends State<SignInScreen> {
     try {
       final response = await http
           .post(
-            Uri.parse('http://localhost:8000/api/login'),
+            Uri.parse('${ApiConfig.apiBase}/login'),
             headers: {
               'Content-Type': 'application/json',
               'Accept': 'application/json'
@@ -43,9 +44,10 @@ class _SignInScreenState extends State<SignInScreen> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('access_token', token);
         await SessionService.currentUser(forceRefresh: true);
-        if (mounted)
+        if (mounted) {
           Navigator.pushReplacement(
               context, MaterialPageRoute(builder: (_) => const Home()));
+        }
         return;
       }
       var message = 'Those details do not match an account.';
@@ -151,10 +153,12 @@ class _SignInScreenState extends State<SignInScreen> {
                           hintText: 'you@example.com',
                           prefixIcon: Icon(Icons.mail_outline_rounded)),
                       validator: (value) {
-                        if (value == null || value.trim().isEmpty)
+                        if (value == null || value.trim().isEmpty) {
                           return 'Enter your email address';
-                        if (!value.contains('@'))
+                        }
+                        if (!value.contains('@')) {
                           return 'Enter a valid email address';
+                        }
                         return null;
                       },
                     ),

@@ -19,20 +19,21 @@ class RecommendedHouse extends StatefulWidget {
 class _RecommendedHouseState extends State<RecommendedHouse> {
   late Future<List<House>> houses;
 
+  Map<String, String> get recommendedFilters => {
+        ...widget.filters,
+        'recommended': '1',
+      };
+
   @override
   void initState() {
     super.initState();
-    houses = House.fetchHouses(
-      filters: {...widget.filters, 'recommended': '1'},
-    );
+    houses = House.fetchHouses(filters: recommendedFilters);
     AppCache.instance.refreshes.addListener(_handleRefresh);
   }
 
   void _handleRefresh() {
     if (AppCache.instance.refreshes.value?.resource == 'houses' && mounted) {
-      final refreshedHouses = House.fetchHouses(
-        filters: {...widget.filters, 'recommended': '1'},
-      );
+      final refreshedHouses = House.fetchHouses(filters: recommendedFilters);
       setState(() {
         houses = refreshedHouses;
       });
@@ -56,8 +57,11 @@ class _RecommendedHouseState extends State<RecommendedHouse> {
           onSeeAll: () => Navigator.push(
             context,
             MaterialPageRoute(
-                builder: (_) =>
-                    const AllHousesScreen(title: 'Recommended homes')),
+              builder: (_) => AllHousesScreen(
+                title: 'Recommended homes',
+                filters: recommendedFilters,
+              ),
+            ),
           ),
         ),
         const SizedBox(height: 16),

@@ -96,7 +96,7 @@ class _PropertyCardState extends State<PropertyCard> {
               right: 10,
               top: 10,
               child: Material(
-                color: Colors.white.withOpacity(.94),
+                color: Colors.white.withValues(alpha: .94),
                 shape: const CircleBorder(),
                 child: InkWell(
                   customBorder: const CircleBorder(),

@@ -3,7 +3,6 @@ import 'package:house_rent/screens/home/explore.dart';
 import 'package:house_rent/screens/home/reels_screen.dart';
 import 'package:house_rent/screens/home/saved_houses_screen.dart';
 import 'package:house_rent/theme/app_colors.dart';
-import 'package:house_rent/widgets/glass_surface.dart';
 
 class CustomBottomNavigationBar extends StatelessWidget {
   final int currentIndex;
@@ -40,62 +39,69 @@ class CustomBottomNavigationBar extends StatelessWidget {
 
     return SafeArea(
       minimum: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-      child: GlassSurface(
-        borderRadius: BorderRadius.circular(22),
-        tint: AppColors.surfaceDark.withValues(alpha: .98),
-        borderColor: Colors.white.withValues(alpha: .12),
-        blur: 12,
-        shadows: [
-          BoxShadow(
-            color: AppColors.surfaceDark.withValues(alpha: .22),
-            blurRadius: 28,
-            offset: const Offset(0, 12),
-          ),
-        ],
-        child: SizedBox(
-          height: 68,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Row(
-              children: List.generate(items.length, (index) {
-                final item = items[index];
-                final selected = index == currentIndex;
-                return Expanded(
-                  child: InkWell(
-                    onTap: () => _open(context, index),
-                    borderRadius: BorderRadius.circular(16),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 220),
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 3, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? Colors.white.withOpacity(.12)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(selected ? item.selectedIcon : item.icon,
-                              color: selected ? Colors.white : Colors.white60,
-                              size: 22),
-                          if (selected) ...[
-                            const SizedBox(width: 7),
-                            Text(item.label,
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700)),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              }),
+      child: Container(
+        height: 68,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceDark,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: Colors.white12, width: .8),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x3317332D),
+              blurRadius: 24,
+              offset: Offset(0, 10),
             ),
-          ),
+            BoxShadow(
+              color: Color(0x18FFFFFF),
+              blurRadius: 1,
+              offset: Offset(0, -1),
+            ),
+          ],
+        ),
+        child: Row(
+          children: List.generate(items.length, (index) {
+            final item = items[index];
+            final selected = index == currentIndex;
+            return Expanded(
+              child: InkWell(
+                onTap: () => _open(context, index),
+                borderRadius: BorderRadius.circular(16),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 3, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? Colors.white.withValues(alpha: .12)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        selected ? item.selectedIcon : item.icon,
+                        color: selected ? Colors.white : Colors.white60,
+                        size: 22,
+                      ),
+                      if (selected) ...[
+                        const SizedBox(width: 7),
+                        Text(
+                          item.label,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
         ),
       ),
     );

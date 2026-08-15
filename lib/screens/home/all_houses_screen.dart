@@ -25,10 +25,12 @@ class _AllHousesScreenState extends State<AllHousesScreen> {
     _reload();
   }
 
-  void _reload({bool forceRefresh = false}) => houses = House.fetchHouses(
-        filters: widget.filters ?? {},
-        forceRefresh: forceRefresh,
-      );
+  void _reload({bool forceRefresh = false}) {
+    houses = House.fetchHouses(
+      filters: widget.filters ?? {},
+      forceRefresh: forceRefresh,
+    );
+  }
 
   Future<void> _refresh() async {
     setState(() => _reload(forceRefresh: true));
@@ -42,8 +44,9 @@ class _AllHousesScreenState extends State<AllHousesScreen> {
       body: FutureBuilder<List<House>>(
         future: houses,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting)
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const PropertyListSkeleton();
+          }
           if (snapshot.hasError) {
             return ScreenState(
               icon: Icons.cloud_off_outlined,
@@ -51,7 +54,9 @@ class _AllHousesScreenState extends State<AllHousesScreen> {
               message:
                   'Check that the property service is available, then try again.',
               actionLabel: 'Try again',
-              onAction: () => setState(_reload),
+              onAction: () => setState(() {
+                _reload(forceRefresh: true);
+              }),
             );
           }
           final items = snapshot.data ?? [];

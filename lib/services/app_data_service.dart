@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/services/app_cache.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,7 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class SessionService {
   SessionService._();
 
-  static const _apiBase = 'http://localhost:8000/api';
+  static const _apiBase = ApiConfig.apiBase;
   static Map<String, dynamic>? _memoryUser;
 
   static Future<Map<String, dynamic>?> currentUser({
@@ -112,8 +113,7 @@ class SessionService {
 class PropertyDetailsService {
   PropertyDetailsService._();
 
-  static const _apiBase = 'http://127.0.0.1:8000/api';
-  static const _storageBase = 'http://127.0.0.1:8000/storage';
+  static const _apiBase = ApiConfig.apiBase;
 
   static Future<Map<String, dynamic>> owner(
     int houseId, {
@@ -170,8 +170,9 @@ class PropertyDetailsService {
     try {
       return await _refreshGallery(houseId, key);
     } catch (_) {
-      if (cached != null)
+      if (cached != null) {
         return _galleryFromValue(cached.value, fromCache: true);
+      }
       rethrow;
     }
   }
@@ -211,7 +212,7 @@ class PropertyDetailsService {
       final map = Map<String, dynamic>.from(item);
       return ListingMediaData(
         id: int.tryParse('${map['id']}') ?? 0,
-        url: '$_storageBase/${map['path']}',
+        url: ApiConfig.storageUrl(map['path']),
         featured: map['kind'] == 'reel_video',
       );
     }).toList()
@@ -264,7 +265,7 @@ class PropertyDetailsService {
       final map = Map<String, dynamic>.from(item);
       return GalleryImageData(
         id: map['id'] is int ? map['id'] : int.tryParse('${map['id']}'),
-        url: '$_storageBase/${map['image']}',
+        url: ApiConfig.storageUrl(map['image']),
         caption: map['caption'] ?? '',
         fromCache: fromCache,
       );
@@ -306,7 +307,7 @@ class ListingMediaData {
 class ListerReviewsService {
   ListerReviewsService._();
 
-  static const _apiBase = 'http://127.0.0.1:8000/api';
+  static const _apiBase = ApiConfig.apiBase;
 
   static Future<ListerReviewsData> fetch(
     int listerId, {
@@ -397,11 +398,14 @@ class ListerReviewData {
     final reviewer = map['reviewer'] is Map
         ? Map<String, dynamic>.from(map['reviewer'])
         : <String, dynamic>{};
+    final reviewerName = [reviewer['first_name'], reviewer['last_name']]
+        .where((part) => '${part ?? ''}'.trim().isNotEmpty)
+        .join(' ');
     return ListerReviewData(
       id: int.tryParse('${map['id']}') ?? 0,
       rating: int.tryParse('${map['rating']}') ?? 0,
       comment: '${map['comment'] ?? ''}',
-      reviewerName: '${reviewer['name'] ?? 'Haven user'}',
+      reviewerName: reviewerName.isEmpty ? 'Haven user' : reviewerName,
       createdAt: DateTime.tryParse('${map['created_at'] ?? ''}'),
     );
   }

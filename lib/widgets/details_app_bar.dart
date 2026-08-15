@@ -95,7 +95,7 @@ class _DetailsAppBarState extends State<DetailsAppBar> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
               decoration: BoxDecoration(
-                  color: AppColors.surfaceDark.withOpacity(.88),
+                  color: AppColors.surfaceDark.withValues(alpha: .88),
                   borderRadius: BorderRadius.circular(20)),
               child: Text(
                 widget.house.listingStatusLabel,

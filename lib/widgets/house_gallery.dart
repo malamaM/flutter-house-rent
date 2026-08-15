@@ -176,7 +176,7 @@ class _FullScreenGalleryState extends State<FullScreenGallery> {
               child: Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(.7),
+                  color: Colors.black.withValues(alpha: .7),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Text(

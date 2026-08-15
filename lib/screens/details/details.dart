@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/theme/app_colors.dart';
@@ -48,8 +49,7 @@ class _DetailsState extends State<Details> {
     }
     try {
       final response = await http.post(
-        Uri.parse(
-            'http://127.0.0.1:8000/api/users/${widget.house.ownerId}/review'),
+        Uri.parse('${ApiConfig.apiBase}/users/${widget.house.ownerId}/review'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
