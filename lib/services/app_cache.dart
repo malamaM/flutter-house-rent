@@ -11,7 +11,7 @@ class AppCache {
 
   static final AppCache instance = AppCache._();
 
-  static const _schema = 2;
+  static const _schema = 3;
   static const _storagePrefix = 'haven.cache.v$_schema.';
   static const _manifestKey = 'haven.cache.v$_schema.manifest';
   static const _maxEntries = 80;

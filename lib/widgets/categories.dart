@@ -1,18 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:house_rent/screens/home/all_houses_screen.dart';
 import 'package:house_rent/theme/app_colors.dart';
 
 class Categories extends StatelessWidget {
-  const Categories({Key? key}) : super(key: key);
+  final String? selectedType;
+  final ValueChanged<String?> onSelected;
+
+  const Categories({
+    Key? key,
+    required this.selectedType,
+    required this.onSelected,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     const categories = <_Category>[
-      _Category('All homes', Icons.key_rounded, {}),
-      _Category('Apartments', Icons.apartment_rounded, {'type': 'Apartment'}),
-      _Category('Houses', Icons.home_work_outlined, {'type': 'House'}),
-      _Category(
-          'Townhouses', Icons.holiday_village_outlined, {'type': 'Townhouse'}),
+      _Category('All homes', Icons.key_rounded, null),
+      _Category('Apartments', Icons.apartment_rounded, 'Apartment'),
+      _Category('Houses', Icons.home_work_outlined, 'House'),
+      _Category('Other', Icons.holiday_village_outlined, 'Other'),
     ];
     return SizedBox(
       height: 92,
@@ -23,23 +28,18 @@ class Categories extends StatelessWidget {
         separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
           final item = categories[index];
+          final selected = selectedType == item.type;
           return InkWell(
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (_) => AllHousesScreen(
-                      title: item.label, filters: item.filters)),
-            ),
+            onTap: () => onSelected(item.type),
             borderRadius: BorderRadius.circular(16),
             child: Container(
               width: 94,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
               decoration: BoxDecoration(
-                color: index == 0 ? AppColors.primaryLight : AppColors.surface,
+                color: selected ? AppColors.primaryLight : AppColors.surface,
                 border: Border.all(
-                    color: index == 0
-                        ? AppColors.primaryLight
-                        : AppColors.divider),
+                    color:
+                        selected ? AppColors.primaryLight : AppColors.divider),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
@@ -63,7 +63,7 @@ class Categories extends StatelessWidget {
 class _Category {
   final String label;
   final IconData icon;
-  final Map<String, String> filters;
+  final String? type;
 
-  const _Category(this.label, this.icon, this.filters);
+  const _Category(this.label, this.icon, this.type);
 }

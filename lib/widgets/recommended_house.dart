@@ -8,7 +8,9 @@ import 'package:house_rent/widgets/property_card.dart';
 import 'package:house_rent/widgets/screen_state.dart';
 
 class RecommendedHouse extends StatefulWidget {
-  const RecommendedHouse({Key? key}) : super(key: key);
+  final Map<String, String> filters;
+
+  const RecommendedHouse({Key? key, this.filters = const {}}) : super(key: key);
 
   @override
   State<RecommendedHouse> createState() => _RecommendedHouseState();
@@ -20,13 +22,17 @@ class _RecommendedHouseState extends State<RecommendedHouse> {
   @override
   void initState() {
     super.initState();
-    houses = House.fetchHouses();
+    houses = House.fetchHouses(
+      filters: {...widget.filters, 'recommended': '1'},
+    );
     AppCache.instance.refreshes.addListener(_handleRefresh);
   }
 
   void _handleRefresh() {
     if (AppCache.instance.refreshes.value?.resource == 'houses' && mounted) {
-      final refreshedHouses = House.fetchHouses();
+      final refreshedHouses = House.fetchHouses(
+        filters: {...widget.filters, 'recommended': '1'},
+      );
       setState(() {
         houses = refreshedHouses;
       });

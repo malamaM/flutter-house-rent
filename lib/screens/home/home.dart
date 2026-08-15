@@ -3,6 +3,7 @@ import 'package:house_rent/models/house.dart';
 import 'package:house_rent/screens/home/explore.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/best_offer.dart';
+import 'package:house_rent/widgets/all_homes.dart';
 import 'package:house_rent/widgets/cache_status_banner.dart';
 import 'package:house_rent/widgets/categories.dart';
 import 'package:house_rent/widgets/custom_app_bar.dart';
@@ -11,8 +12,19 @@ import 'package:house_rent/widgets/recommended_house.dart';
 import 'package:house_rent/widgets/search_input.dart';
 import 'package:house_rent/widgets/welcome_text.dart';
 
-class Home extends StatelessWidget {
+class Home extends StatefulWidget {
   const Home({Key? key}) : super(key: key);
+
+  @override
+  State<Home> createState() => _HomeState();
+}
+
+class _HomeState extends State<Home> {
+  String? selectedType;
+
+  Map<String, String> get sectionFilters => {
+        if (selectedType != null) 'type': selectedType!,
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -40,11 +52,25 @@ class Home extends StatelessWidget {
                   title: 'Browse by type',
                   subtitle: 'A quicker way to narrow it down'),
               const SizedBox(height: 12),
-              const Categories(),
+              Categories(
+                selectedType: selectedType,
+                onSelected: (value) => setState(() => selectedType = value),
+              ),
               const SizedBox(height: 28),
-              const RecommendedHouse(),
+              RecommendedHouse(
+                key: ValueKey('recommended:$selectedType'),
+                filters: sectionFilters,
+              ),
               const SizedBox(height: 28),
-              const BestOffer(),
+              BestOffer(
+                key: ValueKey('deals:$selectedType'),
+                filters: sectionFilters,
+              ),
+              const SizedBox(height: 28),
+              AllHomes(
+                key: ValueKey('all:$selectedType'),
+                filters: sectionFilters,
+              ),
             ],
           ),
         ),
