@@ -11,6 +11,7 @@ import 'package:house_rent/widgets/house_info.dart';
 import 'package:house_rent/widgets/house_location_map.dart';
 import 'package:house_rent/widgets/lister_reviews_section.dart';
 import 'package:house_rent/widgets/lister_trust_badges.dart';
+import 'package:house_rent/widgets/listing_videos_section.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -241,6 +242,8 @@ class _DetailsState extends State<Details> {
                   HouseInfo(house: widget.house),
                   const SizedBox(height: 28),
                   HouseGallery(houseId: widget.house.id),
+                  const SizedBox(height: 30),
+                  ListingVideosSection(houseId: widget.house.id),
                   const SizedBox(height: 30),
                   About(house: widget.house),
                   const SizedBox(height: 30),

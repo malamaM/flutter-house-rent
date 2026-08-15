@@ -42,7 +42,7 @@ class _WelcomeTextState extends State<WelcomeText> {
           Text('Your next place\nstarts here.',
               style: Theme.of(context).textTheme.displayLarge),
           const SizedBox(height: 10),
-          Text('Curated homes to rent and buy across Zambia.',
+          Text('Quality homes to rent across Zambia.',
               style: Theme.of(context).textTheme.bodyMedium),
         ],
       ),

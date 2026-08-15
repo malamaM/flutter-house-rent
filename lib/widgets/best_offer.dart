@@ -19,14 +19,14 @@ class _BestOfferState extends State<BestOffer> {
   @override
   void initState() {
     super.initState();
-    offers = House.fetchHouses(filters: {'status': 'For Sale'});
+    offers = House.fetchHouses(filters: const {'status': 'For Rent'});
     AppCache.instance.refreshes.addListener(_handleRefresh);
   }
 
   void _handleRefresh() {
     if (AppCache.instance.refreshes.value?.resource == 'houses' && mounted) {
       final refreshedOffers =
-          House.fetchHouses(filters: const {'status': 'For Sale'});
+          House.fetchHouses(filters: const {'status': 'For Rent'});
       setState(() {
         offers = refreshedOffers;
       });
@@ -56,7 +56,7 @@ class _BestOfferState extends State<BestOffer> {
                     Text('Worth a closer look',
                         style: Theme.of(context).textTheme.headlineMedium),
                     const SizedBox(height: 3),
-                    Text('Well-priced homes for sale',
+                    Text('Well-priced rentals worth considering',
                         style: Theme.of(context).textTheme.bodyMedium),
                   ],
                 ),
@@ -66,8 +66,7 @@ class _BestOfferState extends State<BestOffer> {
                   context,
                   MaterialPageRoute(
                     builder: (_) => const AllHousesScreen(
-                        title: 'Homes for sale',
-                        filters: {'status': 'For Sale'}),
+                        title: 'Rental homes', filters: {'status': 'For Rent'}),
                   ),
                 ),
                 child: const Text('View all'),
@@ -83,7 +82,7 @@ class _BestOfferState extends State<BestOffer> {
                   children: List.generate(
                       2,
                       (_) => Container(
-                            height: 138,
+                            height: 172,
                             margin: const EdgeInsets.only(bottom: 12),
                             decoration: BoxDecoration(
                                 color: AppColors.surface,

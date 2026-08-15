@@ -8,10 +8,11 @@ class Categories extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const categories = <_Category>[
-      _Category('Rent', Icons.key_rounded, {'status': 'For Rent'}),
-      _Category('Buy', Icons.villa_outlined, {'status': 'For Sale'}),
+      _Category('All homes', Icons.key_rounded, {}),
       _Category('Apartments', Icons.apartment_rounded, {'type': 'Apartment'}),
       _Category('Houses', Icons.home_work_outlined, {'type': 'House'}),
+      _Category(
+          'Townhouses', Icons.holiday_village_outlined, {'type': 'Townhouse'}),
     ];
     return SizedBox(
       height: 92,

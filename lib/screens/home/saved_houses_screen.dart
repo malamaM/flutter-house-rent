@@ -90,7 +90,7 @@ class _SavedHousesScreenState extends State<SavedHousesScreen> {
         },
       ),
       backgroundColor: AppColors.background,
-      bottomNavigationBar: const CustomBottomNavigationBar(currentIndex: 2),
+      bottomNavigationBar: const CustomBottomNavigationBar(currentIndex: 3),
     );
   }
 }

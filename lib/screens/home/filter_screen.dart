@@ -16,7 +16,6 @@ class _FilterScreenState extends State<FilterScreen> {
   final TextEditingController _maxPriceController = TextEditingController();
 
   String? _selectedType;
-  String? _selectedStatus;
   int _minBedrooms = 0;
   int _minBathrooms = 0;
 
@@ -29,10 +28,6 @@ class _FilterScreenState extends State<FilterScreen> {
 
     _selectedType = widget.initialFilters['type'];
     if (_selectedType != null && _selectedType!.isEmpty) _selectedType = null;
-
-    _selectedStatus = widget.initialFilters['status'];
-    if (_selectedStatus != null && _selectedStatus!.isEmpty)
-      _selectedStatus = null;
 
     _minBedrooms = int.tryParse(widget.initialFilters['bedrooms'] ?? '0') ?? 0;
     _minBathrooms =
@@ -52,7 +47,6 @@ class _FilterScreenState extends State<FilterScreen> {
     if (_keywordController.text.isNotEmpty)
       filters['keyword'] = _keywordController.text.trim();
     if (_selectedType != null) filters['type'] = _selectedType!;
-    if (_selectedStatus != null) filters['status'] = _selectedStatus!;
     if (_minPriceController.text.isNotEmpty)
       filters['min_price'] = _minPriceController.text.trim();
     if (_maxPriceController.text.isNotEmpty)
@@ -134,46 +128,21 @@ class _FilterScreenState extends State<FilterScreen> {
             const Text('Property Details',
                 style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: _selectedType,
-                    hint: const Text('Type'),
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.grey[100],
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide.none),
-                    ),
-                    items: ['House', 'Apartment', 'Condo', 'Villa']
-                        .map((type) =>
-                            DropdownMenuItem(value: type, child: Text(type)))
-                        .toList(),
-                    onChanged: (val) => setState(() => _selectedType = val),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: _selectedStatus,
-                    hint: const Text('Status'),
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.grey[100],
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide.none),
-                    ),
-                    items: ['For Sale', 'For Rent']
-                        .map((status) => DropdownMenuItem(
-                            value: status, child: Text(status)))
-                        .toList(),
-                    onChanged: (val) => setState(() => _selectedStatus = val),
-                  ),
-                ),
-              ],
+            DropdownButtonFormField<String>(
+              value: _selectedType,
+              hint: const Text('Property type'),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.grey[100],
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none),
+              ),
+              items: ['House', 'Apartment', 'Townhouse', 'Villa']
+                  .map((type) =>
+                      DropdownMenuItem(value: type, child: Text(type)))
+                  .toList(),
+              onChanged: (val) => setState(() => _selectedType = val),
             ),
             const SizedBox(height: 24),
             const Text('Price Range',

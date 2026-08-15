@@ -5,32 +5,22 @@ import 'package:house_rent/screens/my_listings/create_listing_screen.dart';
 import 'package:house_rent/screens/my_listings/edit_listing.dart';
 import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/widgets/demand_badge.dart';
+import 'package:house_rent/widgets/custom_bottom_navigation_bar.dart';
 import 'package:house_rent/widgets/lister_trust_badges.dart';
 import 'package:house_rent/widgets/recommended_house.dart';
 import 'package:house_rent/widgets/property_card.dart';
 import 'package:house_rent/theme/app_theme.dart';
 
 void main() {
-  test('listing status controls price presentation', () {
-    final sale = House(
-      'Sale home',
-      'Lusaka',
-      '',
-      status: 'For Sale',
-      priceRental: 5000,
-      pricePurchase: 750000,
-    );
+  test('all listings use monthly rental pricing', () {
     final rental = House(
       'Rental home',
       'Lusaka',
       '',
       status: 'For Rent',
       priceRental: 6500,
-      pricePurchase: 900000,
     );
 
-    expect(sale.listingStatusLabel, 'For Sale');
-    expect(formatPropertyPrice(sale), 'K750,000');
     expect(rental.listingStatusLabel, 'For Rent');
     expect(formatPropertyPrice(rental), 'K6,500 / month');
   });
@@ -114,5 +104,15 @@ void main() {
     await tester.pump();
 
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('bottom navigation exposes Haven Tours', (tester) async {
+    await tester.pumpWidget(const MaterialApp(
+      home: Scaffold(
+          bottomNavigationBar: CustomBottomNavigationBar(currentIndex: 2)),
+    ));
+
+    expect(find.text('Tours'), findsOneWidget);
+    expect(find.byIcon(Icons.smart_display_rounded), findsOneWidget);
   });
 }

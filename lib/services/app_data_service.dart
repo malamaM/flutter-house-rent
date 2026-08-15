@@ -176,6 +176,48 @@ class PropertyDetailsService {
     }
   }
 
+  static Future<List<ListingMediaData>> media(
+    int houseId, {
+    bool forceRefresh = false,
+  }) async {
+    final key = AppCache.instance.publicKey('house:$houseId:media');
+    final cached = await AppCache.instance.read(key);
+    if (!forceRefresh && cached != null && !cached.isExpired) {
+      return _mediaFromValue(cached.value);
+    }
+    try {
+      final response = await http
+          .get(Uri.parse('$_apiBase/houses/$houseId/media'))
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode != 200) throw Exception('Media unavailable');
+      final value = json.decode(response.body)['media'];
+      final list = value is List ? value : <dynamic>[];
+      await AppCache.instance.write(
+        key,
+        list,
+        freshFor: const Duration(minutes: 10),
+        keepFor: const Duration(days: 14),
+      );
+      return _mediaFromValue(list);
+    } catch (_) {
+      if (cached != null) return _mediaFromValue(cached.value);
+      return [];
+    }
+  }
+
+  static List<ListingMediaData> _mediaFromValue(dynamic value) {
+    if (value is! List) return [];
+    return value.whereType<Map>().map((item) {
+      final map = Map<String, dynamic>.from(item);
+      return ListingMediaData(
+        id: int.tryParse('${map['id']}') ?? 0,
+        url: '$_storageBase/${map['path']}',
+        featured: map['kind'] == 'reel_video',
+      );
+    }).toList()
+      ..sort((a, b) => a.featured == b.featured ? 0 : (a.featured ? -1 : 1));
+  }
+
   static Future<List<GalleryImageData>> _refreshGallery(
     int houseId,
     String key,
@@ -250,6 +292,15 @@ class GalleryImageData {
     required this.caption,
     this.fromCache = false,
   });
+}
+
+class ListingMediaData {
+  final int id;
+  final String url;
+  final bool featured;
+
+  const ListingMediaData(
+      {required this.id, required this.url, required this.featured});
 }
 
 class ListerReviewsService {

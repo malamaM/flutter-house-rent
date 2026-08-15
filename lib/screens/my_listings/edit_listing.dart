@@ -32,18 +32,20 @@ class _EditListingScreenState extends State<EditListingScreen> {
   late final TextEditingController district;
   late final TextEditingController houseNumber;
   late final TextEditingController rentalPrice;
-  late final TextEditingController purchasePrice;
   late final TextEditingController parking;
 
   late String propertyType;
-  late String listingStatus;
   late bool gym;
   late bool pool;
   late bool garage;
   File? newCoverImage;
+  File? newReelVideo;
   final List<File> newGalleryImages = [];
+  final List<File> newVideos = [];
   final List<Map<String, dynamic>> existingGalleryImages = [];
+  final List<ListingMediaData> existingMedia = [];
   final List<int> deletedImageIds = [];
+  final List<int> deletedMediaIds = [];
   bool loadingImages = true;
   bool saving = false;
 
@@ -62,16 +64,14 @@ class _EditListingScreenState extends State<EditListingScreen> {
     district = TextEditingController(text: house.district ?? '');
     houseNumber = TextEditingController(text: house.houseNumber ?? '');
     rentalPrice = TextEditingController(text: house.priceRental.toString());
-    purchasePrice = TextEditingController(text: house.pricePurchase.toString());
     parking = TextEditingController(text: house.carGarage.toString());
     propertyType = _option(
         house.type, const ['House', 'Apartment', 'Townhouse', 'Land'], 'House');
-    listingStatus =
-        _option(house.status, const ['For Rent', 'For Sale'], 'For Rent');
     gym = house.gym == 1;
     pool = house.swimmingPool == 1;
     garage = house.garage == 1;
     _fetchGallery();
+    _fetchMedia();
   }
 
   String _option(String? value, List<String> values, String fallback) {
@@ -92,6 +92,11 @@ class _EditListingScreenState extends State<EditListingScreen> {
     }
   }
 
+  Future<void> _fetchMedia() async {
+    final media = await PropertyDetailsService.media(widget.house.id);
+    if (mounted) setState(() => existingMedia.addAll(media));
+  }
+
   @override
   void dispose() {
     for (final controller in [
@@ -106,7 +111,6 @@ class _EditListingScreenState extends State<EditListingScreen> {
       district,
       houseNumber,
       rentalPrice,
-      purchasePrice,
       parking
     ]) {
       controller.dispose();
@@ -146,6 +150,25 @@ class _EditListingScreenState extends State<EditListingScreen> {
     }
   }
 
+  Future<void> _pickVideo({required bool featured}) async {
+    try {
+      final video = await picker.pickVideo(
+        source: ImageSource.gallery,
+        maxDuration: featured ? const Duration(minutes: 2) : null,
+      );
+      if (video == null || !mounted) return;
+      setState(() {
+        if (featured) {
+          newReelVideo = File(video.path);
+        } else if (newVideos.length < 4) {
+          newVideos.add(File(video.path));
+        }
+      });
+    } catch (_) {
+      _message('Haven could not open your video library. Check permissions.');
+    }
+  }
+
   Future<void> _save() async {
     FocusScope.of(context).unfocus();
     if (!formKey.currentState!.validate()) return;
@@ -158,18 +181,14 @@ class _EditListingScreenState extends State<EditListingScreen> {
       'bedrooms': int.tryParse(bedrooms.text) ?? widget.house.bedrooms,
       'bathrooms': int.tryParse(bathrooms.text) ?? widget.house.bathrooms,
       'size': int.tryParse(size.text) ?? widget.house.size,
-      'status': listingStatus,
+      'status': 'For Rent',
       'country': country.text.trim(),
       'province': province.text.trim(),
       'district': district.text.trim(),
       'house_number': houseNumber.text.trim(),
       'type': propertyType,
-      'price_rental': listingStatus == 'For Rent'
-          ? int.tryParse(rentalPrice.text) ?? widget.house.priceRental
-          : 0,
-      'price_purchase': listingStatus == 'For Sale'
-          ? int.tryParse(purchasePrice.text) ?? widget.house.pricePurchase
-          : 0,
+      'price_rental':
+          int.tryParse(rentalPrice.text) ?? widget.house.priceRental,
       'gym': gym ? 1 : 0,
       'swimming_pool': pool ? 1 : 0,
       'garage': garage ? 1 : 0,
@@ -183,6 +202,9 @@ class _EditListingScreenState extends State<EditListingScreen> {
           ? null
           : newGalleryImages.map((image) => image.path).toList(),
       deletedImageIds: deletedImageIds,
+      videoPaths: newVideos.map((video) => video.path).toList(),
+      reelVideoPath: newReelVideo?.path,
+      deletedMediaIds: deletedMediaIds,
     );
     if (!mounted) return;
     setState(() => saving = false);
@@ -227,7 +249,7 @@ class _EditListingScreenState extends State<EditListingScreen> {
                 eyebrow: 'Property details',
                 title: 'Refine your listing',
                 description:
-                    'Fresh details and strong photos help renters and buyers decide with confidence.'),
+                    'Fresh details and strong photos help renters decide with confidence.'),
             const SizedBox(height: 26),
             ListingTextField(
                 controller: title, label: 'Listing title', requiredField: true),
@@ -241,26 +263,13 @@ class _EditListingScreenState extends State<EditListingScreen> {
                 options: const ['House', 'Apartment', 'Townhouse', 'Land'],
                 selected: propertyType,
                 onChanged: (value) => setState(() => propertyType = value)),
-            ListingChoice(
-                label: 'Available for',
-                options: const ['For Rent', 'For Sale'],
-                selected: listingStatus,
-                onChanged: (value) => setState(() => listingStatus = value)),
             _section('Price & features', 'Set expectations clearly'),
-            if (listingStatus == 'For Rent')
-              ListingTextField(
-                  controller: rentalPrice,
-                  label: 'Monthly rent',
-                  suffix: 'ZMW',
-                  numeric: true,
-                  requiredField: true)
-            else
-              ListingTextField(
-                  controller: purchasePrice,
-                  label: 'Purchase price',
-                  suffix: 'ZMW',
-                  numeric: true,
-                  requiredField: true),
+            ListingTextField(
+                controller: rentalPrice,
+                label: 'Monthly rent',
+                suffix: 'ZMW',
+                numeric: true,
+                requiredField: true),
             Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Expanded(
                   child: ListingTextField(
@@ -319,6 +328,8 @@ class _EditListingScreenState extends State<EditListingScreen> {
             _coverCard(),
             const SizedBox(height: 16),
             _galleryCard(),
+            const SizedBox(height: 16),
+            _mediaCard(),
           ],
         ),
       ),
@@ -439,6 +450,107 @@ class _EditListingScreenState extends State<EditListingScreen> {
             ]),
         ]),
       );
+
+  Widget _mediaCard() {
+    final featured = existingMedia.where((media) => media.featured).toList();
+    final regular = existingMedia.where((media) => !media.featured).toList();
+    return ListingSurface(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Video tours',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+        const SizedBox(height: 5),
+        Text(
+            'A featured tour leads this listing in Haven Tours. Regular videos are shown when no featured tour exists.',
+            style: Theme.of(context).textTheme.bodyMedium),
+        const SizedBox(height: 14),
+        _EditVideoRow(
+          icon: Icons.auto_awesome_motion_rounded,
+          title: 'Featured tour',
+          subtitle: newReelVideo != null
+              ? newReelVideo!.path.split('/').last
+              : featured.isNotEmpty
+                  ? 'Current featured tour'
+                  : 'Optional · best in portrait',
+          action:
+              newReelVideo == null && featured.isEmpty ? 'Choose' : 'Replace',
+          onTap: () => _pickVideo(featured: true),
+          onRemove: newReelVideo != null
+              ? () => setState(() => newReelVideo = null)
+              : featured.isEmpty
+                  ? null
+                  : () => setState(() {
+                        deletedMediaIds.add(featured.first.id);
+                        existingMedia.remove(featured.first);
+                      }),
+        ),
+        const Divider(height: 24),
+        _EditVideoRow(
+            icon: Icons.video_library_outlined,
+            title: 'Property videos',
+            subtitle: '${regular.length + newVideos.length} uploaded',
+            action: 'Add',
+            onTap: () => _pickVideo(featured: false)),
+        ...regular.map((media) => ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.play_circle_outline_rounded,
+                color: AppColors.primary),
+            title: const Text('Property walkthrough'),
+            trailing: IconButton(
+                icon: const Icon(Icons.close_rounded),
+                onPressed: () => setState(() {
+                      deletedMediaIds.add(media.id);
+                      existingMedia.remove(media);
+                    })))),
+        ...newVideos.map((video) => ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.play_circle_outline_rounded,
+                color: AppColors.primary),
+            title: Text(video.path.split('/').last,
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+            trailing: IconButton(
+                icon: const Icon(Icons.close_rounded),
+                onPressed: () => setState(() => newVideos.remove(video))))),
+      ]),
+    );
+  }
+}
+
+class _EditVideoRow extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String action;
+  final VoidCallback onTap;
+  final VoidCallback? onRemove;
+  const _EditVideoRow(
+      {required this.icon,
+      required this.title,
+      required this.subtitle,
+      required this.action,
+      required this.onTap,
+      this.onRemove});
+
+  @override
+  Widget build(BuildContext context) => Row(children: [
+        Icon(icon, color: AppColors.primary),
+        const SizedBox(width: 11),
+        Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 3),
+          Text(subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodyMedium)
+        ])),
+        if (onRemove != null)
+          IconButton(
+              onPressed: onRemove, icon: const Icon(Icons.close_rounded)),
+        TextButton(onPressed: onTap, child: Text(action)),
+      ]);
 }
 
 class _NetworkThumb extends StatelessWidget {

@@ -28,7 +28,6 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   final city = TextEditingController();
   final houseNumber = TextEditingController();
   final rentalPrice = TextEditingController();
-  final purchasePrice = TextEditingController();
   final bedrooms = TextEditingController();
   final bathrooms = TextEditingController();
   final size = TextEditingController();
@@ -36,13 +35,14 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
 
   int step = 0;
   String propertyType = 'House';
-  String listingStatus = 'For Rent';
   bool gym = false;
   bool pool = false;
   bool garage = false;
   bool submitting = false;
   File? coverImage;
+  File? reelVideo;
   final List<File> galleryImages = [];
+  final List<File> videos = [];
   double? latitude;
   double? longitude;
 
@@ -58,7 +58,6 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       city,
       houseNumber,
       rentalPrice,
-      purchasePrice,
       bedrooms,
       bathrooms,
       size,
@@ -128,6 +127,25 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     }
   }
 
+  Future<void> pickVideo({required bool featured}) async {
+    try {
+      final video = await picker.pickVideo(
+        source: ImageSource.gallery,
+        maxDuration: featured ? const Duration(minutes: 2) : null,
+      );
+      if (video == null || !mounted) return;
+      setState(() {
+        if (featured) {
+          reelVideo = File(video.path);
+        } else if (videos.length < 4) {
+          videos.add(File(video.path));
+        }
+      });
+    } catch (_) {
+      _message('Haven could not open your video library. Check permissions.');
+    }
+  }
+
   Future<void> selectLocation() async {
     final result = await Navigator.push<LatLng>(
       context,
@@ -152,7 +170,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       'title': title.text.trim(),
       'description': description.text.trim(),
       'type': propertyType,
-      'status': listingStatus,
+      'status': 'For Rent',
       'country': country.text.trim(),
       'province': province.text.trim().isEmpty ? 'N/A' : province.text.trim(),
       'district': district.text.trim().isEmpty ? 'N/A' : district.text.trim(),
@@ -160,11 +178,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       'address': city.text.trim(),
       'house_number':
           houseNumber.text.trim().isEmpty ? 'N/A' : houseNumber.text.trim(),
-      'price_rental':
-          listingStatus == 'For Rent' ? int.tryParse(rentalPrice.text) ?? 0 : 0,
-      'price_purchase': listingStatus == 'For Sale'
-          ? int.tryParse(purchasePrice.text) ?? 0
-          : 0,
+      'price_rental': int.tryParse(rentalPrice.text) ?? 0,
       'bedrooms': int.tryParse(bedrooms.text) ?? 0,
       'bathrooms': int.tryParse(bathrooms.text) ?? 0,
       'size': int.tryParse(size.text) ?? 0,
@@ -179,6 +193,8 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       payload,
       coverImage!.path,
       galleryImages.map((image) => image.path).toList(),
+      videoPaths: videos.map((video) => video.path).toList(),
+      reelVideoPath: reelVideo?.path,
     );
     if (!mounted) return;
     setState(() => submitting = false);
@@ -280,12 +296,6 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
             selected: propertyType,
             onChanged: (value) => setState(() => propertyType = value),
           ),
-          ListingChoice(
-            label: 'Available for',
-            options: const ['For Rent', 'For Sale'],
-            selected: listingStatus,
-            onChanged: (value) => setState(() => listingStatus = value),
-          ),
         ],
       );
 
@@ -299,24 +309,14 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                 'Accurate information builds trust and brings better enquiries.',
           ),
           const SizedBox(height: 26),
-          if (listingStatus == 'For Rent')
-            ListingTextField(
-              controller: rentalPrice,
-              label: 'Monthly rent',
-              hint: '0',
-              suffix: 'ZMW',
-              numeric: true,
-              requiredField: true,
-            )
-          else
-            ListingTextField(
-              controller: purchasePrice,
-              label: 'Purchase price',
-              hint: '0',
-              suffix: 'ZMW',
-              numeric: true,
-              requiredField: true,
-            ),
+          ListingTextField(
+            controller: rentalPrice,
+            label: 'Monthly rent',
+            hint: '0',
+            suffix: 'ZMW',
+            numeric: true,
+            requiredField: true,
+          ),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -440,6 +440,52 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         ],
       );
 
+  Widget _videoPickerCard() => ListingSurface(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Video tours',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+          const SizedBox(height: 5),
+          Text(
+              'Add regular walkthroughs, plus one featured Haven Tour that becomes this listing’s centerpiece.',
+              style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: 14),
+          _VideoRow(
+            icon: Icons.auto_awesome_motion_rounded,
+            title: 'Featured tour',
+            subtitle: reelVideo == null
+                ? 'Optional · best in portrait'
+                : reelVideo!.path.split('/').last,
+            action: reelVideo == null ? 'Choose' : 'Replace',
+            onTap: () => pickVideo(featured: true),
+            onRemove: reelVideo == null
+                ? null
+                : () => setState(() => reelVideo = null),
+          ),
+          const Divider(height: 24),
+          _VideoRow(
+            icon: Icons.video_library_outlined,
+            title: 'Property videos',
+            subtitle: '${videos.length} of 4 selected',
+            action: 'Add',
+            onTap: () => pickVideo(featured: false),
+          ),
+          if (videos.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            ...videos.map((video) => ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.play_circle_outline_rounded,
+                      color: AppColors.primary),
+                  title: Text(video.path.split('/').last,
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  trailing: IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => setState(() => videos.remove(video))),
+                )),
+          ],
+        ]),
+      );
+
   Widget _photos() => _page(
         key: formKeys[3],
         children: [
@@ -493,6 +539,8 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 16),
+          _videoPickerCard(),
           const SizedBox(height: 18),
           Container(
             padding: const EdgeInsets.all(15),
@@ -551,6 +599,43 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       ),
     );
   }
+}
+
+class _VideoRow extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String action;
+  final VoidCallback onTap;
+  final VoidCallback? onRemove;
+
+  const _VideoRow(
+      {required this.icon,
+      required this.title,
+      required this.subtitle,
+      required this.action,
+      required this.onTap,
+      this.onRemove});
+
+  @override
+  Widget build(BuildContext context) => Row(children: [
+        Icon(icon, color: AppColors.primary),
+        const SizedBox(width: 11),
+        Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 3),
+          Text(subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodyMedium)
+        ])),
+        if (onRemove != null)
+          IconButton(
+              onPressed: onRemove, icon: const Icon(Icons.close_rounded)),
+        TextButton(onPressed: onTap, child: Text(action)),
+      ]);
 }
 
 class _Progress extends StatelessWidget {

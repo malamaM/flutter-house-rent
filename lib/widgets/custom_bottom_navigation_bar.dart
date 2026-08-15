@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:house_rent/screens/home/explore.dart';
+import 'package:house_rent/screens/home/reels_screen.dart';
 import 'package:house_rent/screens/home/saved_houses_screen.dart';
 import 'package:house_rent/theme/app_colors.dart';
 
@@ -16,6 +17,9 @@ class CustomBottomNavigationBar extends StatelessWidget {
     } else if (index == 1) {
       Navigator.push(
           context, MaterialPageRoute(builder: (_) => const Explore()));
+    } else if (index == 2) {
+      Navigator.push(
+          context, MaterialPageRoute(builder: (_) => const ReelsScreen()));
     } else {
       Navigator.push(context,
           MaterialPageRoute(builder: (_) => const SavedHousesScreen()));
@@ -28,6 +32,8 @@ class CustomBottomNavigationBar extends StatelessWidget {
       _NavItem(Icons.home_outlined, Icons.home_rounded, 'Home'),
       _NavItem(Icons.travel_explore_outlined, Icons.travel_explore_rounded,
           'Explore'),
+      _NavItem(
+          Icons.smart_display_outlined, Icons.smart_display_rounded, 'Tours'),
       _NavItem(Icons.bookmark_border_rounded, Icons.bookmark_rounded, 'Saved'),
     ];
 

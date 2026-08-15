@@ -33,7 +33,6 @@ class House {
   String? houseNumber;
   String? type;
   int priceRental;
-  int pricePurchase;
   int gym;
   int swimmingPool;
   int garage;
@@ -67,7 +66,6 @@ class House {
     this.houseNumber,
     this.type,
     this.priceRental = 0,
-    this.pricePurchase = 0,
     this.gym = 0,
     this.swimmingPool = 0,
     this.garage = 0,
@@ -85,21 +83,7 @@ class House {
     this.isFromCache = false,
   });
 
-  bool get isForSale {
-    final value = status?.trim().toLowerCase();
-    return value == 'for sale' || value == 'sale' || value == 'purchase';
-  }
-
-  bool get isForRent {
-    final value = status?.trim().toLowerCase();
-    return value == 'for rent' || value == 'rent' || value == 'rental';
-  }
-
-  String get listingStatusLabel {
-    if (isForSale) return 'For Sale';
-    if (isForRent) return 'For Rent';
-    return status?.trim().isNotEmpty == true ? status!.trim() : 'Available';
-  }
+  String get listingStatusLabel => 'For Rent';
 
   factory House.fromMap(Map<String, dynamic> map, {bool fromCache = false}) {
     final user = map['user'];
@@ -121,7 +105,6 @@ class House {
       houseNumber: map['house_number'],
       type: map['type'],
       priceRental: _parseInt(map['price-rental'] ?? map['price_rental']),
-      pricePurchase: _parseInt(map['price-purchase'] ?? map['price_purchase']),
       gym: _parseInt(map['gym']),
       swimmingPool: _parseInt(map['swimming_pool']),
       garage: _parseInt(map['garage']),
@@ -162,7 +145,6 @@ class House {
         'house_number': houseNumber,
         'type': type,
         'price-rental': priceRental,
-        'price-purchase': pricePurchase,
         'gym': gym,
         'swimming_pool': swimmingPool,
         'garage': garage,
@@ -403,6 +385,9 @@ class House {
     String? coverImagePath,
     List<String>? galleryImagePaths,
     List<int>? deletedImageIds,
+    List<String>? videoPaths,
+    String? reelVideoPath,
+    List<int>? deletedMediaIds,
   }) async {
     try {
       final token = await _requiredToken();
@@ -426,8 +411,22 @@ class House {
       for (var i = 0; i < (deletedImageIds?.length ?? 0); i++) {
         request.fields['deleted_images[$i]'] = deletedImageIds![i].toString();
       }
+      for (var i = 0; i < (videoPaths?.length ?? 0); i++) {
+        request.files.add(await http.MultipartFile.fromPath(
+          'videos[$i]',
+          videoPaths![i],
+        ));
+      }
+      if (reelVideoPath != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath('reel_video', reelVideoPath),
+        );
+      }
+      for (var i = 0; i < (deletedMediaIds?.length ?? 0); i++) {
+        request.fields['deleted_media[$i]'] = deletedMediaIds![i].toString();
+      }
       final response = await http.Response.fromStream(
-        await request.send().timeout(const Duration(seconds: 40)),
+        await request.send().timeout(const Duration(minutes: 3)),
       );
       if (response.statusCode == 200) {
         await invalidatePropertyData(id: id);
@@ -439,11 +438,9 @@ class House {
     }
   }
 
-  static Future<bool> createHouse(
-    Map<String, dynamic> data,
-    String coverImagePath,
-    List<String> galleryImagePaths,
-  ) async {
+  static Future<bool> createHouse(Map<String, dynamic> data,
+      String coverImagePath, List<String> galleryImagePaths,
+      {List<String> videoPaths = const [], String? reelVideoPath}) async {
     try {
       final token = await _requiredToken();
       final request = http.MultipartRequest(
@@ -457,8 +454,16 @@ class House {
       for (final path in galleryImagePaths) {
         request.files.add(await http.MultipartFile.fromPath('images[]', path));
       }
+      for (final path in videoPaths) {
+        request.files.add(await http.MultipartFile.fromPath('videos[]', path));
+      }
+      if (reelVideoPath != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath('reel_video', reelVideoPath),
+        );
+      }
       final response = await http.Response.fromStream(
-        await request.send().timeout(const Duration(seconds: 40)),
+        await request.send().timeout(const Duration(minutes: 3)),
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
         await invalidatePropertyData();

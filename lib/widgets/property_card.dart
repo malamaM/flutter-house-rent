@@ -6,16 +6,14 @@ import 'package:house_rent/widgets/demand_badge.dart';
 import 'package:house_rent/widgets/lister_trust_badges.dart';
 
 String formatPropertyPrice(House house) {
-  final isRental =
-      house.isForRent || (!house.isForSale && house.priceRental > 0);
-  final value = isRental ? house.priceRental : house.pricePurchase;
+  final value = house.priceRental;
   if (value <= 0) return 'Price on request';
   final digits = value.toString();
   final formatted = digits.replaceAllMapped(
     RegExp(r'\B(?=(\d{3})+(?!\d))'),
     (_) => ',',
   );
-  return 'K$formatted${isRental ? ' / month' : ''}';
+  return 'K$formatted / month';
 }
 
 class PropertyCard extends StatefulWidget {
@@ -83,11 +81,6 @@ class _PropertyCardState extends State<PropertyCard> {
               child: const Icon(Icons.home_work_outlined,
                   color: AppColors.textSecondary, size: 36),
             ),
-          ),
-          Positioned(
-            left: 12,
-            top: 12,
-            child: _StatusPill(label: widget.house.listingStatusLabel),
           ),
           if (widget.house.demandLabel != null)
             Positioned(
@@ -178,7 +171,7 @@ class _PropertyCardState extends State<PropertyCard> {
         onTap: widget.onTap,
         borderRadius: BorderRadius.circular(18),
         child: Container(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             border: Border.all(color: AppColors.divider),
             borderRadius: BorderRadius.circular(18),
@@ -186,15 +179,15 @@ class _PropertyCardState extends State<PropertyCard> {
           child: Row(
             children: [
               SizedBox(
-                width: 116,
-                height: 116,
+                width: 172,
+                height: 156,
                 child: _image(
-                  width: 116,
-                  height: 116,
-                  radius: BorderRadius.circular(13),
+                  width: 172,
+                  height: 156,
+                  radius: BorderRadius.circular(14),
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -318,28 +311,6 @@ class _MiniFact extends StatelessWidget {
             style:
                 const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
       ],
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  final String label;
-
-  const _StatusPill({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceDark.withOpacity(.9),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-            color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
-      ),
     );
   }
 }
