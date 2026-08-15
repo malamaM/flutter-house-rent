@@ -76,14 +76,15 @@ class _AccountItem extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
         onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         leading: Container(
-          width: 44,
-          height: 44,
+          width: 40,
+          height: 40,
+          alignment: Alignment.center,
           decoration: BoxDecoration(
               color: AppColors.surfaceContainer,
-              borderRadius: BorderRadius.circular(13)),
-          child: Icon(icon, color: AppColors.primary),
+              borderRadius: BorderRadius.circular(12)),
+          child: Icon(icon, color: AppColors.primary, size: 20),
         ),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
         subtitle: Padding(

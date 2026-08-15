@@ -228,16 +228,17 @@ class _ProfileItem extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 13),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
           child: Row(
             children: [
               Container(
-                width: 46,
-                height: 46,
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
                     color: AppColors.primaryLight,
-                    borderRadius: BorderRadius.circular(14)),
-                child: Icon(icon, color: AppColors.primary),
+                    borderRadius: BorderRadius.circular(12)),
+                child: Icon(icon, color: AppColors.primary, size: 20),
               ),
               const SizedBox(width: 13),
               Expanded(

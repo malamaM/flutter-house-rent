@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/theme/app_colors.dart';
+import 'package:house_rent/widgets/glass_surface.dart';
 
 class DetailsAppBar extends StatefulWidget {
   final House house;
@@ -119,13 +120,21 @@ class _RoundAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white.withOpacity(.94),
-      shape: const CircleBorder(),
-      child: IconButton(
-          onPressed: onTap,
-          icon: Icon(icon, color: AppColors.textPrimary),
-          iconSize: 21),
+    return GlassSurface(
+      borderRadius: BorderRadius.circular(99),
+      tint: Colors.white.withValues(alpha: .78),
+      blur: 20,
+      shadows: const [
+        BoxShadow(
+            color: Color(0x24000000), blurRadius: 16, offset: Offset(0, 6)),
+      ],
+      child: Material(
+        color: Colors.transparent,
+        child: IconButton(
+            onPressed: onTap,
+            icon: Icon(icon, color: AppColors.textPrimary),
+            iconSize: 21),
+      ),
     );
   }
 }

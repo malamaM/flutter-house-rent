@@ -22,4 +22,19 @@ class AppColors {
   static const Color warning = Color(0xFFE3A23B);
 
   static const Color divider = Color(0xFFE4E6E1);
+  static const Color glassBorder = Color(0xB8FFFFFF);
+  static const Color glassSurface = Color(0xEFFFFFFF);
+
+  static const List<BoxShadow> premiumShadow = [
+    BoxShadow(
+      color: Color(0x120D4638),
+      blurRadius: 24,
+      offset: Offset(0, 9),
+    ),
+    BoxShadow(
+      color: Color(0x0AFFFFFF),
+      blurRadius: 1,
+      offset: Offset(0, -1),
+    ),
+  ];
 }

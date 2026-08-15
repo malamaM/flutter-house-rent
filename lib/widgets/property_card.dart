@@ -129,7 +129,7 @@ class _PropertyCardState extends State<PropertyCard> {
   Widget build(BuildContext context) {
     if (widget.horizontal) return _buildHorizontal(context);
     return Material(
-      color: AppColors.surface,
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(22),
       child: InkWell(
         onTap: widget.onTap,
@@ -137,8 +137,10 @@ class _PropertyCardState extends State<PropertyCard> {
         child: Container(
           width: 278,
           decoration: BoxDecoration(
-            border: Border.all(color: AppColors.divider),
+            color: AppColors.glassSurface,
+            border: Border.all(color: AppColors.glassBorder, width: .8),
             borderRadius: BorderRadius.circular(22),
+            boxShadow: AppColors.premiumShadow,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -165,7 +167,7 @@ class _PropertyCardState extends State<PropertyCard> {
 
   Widget _buildHorizontal(BuildContext context) {
     return Material(
-      color: AppColors.surface,
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: widget.onTap,
@@ -173,8 +175,10 @@ class _PropertyCardState extends State<PropertyCard> {
         child: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            border: Border.all(color: AppColors.divider),
+            color: AppColors.glassSurface,
+            border: Border.all(color: AppColors.glassBorder, width: .8),
             borderRadius: BorderRadius.circular(18),
+            boxShadow: AppColors.premiumShadow,
           ),
           child: Row(
             children: [

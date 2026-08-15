@@ -18,8 +18,15 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(13)),
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppColors.primary, AppColors.primaryDark],
+                ),
+                border: Border.all(color: Colors.white38, width: .7),
+                borderRadius: BorderRadius.circular(13),
+                boxShadow: AppColors.premiumShadow,
+              ),
               child: const Icon(Icons.roofing_rounded,
                   color: Colors.white, size: 23),
             ),

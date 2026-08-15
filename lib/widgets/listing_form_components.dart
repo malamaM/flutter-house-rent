@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:house_rent/theme/app_colors.dart';
+import 'package:house_rent/widgets/glass_surface.dart';
 
 class ListingSectionHeader extends StatelessWidget {
   final String eyebrow;
@@ -213,14 +214,9 @@ class ListingSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.divider),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: child,
+    return GlassSurface(
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(padding: padding, child: child),
     );
   }
 }

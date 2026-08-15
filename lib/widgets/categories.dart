@@ -43,6 +43,7 @@ class Categories extends StatelessWidget {
                     color:
                         selected ? AppColors.primaryLight : AppColors.divider),
                 borderRadius: BorderRadius.circular(16),
+                boxShadow: selected ? null : AppColors.premiumShadow,
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,

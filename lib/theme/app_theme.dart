@@ -10,7 +10,12 @@ class AppTheme {
       scaffoldBackgroundColor: AppColors.background,
       brightness: Brightness.light,
       visualDensity: VisualDensity.standard,
-      splashFactory: InkSparkle.splashFactory,
+      splashFactory: InkRipple.splashFactory,
+      pageTransitionsTheme: const PageTransitionsTheme(builders: {
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+      }),
       textTheme: GoogleFonts.interTextTheme(
         ThemeData.light().textTheme,
       ).copyWith(
@@ -53,7 +58,7 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.surface,
+        fillColor: AppColors.glassSurface,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 18, vertical: 17),
         border: OutlineInputBorder(
@@ -76,7 +81,8 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          elevation: 0,
+          elevation: 1,
+          shadowColor: AppColors.primaryDark.withValues(alpha: .24),
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           minimumSize: const Size(double.infinity, 56),
@@ -97,16 +103,48 @@ class AppTheme {
           ),
         ),
       ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.primary,
+          backgroundColor: Colors.white.withValues(alpha: .72),
+          side: const BorderSide(color: AppColors.divider),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          highlightColor: AppColors.primary.withValues(alpha: .08),
+          splashFactory: InkRipple.splashFactory,
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: Colors.white.withValues(alpha: .78),
+        selectedColor: AppColors.primaryLight.withValues(alpha: .9),
+        side: const BorderSide(color: AppColors.divider),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
+        showCheckmark: false,
+      ),
+      switchTheme: SwitchThemeData(
+        trackColor: WidgetStateProperty.resolveWith((states) =>
+            states.contains(WidgetState.selected)
+                ? AppColors.primary
+                : AppColors.surfaceContainer),
+        thumbColor: const WidgetStatePropertyAll(Colors.white),
+      ),
       cardTheme: CardThemeData(
-        color: AppColors.surface,
-        elevation: 0,
+        color: AppColors.glassSurface,
+        elevation: 1,
+        shadowColor: AppColors.primaryDark.withValues(alpha: .08),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
           side: const BorderSide(color: AppColors.divider),
         ),
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: AppColors.background,
+        backgroundColor: AppColors.background.withValues(alpha: .92),
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
@@ -124,6 +162,19 @@ class AppTheme {
         contentTextStyle: GoogleFonts.inter(color: Colors.white),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: AppColors.glassSurface,
+        surfaceTintColor: Colors.transparent,
+        modalBarrierColor: Color(0x52000000),
+        showDragHandle: true,
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: AppColors.glassSurface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 8,
+        shadowColor: AppColors.primaryDark.withValues(alpha: .16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
       colorScheme: const ColorScheme.light(
         primary: AppColors.primary,
