@@ -14,6 +14,23 @@ class RecommendationService {
   static const _queueKey = 'recommendation_event_queue_v1';
   Timer? _flushTimer;
 
+  String _errorMessage(http.Response response, String fallback) {
+    try {
+      final body = jsonDecode(response.body);
+      if (body is Map && body['message'] is String) {
+        return body['message'] as String;
+      }
+      if (body is Map && body['errors'] is Map) {
+        final errors = body['errors'] as Map;
+        final first = errors.values.isEmpty ? null : errors.values.first;
+        if (first is List && first.isNotEmpty) return '${first.first}';
+      }
+    } catch (_) {
+      // A non-JSON error page should never leak into the user-facing message.
+    }
+    return fallback;
+  }
+
   Future<String?> _token() async =>
       (await SharedPreferences.getInstance()).getString('access_token');
 
@@ -36,7 +53,9 @@ class RecommendationService {
     final response = await http
         .get(Uri.parse('${ApiConfig.apiBase}/recommendation-options'))
         .timeout(const Duration(seconds: 12));
-    if (response.statusCode != 200) throw Exception('Could not load locations');
+    if (response.statusCode != 200) {
+      throw Exception(_errorMessage(response, 'Could not load locations'));
+    }
     return RecommendationOptions.fromMap(
         Map<String, dynamic>.from(jsonDecode(response.body)));
   }
@@ -46,6 +65,8 @@ class RecommendationService {
     required Set<int> areaIds,
     required int minBedrooms,
     required int maxBedrooms,
+    required int minMonthlyPrice,
+    required int maxMonthlyPrice,
     required Set<int> amenityIds,
     bool startNewSearch = false,
   }) async {
@@ -64,13 +85,16 @@ class RecommendationService {
             'area_ids': areaIds.toList(),
             'min_bedrooms': minBedrooms,
             'max_bedrooms': maxBedrooms,
+            'min_monthly_price': minMonthlyPrice,
+            'max_monthly_price': maxMonthlyPrice,
             'amenity_ids': amenityIds.toList(),
             'start_new_search': startNewSearch,
           }),
         )
         .timeout(const Duration(seconds: 15));
     if (response.statusCode != 200) {
-      throw Exception('Could not save your rental preferences');
+      throw Exception(
+          _errorMessage(response, 'Could not save your rental preferences'));
     }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('recommendation_profile_complete', true);

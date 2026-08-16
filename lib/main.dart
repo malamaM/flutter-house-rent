@@ -1,13 +1,34 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:house_rent/screens/splash/splash_screen.dart';
 import 'package:house_rent/theme/app_theme.dart';
 import 'package:house_rent/services/performance_monitor.dart';
 import 'package:house_rent/theme/theme_controller.dart';
+import 'package:house_rent/services/app_feedback.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ThemeController.instance.load();
   PerformanceMonitor.instance.initialize();
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FlutterError.reportError(FlutterErrorDetails(
+      exception: error,
+      stack: stack,
+      library: 'Haven Zambia application',
+    ));
+    AppFeedback.error(error);
+    return true;
+  };
+  ErrorWidget.builder = (details) {
+    return const AppErrorView(
+      message:
+          'This part of the page could not be displayed. You can safely go back and try again.',
+    );
+  };
   runApp(const MyApp());
 }
 
@@ -21,6 +42,7 @@ class MyApp extends StatelessWidget {
       builder: (_, __) => MaterialApp(
         title: 'Haven Zambia',
         debugShowCheckedModeBanner: false,
+        scaffoldMessengerKey: AppFeedback.messengerKey,
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
         themeMode: ThemeController.instance.mode,

@@ -13,7 +13,10 @@ class CacheStatusBanner extends StatelessWidget {
       valueListenable: House.cacheState,
       builder: (context, state, _) {
         final relevant = resource == null || state.resource == resource;
-        if (!relevant || !state.servedFromCache || !state.isStale) {
+        if (!relevant ||
+            !state.servedFromCache ||
+            !state.isStale ||
+            !state.refreshFailed) {
           return const SizedBox.shrink();
         }
         return Container(
@@ -25,12 +28,12 @@ class CacheStatusBanner extends StatelessWidget {
           ),
           child: Row(
             children: [
-              const Icon(Icons.offline_bolt_outlined,
+              const Icon(Icons.cloud_off_outlined,
                   color: AppColors.primary, size: 19),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Showing saved results${_age(state.updatedAt)} while Haven Zambia refreshes.',
+                  'Connection unavailable. Showing saved results${_age(state.updatedAt)}.',
                   style: const TextStyle(
                     color: AppColors.primaryDark,
                     fontSize: 12,

@@ -1,7 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:house_rent/screens/onboarding/rental_preferences_screen.dart';
+import 'package:house_rent/services/app_feedback.dart';
 import 'package:house_rent/services/recommendation_service.dart';
 import 'package:house_rent/services/session_recommendation.dart';
+
+String _budgetLabel(Map<String, dynamic> profile) {
+  final minimum = int.tryParse('${profile['min_monthly_price']}') ?? 0;
+  final maximum = int.tryParse('${profile['max_monthly_price']}') ?? 0;
+  String amount(int value) => value >= 1000000
+      ? 'Any'
+      : 'K${value.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => ',')}';
+  if (minimum == 0) return 'Up to ${amount(maximum)}';
+  if (maximum >= 1000000) return '${amount(minimum)}+';
+  return '${amount(minimum)}–${amount(maximum)}';
+}
 
 class RecommendationHistoryScreen extends StatefulWidget {
   const RecommendationHistoryScreen({super.key});
@@ -75,12 +87,16 @@ class _RecommendationHistoryScreenState
       ),
     );
     if (confirmed != true) return;
-    await RecommendationService.instance.resetHistory();
-    SessionRecommendation.instance.reset();
-    if (!mounted) return;
-    _reload();
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Recommendation learning has been reset.')));
+    try {
+      await RecommendationService.instance.resetHistory();
+      SessionRecommendation.instance.reset();
+      if (!mounted) return;
+      _reload();
+      AppFeedback.success('Recommendation learning has been reset.');
+    } catch (error) {
+      AppFeedback.error(error,
+          fallback: 'Could not reset recommendation learning.');
+    }
   }
 
   @override
@@ -93,11 +109,11 @@ class _RecommendationHistoryScreenState
               return const Center(child: CircularProgressIndicator());
             }
             if (snapshot.hasError || snapshot.data?['profile'] is! Map) {
-              return Center(
-                child: FilledButton.icon(
-                    onPressed: _reload,
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: const Text('Try again')),
+              return AppErrorView(
+                message: snapshot.hasError
+                    ? AppFeedback.messageFor(snapshot.error!)
+                    : 'Your recommendation preferences are not available yet.',
+                onRetry: _reload,
               );
             }
             final payload = snapshot.data!;
@@ -152,6 +168,9 @@ class _RecommendationHistoryScreenState
                             amenities.isEmpty
                                 ? 'No required amenities'
                                 : amenities),
+                        const SizedBox(height: 10),
+                        _Fact(Icons.payments_outlined, _budgetLabel(profile),
+                            'Preferred monthly rent'),
                         const SizedBox(height: 10),
                         OutlinedButton.icon(
                             onPressed: () => _openPreferences(newSearch: false),

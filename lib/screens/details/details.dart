@@ -330,6 +330,7 @@ class _DetailsState extends State<Details> {
   Widget build(BuildContext context) {
     final ownerName = widget.house.ownerName ?? 'Property owner';
     return Scaffold(
+      extendBody: true,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: CustomScrollView(
         slivers: [
@@ -433,10 +434,51 @@ class _DetailsState extends State<Details> {
           ? null
           : SafeArea(
               minimum: const EdgeInsets.fromLTRB(20, 10, 20, 14),
-              child: ElevatedButton.icon(
-                onPressed: _showContact,
-                icon: const Icon(Icons.chat_bubble_outline_rounded),
-                label: const Text('Contact owner'),
+              child: GlassSurface(
+                borderRadius: BorderRadius.circular(18),
+                blur: 24,
+                tint: Theme.of(context).colorScheme.surface.withValues(
+                    alpha: Theme.of(context).brightness == Brightness.dark
+                        ? .76
+                        : .68),
+                borderColor: Colors.white.withValues(
+                    alpha: Theme.of(context).brightness == Brightness.dark
+                        ? .2
+                        : .72),
+                shadows: [
+                  BoxShadow(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .shadow
+                        .withValues(alpha: .18),
+                    blurRadius: 28,
+                    offset: const Offset(0, 9),
+                  ),
+                ],
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: _showContact,
+                    borderRadius: BorderRadius.circular(18),
+                    child: SizedBox(
+                      height: 58,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.chat_bubble_outline_rounded,
+                              color: Theme.of(context).colorScheme.primary),
+                          const SizedBox(width: 10),
+                          Text('Contact owner',
+                              style: TextStyle(
+                                  color:
+                                      Theme.of(context).colorScheme.onSurface,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
     );

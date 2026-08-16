@@ -16,6 +16,14 @@ class House {
   static const _privateFreshFor = Duration(minutes: 2);
   static const _privateKeepFor = Duration(days: 30);
   static const _homeFeedCacheVersion = 3;
+  static const _refreshRetryDelays = <Duration>[
+    Duration(seconds: 5),
+    Duration(seconds: 15),
+    Duration(seconds: 45),
+    Duration(minutes: 2),
+  ];
+  static final Map<String, Timer> _refreshRetryTimers = {};
+  static final Map<String, int> _refreshRetryAttempts = {};
 
   static final ValueNotifier<HouseCacheState> cacheState =
       ValueNotifier(const HouseCacheState());
@@ -458,6 +466,7 @@ class House {
         resource: resource,
         servedFromCache: true,
         isStale: !cached.isFresh,
+        refreshFailed: false,
         updatedAt: cached.storedAt,
       );
       if (!cached.isFresh) {
@@ -486,7 +495,15 @@ class House {
           resource: resource,
           servedFromCache: true,
           isStale: true,
+          refreshFailed: true,
           updatedAt: cached.storedAt,
+        );
+        _scheduleRefreshRetry(
+          key: key,
+          resource: resource,
+          freshFor: freshFor,
+          keepFor: keepFor,
+          fetch: fetch,
         );
         return _housesFromValue(cached.value, fromCache: true);
       }
@@ -514,8 +531,10 @@ class House {
         resource: resource,
         servedFromCache: false,
         isStale: false,
+        refreshFailed: false,
         updatedAt: now,
       );
+      _clearRefreshRetry(key);
       AppCache.instance.announce(resource, key);
       return _housesFromValue(raw);
     });
@@ -537,8 +556,51 @@ class House {
         fetch: fetch,
       );
     } catch (_) {
-      // Stale data remains usable; the next foreground refresh will retry.
+      final cached = await AppCache.instance.read(key);
+      cacheState.value = HouseCacheState(
+        resource: resource,
+        servedFromCache: true,
+        isStale: true,
+        refreshFailed: true,
+        updatedAt: cached?.storedAt,
+      );
+      _scheduleRefreshRetry(
+        key: key,
+        resource: resource,
+        freshFor: freshFor,
+        keepFor: keepFor,
+        fetch: fetch,
+      );
     }
+  }
+
+  static void _scheduleRefreshRetry({
+    required String key,
+    required String resource,
+    required Duration freshFor,
+    required Duration keepFor,
+    required Future<List<dynamic>> Function() fetch,
+  }) {
+    if (_refreshRetryTimers.containsKey(key)) return;
+    final attempt = _refreshRetryAttempts[key] ?? 0;
+    _refreshRetryAttempts[key] = attempt + 1;
+    final delay =
+        _refreshRetryDelays[attempt.clamp(0, _refreshRetryDelays.length - 1)];
+    _refreshRetryTimers[key] = Timer(delay, () {
+      _refreshRetryTimers.remove(key);
+      unawaited(_refreshListInBackground(
+        key: key,
+        resource: resource,
+        freshFor: freshFor,
+        keepFor: keepFor,
+        fetch: fetch,
+      ));
+    });
+  }
+
+  static void _clearRefreshRetry(String key) {
+    _refreshRetryTimers.remove(key)?.cancel();
+    _refreshRetryAttempts.remove(key);
   }
 
   static Future<bool> toggleSaveHouse(
@@ -804,12 +866,14 @@ class HouseCacheState {
   final String? resource;
   final bool servedFromCache;
   final bool isStale;
+  final bool refreshFailed;
   final DateTime? updatedAt;
 
   const HouseCacheState({
     this.resource,
     this.servedFromCache = false,
     this.isStale = false,
+    this.refreshFailed = false,
     this.updatedAt,
   });
 }

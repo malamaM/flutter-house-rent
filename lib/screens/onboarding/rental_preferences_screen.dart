@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/recommendation.dart';
 import 'package:house_rent/services/premium_haptics.dart';
+import 'package:house_rent/services/app_feedback.dart';
 import 'package:house_rent/services/recommendation_service.dart';
 import 'package:house_rent/services/session_recommendation.dart';
 
@@ -27,6 +28,8 @@ class _RentalPreferencesScreenState extends State<RentalPreferencesScreen> {
   final Set<int> areaIds = {};
   final Set<int> amenityIds = {};
   int bedroomStart = 1;
+  int minMonthlyPrice = 3000;
+  int maxMonthlyPrice = 6000;
   String areaSearch = '';
   bool saving = false;
 
@@ -55,6 +58,10 @@ class _RentalPreferencesScreenState extends State<RentalPreferencesScreen> {
             .map((item) => int.tryParse('${item['id']}'))
             .whereType<int>());
         bedroomStart = int.tryParse('${profile['min_bedrooms']}') ?? 1;
+        minMonthlyPrice =
+            int.tryParse('${profile['min_monthly_price']}') ?? 3000;
+        maxMonthlyPrice =
+            int.tryParse('${profile['max_monthly_price']}') ?? 6000;
       }
     }
     return loaded;
@@ -79,7 +86,7 @@ class _RentalPreferencesScreenState extends State<RentalPreferencesScreen> {
   Future<void> _continue() async {
     if (!valid) return;
     PremiumHaptics.action();
-    if (step < 3) {
+    if (step < 4) {
       setState(() => step++);
       await pages.animateToPage(step,
           duration: const Duration(milliseconds: 440),
@@ -93,6 +100,8 @@ class _RentalPreferencesScreenState extends State<RentalPreferencesScreen> {
         areaIds: areaIds,
         minBedrooms: bedroomStart,
         maxBedrooms: bedroomStart + 1,
+        minMonthlyPrice: minMonthlyPrice,
+        maxMonthlyPrice: maxMonthlyPrice,
         amenityIds: amenityIds,
         startNewSearch: widget.startNewSearch,
       );
@@ -101,8 +110,8 @@ class _RentalPreferencesScreenState extends State<RentalPreferencesScreen> {
     } catch (error) {
       if (!mounted) return;
       setState(() => saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(error.toString().replaceFirst('Exception: ', ''))));
+      AppFeedback.error(error,
+          fallback: 'We could not save your preferences. Please try again.');
     }
   }
 
@@ -115,7 +124,9 @@ class _RentalPreferencesScreenState extends State<RentalPreferencesScreen> {
               future: options,
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
-                  return _RetryState(onRetry: _retry);
+                  return _RetryState(
+                      message: AppFeedback.messageFor(snapshot.error!),
+                      onRetry: _retry);
                 }
                 final data = snapshot.data;
                 if (data == null) {
@@ -146,7 +157,7 @@ class _RentalPreferencesScreenState extends State<RentalPreferencesScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: List.generate(
-                            4,
+                            5,
                             (index) => AnimatedContainer(
                               duration: const Duration(milliseconds: 260),
                               margin: const EdgeInsets.symmetric(horizontal: 3),
@@ -195,6 +206,14 @@ class _RentalPreferencesScreenState extends State<RentalPreferencesScreen> {
                             value: bedroomStart,
                             onChanged: (value) =>
                                 setState(() => bedroomStart = value)),
+                        _BudgetStep(
+                          minimum: minMonthlyPrice,
+                          maximum: maxMonthlyPrice,
+                          onChanged: (range) => setState(() {
+                            minMonthlyPrice = range.$1;
+                            maxMonthlyPrice = range.$2;
+                          }),
+                        ),
                         _AmenityStep(
                           amenities: data.amenities,
                           selected: amenityIds,
@@ -217,8 +236,8 @@ class _RentalPreferencesScreenState extends State<RentalPreferencesScreen> {
                                 dimension: 22,
                                 child:
                                     CircularProgressIndicator(strokeWidth: 2))
-                            : Text(step == 3
-                                ? 'Build my Haven Zambia'
+                            : Text(step == 4
+                                ? 'Build my Haven'
                                 : 'Continue'),
                       ),
                     ),
@@ -377,6 +396,51 @@ class _BedroomStep extends StatelessWidget {
       ]);
 }
 
+class _BudgetStep extends StatelessWidget {
+  final int minimum;
+  final int maximum;
+  final ValueChanged<(int, int)> onChanged;
+  const _BudgetStep({
+    required this.minimum,
+    required this.maximum,
+    required this.onChanged,
+  });
+
+  static const ranges = <(int, int, String)>[
+    (0, 3000, 'Up to K3,000'),
+    (3000, 6000, 'K3,000–K6,000'),
+    (6000, 10000, 'K6,000–K10,000'),
+    (10000, 15000, 'K10,000–K15,000'),
+    (15000, 25000, 'K15,000–K25,000'),
+    (25000, 1000000, 'K25,000+'),
+  ];
+
+  @override
+  Widget build(BuildContext context) => Column(children: [
+        const _Heading('Your monthly budget', 'What range feels comfortable?',
+            'Price strongly shapes your matches, but Haven Zambia can still occasionally show an exceptional home just outside your range.'),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(22, 0, 22, 20),
+            itemCount: ranges.length,
+            itemBuilder: (context, index) {
+              final range = ranges[index];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 11),
+                child: _ChoiceCard(
+                  active: minimum == range.$1 && maximum == range.$2,
+                  onTap: () => onChanged((range.$1, range.$2)),
+                  icon: Icons.payments_outlined,
+                  title: range.$3,
+                  subtitle: 'per month',
+                ),
+              );
+            },
+          ),
+        ),
+      ]);
+}
+
 class _AmenityStep extends StatelessWidget {
   final List<RentalAmenity> amenities;
   final Set<int> selected;
@@ -450,27 +514,27 @@ class _ChoiceCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(22),
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final compact = constraints.maxHeight < 100;
+              final boundedHeight = constraints.hasBoundedHeight;
+              final compact = boundedHeight && constraints.maxHeight < 100;
               return Padding(
                 padding: EdgeInsets.symmetric(
                     horizontal: 15, vertical: compact ? 9 : 15),
                 child: Column(
+                  mainAxisSize:
+                      boundedHeight ? MainAxisSize.max : MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(icon,
                         size: compact ? 22 : 24,
                         color: active ? colors.onPrimary : colors.primary),
                     SizedBox(height: compact ? 5 : 8),
-                    Flexible(
-                      child: Text(title,
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              color:
-                                  active ? colors.onPrimary : colors.onSurface,
-                              fontWeight: FontWeight.w800)),
-                    ),
+                    Text(title,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            color: active ? colors.onPrimary : colors.onSurface,
+                            fontWeight: FontWeight.w800)),
                     if (subtitle != null) ...[
                       const SizedBox(height: 3),
                       Text(subtitle!,
@@ -494,8 +558,9 @@ class _ChoiceCard extends StatelessWidget {
 }
 
 class _RetryState extends StatelessWidget {
+  final String message;
   final VoidCallback onRetry;
-  const _RetryState({required this.onRetry});
+  const _RetryState({required this.message, required this.onRetry});
   @override
   Widget build(BuildContext context) => Center(
         child: Padding(
@@ -503,7 +568,7 @@ class _RetryState extends StatelessWidget {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             const Icon(Icons.cloud_off_rounded, size: 46),
             const SizedBox(height: 14),
-            const Text('We could not load your locations right now.'),
+            Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 14),
             FilledButton(onPressed: onRetry, child: const Text('Try again')),
           ]),

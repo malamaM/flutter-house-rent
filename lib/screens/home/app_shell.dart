@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:house_rent/screens/home/explore.dart';
 import 'package:house_rent/screens/home/home.dart';
 import 'package:house_rent/screens/home/reels_screen.dart';
@@ -50,18 +51,37 @@ class _AppShellState extends State<AppShell> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       unawaited(CurrentLocationService.instance.warm());
-      _warmupTimers.add(Timer(const Duration(milliseconds: 700),
-          () => _mountTab(1))); // Map first: it has the heaviest cold start.
-      _warmupTimers
-          .add(Timer(const Duration(milliseconds: 1300), () => _mountTab(3)));
-      _warmupTimers
-          .add(Timer(const Duration(milliseconds: 2100), () => _mountTab(2)));
-      unawaited(NavigationWarmupService.instance.warmTab(0));
+      _warmupTimers.add(Timer(const Duration(milliseconds: 1700),
+          () => _queueIdleMount(1))); // Map first after launch settles.
+      _warmupTimers.add(
+          Timer(const Duration(milliseconds: 3200), () => _queueIdleMount(3)));
+      _warmupTimers.add(
+          Timer(const Duration(milliseconds: 4800), () => _queueIdleMount(2)));
+      _warmupTimers.add(
+          Timer(const Duration(milliseconds: 1000), () => _queueIdleWarmup(0)));
     });
   }
 
   void _mountTab(int index) {
     if (mounted && _mountedTabs.add(index)) setState(() {});
+  }
+
+  void _queueIdleMount(int index) {
+    if (!mounted || _mountedTabs.contains(index)) return;
+    SchedulerBinding.instance.scheduleTask(
+      () => _mountTab(index),
+      Priority.idle,
+      debugLabel: 'preload-tab-$index',
+    );
+  }
+
+  void _queueIdleWarmup(int index) {
+    if (!mounted) return;
+    SchedulerBinding.instance.scheduleTask(
+      () => NavigationWarmupService.instance.warmTab(index),
+      Priority.idle,
+      debugLabel: 'warm-tab-routes-$index',
+    );
   }
 
   @override
@@ -105,19 +125,21 @@ class _AppShellState extends State<AppShell> {
             4,
             (index) => !_mountedTabs.contains(index)
                 ? const SizedBox.shrink()
-                : TickerMode(
-                    enabled: index == _currentIndex,
-                    child: Navigator(
-                      key: _navigatorKeys[index],
-                      observers: [_observers[index]],
-                      onGenerateRoute: (_) => MaterialPageRoute<void>(
-                        builder: (_) => switch (index) {
-                          0 => const Home(),
-                          1 => const Explore(),
-                          2 => const ReelsScreen(),
-                          _ => const SavedHousesScreen(),
-                        },
-                        settings: RouteSettings(name: 'tab-$index'),
+                : RepaintBoundary(
+                    child: TickerMode(
+                      enabled: index == _currentIndex,
+                      child: Navigator(
+                        key: _navigatorKeys[index],
+                        observers: [_observers[index]],
+                        onGenerateRoute: (_) => MaterialPageRoute<void>(
+                          builder: (_) => switch (index) {
+                            0 => const Home(),
+                            1 => const Explore(),
+                            2 => const ReelsScreen(),
+                            _ => const SavedHousesScreen(),
+                          },
+                          settings: RouteSettings(name: 'tab-$index'),
+                        ),
                       ),
                     ),
                   ),
