@@ -8,6 +8,7 @@ import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/services/reels_music_service.dart';
 import 'package:house_rent/services/premium_haptics.dart';
 import 'package:house_rent/services/recommendation_service.dart';
+import 'package:house_rent/services/session_recommendation.dart';
 import 'package:house_rent/widgets/demand_badge.dart';
 import 'package:house_rent/widgets/lister_trust_badges.dart';
 import 'package:house_rent/widgets/property_card.dart';
@@ -32,8 +33,6 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
   bool muted = false;
   bool _tabActive = false;
   DateTime _shownAt = DateTime.now();
-  final Map<int, double> _areaAffinity = {};
-  final Map<String, double> _typeAffinity = {};
 
   @override
   void initState() {
@@ -118,14 +117,7 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
   }
 
   void _learn(House house, String event, double weight) {
-    if (house.areaId != null) {
-      _areaAffinity.update(house.areaId!, (value) => value + weight,
-          ifAbsent: () => weight);
-    }
-    if (house.type != null) {
-      _typeAffinity.update(house.type!, (value) => value + weight,
-          ifAbsent: () => weight);
-    }
+    SessionRecommendation.instance.observe(house, weight);
     unawaited(RecommendationService.instance.track(event, house.id));
     _rerankUnseen();
   }
@@ -134,11 +126,9 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
     final start = activeIndex + 2;
     if (start >= houses.length - 1) return;
     final tail = houses.sublist(start);
-    double score(House house) =>
-        house.recommendationScore +
-        (_areaAffinity[house.areaId] ?? 0) * 5 +
-        (_typeAffinity[house.type] ?? 0) * 3;
-    tail.sort((a, b) => score(b).compareTo(score(a)));
+    tail.sort((a, b) => SessionRecommendation.instance
+        .score(b)
+        .compareTo(SessionRecommendation.instance.score(a)));
     setState(() => houses.replaceRange(start, houses.length, tail));
   }
 

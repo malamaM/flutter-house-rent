@@ -5,6 +5,7 @@ import 'package:house_rent/screens/details/details.dart';
 import 'package:house_rent/screens/home/all_houses_screen.dart';
 import 'package:house_rent/widgets/property_card.dart';
 import 'package:house_rent/widgets/screen_state.dart';
+import 'package:house_rent/services/session_recommendation.dart';
 
 class RecommendedHouse extends StatefulWidget {
   final Map<String, String> filters;
@@ -33,6 +34,11 @@ class _RecommendedHouseState extends State<RecommendedHouse> {
         ? House.fetchHouses(filters: recommendedFilters)
         : Future.value(widget.initialHouses);
     AppCache.instance.refreshes.addListener(_handleRefresh);
+    SessionRecommendation.instance.addListener(_handleSessionChange);
+  }
+
+  void _handleSessionChange() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -58,6 +64,7 @@ class _RecommendedHouseState extends State<RecommendedHouse> {
   @override
   void dispose() {
     AppCache.instance.refreshes.removeListener(_handleRefresh);
+    SessionRecommendation.instance.removeListener(_handleSessionChange);
     super.dispose();
   }
 
@@ -106,7 +113,8 @@ class _RecommendedHouseState extends State<RecommendedHouse> {
                   message: 'Check your connection and try again.',
                 );
               }
-              if (snapshot.data!.isEmpty) {
+              final items = SessionRecommendation.instance.rank(snapshot.data!);
+              if (items.isEmpty) {
                 return const ScreenState(
                   icon: Icons.home_work_outlined,
                   title: 'New homes coming soon',
@@ -116,10 +124,10 @@ class _RecommendedHouseState extends State<RecommendedHouse> {
               return ListView.separated(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 scrollDirection: Axis.horizontal,
-                itemCount: snapshot.data!.take(8).length,
+                itemCount: items.take(8).length,
                 separatorBuilder: (_, __) => const SizedBox(width: 14),
                 itemBuilder: (context, index) {
-                  final house = snapshot.data![index];
+                  final house = items[index];
                   return PropertyCard(
                     house: house,
                     onTap: () => Navigator.push(

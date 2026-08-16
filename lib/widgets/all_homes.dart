@@ -5,6 +5,7 @@ import 'package:house_rent/screens/home/all_houses_screen.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/property_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:house_rent/services/session_recommendation.dart';
 
 class AllHomes extends StatefulWidget {
   final Map<String, String> filters;
@@ -19,7 +20,7 @@ class AllHomes extends StatefulWidget {
 
 class _AllHomesState extends State<AllHomes> {
   static const pageSize = 4;
-  String sort = 'newest';
+  String sort = 'relevance';
   List<House> homes = [];
   int page = 0;
   bool loadingInitial = true;
@@ -32,13 +33,25 @@ class _AllHomesState extends State<AllHomes> {
   String get sortLabel {
     if (sort == 'price_low') return 'Lowest price';
     if (sort == 'price_high') return 'Highest price';
-    return 'Newest first';
+    if (sort == 'newest') return 'Newest first';
+    return 'Best match for you';
   }
 
   @override
   void initState() {
     super.initState();
+    SessionRecommendation.instance.addListener(_handleSessionChange);
     _initialize();
+  }
+
+  void _handleSessionChange() {
+    if (mounted && sort == 'relevance') setState(() {});
+  }
+
+  @override
+  void dispose() {
+    SessionRecommendation.instance.removeListener(_handleSessionChange);
+    super.dispose();
   }
 
   @override
@@ -46,7 +59,7 @@ class _AllHomesState extends State<AllHomes> {
     super.didUpdateWidget(oldWidget);
     if (widget.initialHouses != null &&
         !identical(widget.initialHouses, oldWidget.initialHouses) &&
-        sort == 'newest') {
+        (sort == 'newest' || sort == 'relevance')) {
       setState(() {
         homes = widget.initialHouses!;
         page = 1;
@@ -59,9 +72,9 @@ class _AllHomesState extends State<AllHomes> {
 
   Future<void> _initialize() async {
     final prefs = await SharedPreferences.getInstance();
-    sort = prefs.getString('all_homes_sort') ?? 'newest';
+    sort = prefs.getString('all_homes_sort') ?? 'relevance';
     final initial = widget.initialHouses;
-    if (initial != null && sort == 'newest') {
+    if (initial != null && (sort == 'newest' || sort == 'relevance')) {
       if (!mounted) return;
       setState(() {
         homes = initial;
@@ -139,6 +152,9 @@ class _AllHomesState extends State<AllHomes> {
 
   @override
   Widget build(BuildContext context) {
+    final displayedHomes = sort == 'relevance'
+        ? SessionRecommendation.instance.rank(homes)
+        : homes;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -176,6 +192,7 @@ class _AllHomesState extends State<AllHomes> {
             onSelected: _setSort,
             tooltip: 'Sort homes',
             itemBuilder: (_) => const [
+              PopupMenuItem(value: 'relevance', child: Text('Best match')),
               PopupMenuItem(value: 'newest', child: Text('Newest first')),
               PopupMenuItem(value: 'price_low', child: Text('Lowest price')),
               PopupMenuItem(value: 'price_high', child: Text('Highest price')),
@@ -228,7 +245,7 @@ class _AllHomesState extends State<AllHomes> {
                   : Column(
                       key: ValueKey('homes-${homes.length}-$sort'),
                       children: [
-                        ...homes.map((house) => Padding(
+                        ...displayedHomes.map((house) => Padding(
                               padding: const EdgeInsets.only(bottom: 12),
                               child: PropertyCard(
                                 horizontal: true,

@@ -4,6 +4,7 @@ import 'package:house_rent/screens/details/details.dart';
 import 'package:house_rent/screens/home/all_houses_screen.dart';
 import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/widgets/property_card.dart';
+import 'package:house_rent/services/session_recommendation.dart';
 
 class BestOffer extends StatefulWidget {
   final Map<String, String> filters;
@@ -28,6 +29,11 @@ class _BestOfferState extends State<BestOffer> {
         ? House.fetchHouses(filters: dealFilters)
         : Future.value(widget.initialHouses);
     AppCache.instance.refreshes.addListener(_handleRefresh);
+    SessionRecommendation.instance.addListener(_handleSessionChange);
+  }
+
+  void _handleSessionChange() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -53,6 +59,7 @@ class _BestOfferState extends State<BestOffer> {
   @override
   void dispose() {
     AppCache.instance.refreshes.removeListener(_handleRefresh);
+    SessionRecommendation.instance.removeListener(_handleSessionChange);
     super.dispose();
   }
 
@@ -107,7 +114,8 @@ class _BestOfferState extends State<BestOffer> {
                 ),
               );
             }
-            final items = snapshot.data ?? [];
+            final items =
+                SessionRecommendation.instance.rank(snapshot.data ?? []);
             if (items.isEmpty) return const SizedBox.shrink();
             return ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 20),

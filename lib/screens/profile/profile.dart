@@ -11,6 +11,7 @@ import 'package:house_rent/theme/app_colors.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:house_rent/services/session_recommendation.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -90,6 +91,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
     await SessionService.clear();
     await prefs.remove('access_token');
+    SessionRecommendation.instance.reset();
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(context,
         MaterialPageRoute(builder: (_) => const SignInScreen()), (_) => false);

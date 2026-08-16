@@ -2,7 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
+import 'package:house_rent/models/recommendation.dart';
 import 'package:house_rent/services/premium_haptics.dart';
+import 'package:house_rent/services/recommendation_service.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/listing_form_components.dart';
 import 'package:house_rent/widgets/map_location_picker.dart';
@@ -47,6 +49,20 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   final List<File> videos = [];
   double? latitude;
   double? longitude;
+  late Future<RecommendationOptions> locationOptions;
+  int? selectedCityId;
+  int? selectedAreaId;
+
+  @override
+  void initState() {
+    super.initState();
+    locationOptions = _loadLocationOptions();
+  }
+
+  Future<RecommendationOptions> _loadLocationOptions() =>
+      RecommendationService.instance
+          .options()
+          .catchError((_) => const RecommendationOptions([], []));
 
   @override
   void dispose() {
@@ -180,6 +196,8 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       'province': province.text.trim().isEmpty ? 'N/A' : province.text.trim(),
       'district': district.text.trim().isEmpty ? 'N/A' : district.text.trim(),
       'city': city.text.trim(),
+      'city_id': selectedCityId,
+      'area_id': selectedAreaId,
       'address': city.text.trim(),
       'house_number':
           houseNumber.text.trim().isEmpty ? 'N/A' : houseNumber.text.trim(),
@@ -400,13 +418,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                 'The public map uses an approximate point to protect the exact address.',
           ),
           const SizedBox(height: 26),
-          ListingTextField(
-              controller: city,
-              label: 'City or town',
-              hint: 'Lusaka',
-              requiredField: true),
-          ListingTextField(
-              controller: district, label: 'District', hint: 'Lusaka District'),
+          _canonicalLocationFields(),
           ListingTextField(
               controller: province, label: 'Province', hint: 'Lusaka Province'),
           ListingTextField(
@@ -454,6 +466,87 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
             ),
           ),
         ],
+      );
+
+  Widget _canonicalLocationFields() => FutureBuilder<RecommendationOptions>(
+        future: locationOptions,
+        builder: (context, snapshot) {
+          final options = snapshot.data;
+          if (snapshot.hasError || options?.cities.isEmpty == true) {
+            return ListingSurface(
+              child: Row(children: [
+                const Icon(Icons.cloud_off_outlined),
+                const SizedBox(width: 12),
+                const Expanded(
+                    child: Text(
+                        'Could not load cities and areas. Check your connection.')),
+                TextButton(
+                    onPressed: () => setState(
+                        () => locationOptions = _loadLocationOptions()),
+                    child: const Text('Retry')),
+              ]),
+            );
+          }
+          if (options == null) {
+            return const ListingSurface(
+              child: SizedBox(
+                  height: 58,
+                  child: Center(child: CircularProgressIndicator())),
+            );
+          }
+          final selectedCity = options.cities
+              .where((item) => item.id == selectedCityId)
+              .firstOrNull;
+          return Column(children: [
+            DropdownButtonFormField<int>(
+              value: selectedCityId,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'City or town'),
+              hint: const Text('Choose a city'),
+              items: options.cities
+                  .map((item) =>
+                      DropdownMenuItem(value: item.id, child: Text(item.name)))
+                  .toList(),
+              validator: (value) => value == null ? 'Choose a city' : null,
+              onChanged: (value) => setState(() {
+                selectedCityId = value;
+                selectedAreaId = null;
+                final selected = options.cities
+                    .where((item) => item.id == value)
+                    .firstOrNull;
+                city.text = selected?.name ?? '';
+                province.text = selected?.province ?? '';
+                district.clear();
+              }),
+            ),
+            const SizedBox(height: 14),
+            DropdownButtonFormField<int>(
+              value: selectedAreaId,
+              isExpanded: true,
+              decoration:
+                  const InputDecoration(labelText: 'Area or neighbourhood'),
+              hint: Text(selectedCity == null
+                  ? 'Choose a city first'
+                  : 'Choose the closest area'),
+              items: (selectedCity?.areas ?? const <RentalArea>[])
+                  .map((item) =>
+                      DropdownMenuItem(value: item.id, child: Text(item.name)))
+                  .toList(),
+              validator: (value) => value == null ? 'Choose an area' : null,
+              onChanged: selectedCity == null
+                  ? null
+                  : (value) => setState(() {
+                        selectedAreaId = value;
+                        district.text = selectedCity.areas
+                                .where((item) => item.id == value)
+                                .firstOrNull
+                                ?.name ??
+                            '';
+                      }),
+            ),
+            const SizedBox(height: 14),
+          ]);
+        },
       );
 
   Widget _videoPickerCard() => ListingSurface(

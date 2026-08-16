@@ -3,6 +3,7 @@ import 'package:house_rent/models/house.dart';
 import 'package:house_rent/screens/details/details.dart';
 import 'package:house_rent/widgets/property_card.dart';
 import 'package:house_rent/widgets/screen_state.dart';
+import 'package:house_rent/services/session_recommendation.dart';
 
 class AllHousesScreen extends StatefulWidget {
   final String title;
@@ -24,6 +25,20 @@ class _AllHousesScreenState extends State<AllHousesScreen> {
     // A full-results screen should be authoritative rather than remaining on
     // a recently cached, shorter homepage snapshot.
     _reload(forceRefresh: true);
+    SessionRecommendation.instance.addListener(_sessionChanged);
+  }
+
+  void _sessionChanged() {
+    if (mounted && _usesRelevance) setState(() {});
+  }
+
+  bool get _usesRelevance =>
+      widget.filters?['sort'] == null || widget.filters?['sort'] == 'relevance';
+
+  @override
+  void dispose() {
+    SessionRecommendation.instance.removeListener(_sessionChanged);
+    super.dispose();
   }
 
   void _reload({bool forceRefresh = false}) {
@@ -60,7 +75,10 @@ class _AllHousesScreenState extends State<AllHousesScreen> {
               }),
             );
           }
-          final items = snapshot.data ?? [];
+          final rawItems = snapshot.data ?? <House>[];
+          final items = _usesRelevance
+              ? SessionRecommendation.instance.rank(rawItems)
+              : rawItems;
           if (items.isEmpty) {
             return const ScreenState(
               icon: Icons.search_off_rounded,

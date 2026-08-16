@@ -5,6 +5,9 @@ import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/demand_badge.dart';
 import 'package:house_rent/widgets/lister_trust_badges.dart';
 import 'package:house_rent/services/premium_haptics.dart';
+import 'package:house_rent/services/recommendation_service.dart';
+import 'package:house_rent/services/session_recommendation.dart';
+import 'dart:async';
 
 String formatPropertyPrice(House house) {
   final value = house.priceRental;
@@ -59,6 +62,9 @@ class _PropertyCardState extends State<PropertyCard> {
       widget.house.isSaved = saved;
       _saving = false;
     });
+    SessionRecommendation.instance.observe(widget.house, saved ? 3.8 : -1.5);
+    unawaited(RecommendationService.instance
+        .track(saved ? 'save' : 'unsave', widget.house.id, surface: 'home'));
   }
 
   Widget _image(

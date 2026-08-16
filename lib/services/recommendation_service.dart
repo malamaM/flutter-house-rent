@@ -96,7 +96,8 @@ class RecommendationService {
       if (metadata != null) 'metadata': metadata,
       'occurred_at': DateTime.now().toUtc().toIso8601String(),
     }));
-    await prefs.setStringList(_queueKey, queue.take(200).toList());
+    await prefs.setStringList(_queueKey,
+        queue.skip(queue.length > 200 ? queue.length - 200 : 0).toList());
     if (queue.length >= 12) {
       unawaited(flush());
     } else {

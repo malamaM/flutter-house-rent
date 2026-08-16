@@ -5,6 +5,7 @@ import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/services/recommendation_service.dart';
+import 'package:house_rent/services/session_recommendation.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/about.dart';
 import 'package:house_rent/widgets/content_intro.dart';
@@ -36,6 +37,7 @@ class _DetailsState extends State<Details> {
     super.initState();
     if (!widget.isOwnerView) {
       House.recordView(widget.house.id);
+      SessionRecommendation.instance.observe(widget.house, 1.1);
       unawaited(RecommendationService.instance
           .track('details', widget.house.id, surface: 'details'));
     }
@@ -173,6 +175,7 @@ class _DetailsState extends State<Details> {
   }
 
   void _showContact() {
+    SessionRecommendation.instance.observe(widget.house, 4.5);
     unawaited(RecommendationService.instance
         .track('contact', widget.house.id, surface: 'details'));
     showModalBottomSheet(
