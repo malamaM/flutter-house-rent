@@ -9,7 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class SessionService {
   SessionService._();
 
-  static const _apiBase = ApiConfig.apiBase;
+  static String get _apiBase => ApiConfig.apiBase;
   static Map<String, dynamic>? _memoryUser;
 
   static Future<Map<String, dynamic>?> currentUser({
@@ -113,7 +113,7 @@ class SessionService {
 class PropertyDetailsService {
   PropertyDetailsService._();
 
-  static const _apiBase = ApiConfig.apiBase;
+  static String get _apiBase => ApiConfig.apiBase;
 
   static Future<Map<String, dynamic>> owner(
     int houseId, {
@@ -313,7 +313,7 @@ class ListingMediaData {
 class ListerReviewsService {
   ListerReviewsService._();
 
-  static const _apiBase = ApiConfig.apiBase;
+  static String get _apiBase => ApiConfig.apiBase;
 
   static Future<ListerReviewsData> fetch(
     int listerId, {

@@ -59,6 +59,8 @@
 	<string>Haven Zambia uses the local network during development to connect Flutter debugging tools to this device.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>

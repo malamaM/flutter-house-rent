@@ -1,0 +1,2 @@
+/Users/malamachiluwe/AndroidStudioProjects/flutter-house-rent/android/app/.cxx/RelWithDebInfo/335fo523/armeabi-v7a/CMakeFiles/edit_cache.dir
+/Users/malamachiluwe/AndroidStudioProjects/flutter-house-rent/android/app/.cxx/RelWithDebInfo/335fo523/armeabi-v7a/CMakeFiles/rebuild_cache.dir

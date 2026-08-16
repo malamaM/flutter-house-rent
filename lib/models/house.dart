@@ -9,8 +9,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class House {
-  static const _apiBase = ApiConfig.apiBase;
-  static const _storageBase = ApiConfig.storageBase;
+  static String get _apiBase => ApiConfig.apiBase;
+  static String get _storageBase => ApiConfig.storageBase;
   static const _feedFreshFor = Duration(minutes: 5);
   static const _feedKeepFor = Duration(days: 14);
   static const _privateFreshFor = Duration(minutes: 2);
