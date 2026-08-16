@@ -187,8 +187,8 @@ class _VerificationRequestScreenState extends State<VerificationRequestScreen> {
       if (response.statusCode == 201) {
         setState(() => status = 'pending');
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content:
-                Text('Submitted securely. Haven will review your request.')));
+            content: Text(
+                'Submitted securely. Haven Zambia will review your request.')));
       } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(body['message'] ?? 'Could not submit request.')));
@@ -250,9 +250,11 @@ class _VerificationRequestScreenState extends State<VerificationRequestScreen> {
                                         : status == 'pending'
                                             ? 'Your evidence is securely awaiting an administrator review.'
                                             : 'Submit genuine identity evidence. Verification is never guaranteed and can be revoked.',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                         fontSize: 12,
-                                        color: AppColors.textSecondary))
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant))
                               ]))
                         ])),
                     if (!locked) ...[
@@ -324,13 +326,15 @@ class _VerificationRequestScreenState extends State<VerificationRequestScreen> {
                           label: Text(selfie == null
                               ? 'Take live selfie'
                               : 'Live selfie captured')),
-                      const Padding(
-                          padding: EdgeInsets.only(top: 8),
+                      Padding(
+                          padding: const EdgeInsets.only(top: 8),
                           child: Text(
                               'Add clear front and back evidence using the camera, photo library or file picker. Your live selfie remains front-camera only. Evidence is private.',
                               style: TextStyle(
                                   fontSize: 11,
-                                  color: AppColors.textSecondary))),
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant))),
                       const SizedBox(height: 22),
                       ElevatedButton.icon(
                           onPressed: submitting ? null : _submit,

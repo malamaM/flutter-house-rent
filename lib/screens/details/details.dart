@@ -13,11 +13,13 @@ import 'package:house_rent/widgets/details_app_bar.dart';
 import 'package:house_rent/widgets/house_gallery.dart';
 import 'package:house_rent/widgets/house_info.dart';
 import 'package:house_rent/widgets/house_location_map.dart';
+import 'package:house_rent/widgets/glass_surface.dart';
 import 'package:house_rent/widgets/lister_reviews_section.dart';
 import 'package:house_rent/widgets/lister_trust_badges.dart';
 import 'package:house_rent/widgets/listing_videos_section.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class Details extends StatefulWidget {
   final House house;
@@ -32,9 +34,12 @@ class Details extends StatefulWidget {
 
 class _DetailsState extends State<Details> {
   int _reviewVersion = 0;
+  late Future<Map<String, dynamic>> _ownerFuture;
+
   @override
   void initState() {
     super.initState();
+    _ownerFuture = PropertyDetailsService.owner(widget.house.id);
     if (!widget.isOwnerView) {
       House.recordView(widget.house.id);
       SessionRecommendation.instance.observe(widget.house, 1.1);
@@ -43,8 +48,32 @@ class _DetailsState extends State<Details> {
     }
   }
 
-  Future<Map<String, dynamic>> _fetchOwner() async {
-    return PropertyDetailsService.owner(widget.house.id);
+  String _whatsAppDigits(String value) {
+    var digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.startsWith('0')) digits = '260${digits.substring(1)}';
+    if (digits.length == 9) digits = '260$digits';
+    return digits;
+  }
+
+  Future<void> _openWhatsApp(String number) async {
+    final digits = _whatsAppDigits(number);
+    if (digits.length < 10) {
+      _notice('This lister’s WhatsApp number is not valid yet.');
+      return;
+    }
+    final uri = Uri.https('wa.me', '/$digits', {
+      'text':
+          'Hi, I found “${widget.house.name}” on Haven Zambia and would like to know more.',
+    });
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      _notice('Could not open WhatsApp on this device.');
+    }
+  }
+
+  Future<void> _callOwner(String number) async {
+    if (!await launchUrl(Uri(scheme: 'tel', path: number))) {
+      _notice('Calling is not available on this device.');
+    }
   }
 
   Future<void> _submitReview(int rating, String comment) async {
@@ -102,9 +131,10 @@ class _DetailsState extends State<Details> {
               EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
           child: Container(
             padding: const EdgeInsets.fromLTRB(24, 12, 24, 28),
-            decoration: const BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
+            decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(26))),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -114,7 +144,7 @@ class _DetailsState extends State<Details> {
                         width: 40,
                         height: 4,
                         decoration: BoxDecoration(
-                            color: AppColors.divider,
+                            color: Theme.of(context).colorScheme.outlineVariant,
                             borderRadius: BorderRadius.circular(4)))),
                 const SizedBox(height: 22),
                 Text('Share your experience',
@@ -145,10 +175,10 @@ class _DetailsState extends State<Details> {
                         hintText:
                             'What went well, or what should others know?')),
                 const SizedBox(height: 10),
-                const Text(
+                Text(
                   'Reviews must be honest, specific, and at least 20 characters. Suspicious activity may be held for moderation.',
                   style: TextStyle(
-                      color: AppColors.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontSize: 11,
                       height: 1.4),
                 ),
@@ -180,57 +210,119 @@ class _DetailsState extends State<Details> {
         .track('contact', widget.house.id, surface: 'details'));
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 30),
-        decoration: const BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
-        child: FutureBuilder<Map<String, dynamic>>(
-          future: _fetchOwner(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const SizedBox(
-                  height: 180,
-                  child: Center(child: CircularProgressIndicator()));
-            }
-            final user = snapshot.data ?? {};
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Align(
-                    child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                            color: AppColors.divider,
-                            borderRadius: BorderRadius.circular(4)))),
-                const SizedBox(height: 22),
-                Text('Contact the owner',
-                    style: Theme.of(context).textTheme.headlineMedium),
-                const SizedBox(height: 6),
-                Text('Mention “${widget.house.name}” when you get in touch.',
-                    style: Theme.of(context).textTheme.bodyMedium),
-                const SizedBox(height: 18),
-                _ContactRow(
-                    icon: Icons.phone_outlined,
-                    label: 'Phone',
-                    value: user['phone_number'] ?? 'Not provided'),
-                _ContactRow(
-                    icon: Icons.mail_outline_rounded,
-                    label: 'Email',
-                    value: user['email'] ?? 'Not provided'),
-                if (user['company'] != null)
-                  _ContactRow(
-                      icon: Icons.business_outlined,
-                      label: 'Company',
-                      value: user['company']),
-              ],
-            );
-          },
-        ),
-      ),
+      builder: (context) {
+        final colors = Theme.of(context).colorScheme;
+        final dark = Theme.of(context).brightness == Brightness.dark;
+        const radius = BorderRadius.vertical(top: Radius.circular(30));
+        return GlassSurface(
+          borderRadius: radius,
+          blur: 28,
+          tint: colors.surface.withValues(alpha: dark ? .82 : .76),
+          borderColor: Colors.white.withValues(alpha: dark ? .2 : .68),
+          shadows: [
+            BoxShadow(
+              color: colors.shadow.withValues(alpha: dark ? .34 : .16),
+              blurRadius: 34,
+              offset: const Offset(0, -8),
+            ),
+          ],
+          child: Container(
+            constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * .82),
+            padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
+            child: FutureBuilder<Map<String, dynamic>>(
+              future: _ownerFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const SizedBox(
+                      height: 180,
+                      child: Center(child: CircularProgressIndicator()));
+                }
+                final user = snapshot.data ?? {};
+                final phone = user['phone_number']?.toString() ?? '';
+                final whatsapp = user['whatsapp_number']?.toString() ?? '';
+                final samePhoneAndWhatsApp = phone.isNotEmpty &&
+                    whatsapp.isNotEmpty &&
+                    _whatsAppDigits(phone) == _whatsAppDigits(whatsapp);
+                return SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Align(
+                          child: Container(
+                              width: 40,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .outlineVariant,
+                                  borderRadius: BorderRadius.circular(4)))),
+                      const SizedBox(height: 16),
+                      Text('Contact the owner',
+                          style: Theme.of(context).textTheme.headlineMedium),
+                      const SizedBox(height: 6),
+                      Text(
+                          'Mention “${widget.house.name}” when you get in touch.',
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      const SizedBox(height: 14),
+                      _ContactRow(
+                          icon: Icons.phone_outlined,
+                          label: samePhoneAndWhatsApp
+                              ? 'Phone & WhatsApp'
+                              : 'Phone',
+                          value: phone.isEmpty ? 'Not provided' : phone),
+                      if (whatsapp.isNotEmpty && !samePhoneAndWhatsApp)
+                        _ContactRow(
+                            icon: Icons.chat_outlined,
+                            label: 'WhatsApp',
+                            value: whatsapp),
+                      _ContactRow(
+                          icon: Icons.mail_outline_rounded,
+                          label: 'Email',
+                          value: user['email'] ?? 'Not provided'),
+                      if (user['company'] != null)
+                        _ContactRow(
+                            icon: Icons.business_outlined,
+                            label: 'Company',
+                            value: user['company']),
+                      if (phone.isNotEmpty || whatsapp.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Row(children: [
+                          if (phone.isNotEmpty)
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => _callOwner(phone),
+                                icon: const Icon(Icons.phone_outlined),
+                                label: const Text('Call'),
+                              ),
+                            ),
+                          if (phone.isNotEmpty && whatsapp.isNotEmpty)
+                            const SizedBox(width: 10),
+                          if (whatsapp.isNotEmpty)
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF168C4B),
+                                  foregroundColor: Colors.white,
+                                ),
+                                onPressed: () => _openWhatsApp(whatsapp),
+                                icon: const Icon(Icons.chat_rounded),
+                                label: const Text('WhatsApp'),
+                              ),
+                            ),
+                        ]),
+                      ],
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -264,8 +356,11 @@ class _DetailsState extends State<Details> {
                     margin: const EdgeInsets.symmetric(horizontal: 20),
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        border: Border.all(color: AppColors.divider),
+                        color:
+                            Theme.of(context).colorScheme.surfaceContainerLow,
+                        border: Border.all(
+                            color:
+                                Theme.of(context).colorScheme.outlineVariant),
                         borderRadius: BorderRadius.circular(18)),
                     child: Column(
                       children: [
@@ -359,22 +454,31 @@ class _ContactRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
-          color: AppColors.surfaceContainer,
+          color: Theme.of(context)
+              .colorScheme
+              .surfaceContainer
+              .withValues(alpha: .66),
+          border: Border.all(
+              color: Colors.white.withValues(
+                  alpha: Theme.of(context).brightness == Brightness.dark
+                      ? .1
+                      : .58)),
           borderRadius: BorderRadius.circular(14)),
       child: Row(
         children: [
-          Icon(icon, color: AppColors.primary),
+          Icon(icon, color: Theme.of(context).colorScheme.primary),
           const SizedBox(width: 12),
           Expanded(
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                 Text(label,
-                    style: const TextStyle(
-                        color: AppColors.textSecondary, fontSize: 11)),
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontSize: 11)),
                 const SizedBox(height: 2),
                 Text(value,
                     style: const TextStyle(fontWeight: FontWeight.w600)),

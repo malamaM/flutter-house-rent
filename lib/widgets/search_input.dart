@@ -27,8 +27,9 @@ class SearchInput extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 0, 7, 0),
                 child: Row(
                   children: [
-                    const Icon(Icons.search_rounded,
-                        color: AppColors.textPrimary, size: 23),
+                    Icon(Icons.search_rounded,
+                        color: Theme.of(context).colorScheme.onSurface,
+                        size: 23),
                     const SizedBox(width: 12),
                     Expanded(
                         child: Text(hint,

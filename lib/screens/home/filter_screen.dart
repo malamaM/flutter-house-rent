@@ -66,6 +66,7 @@ class _FilterScreenState extends State<FilterScreen> {
 
   Widget _buildCounter(String label, int value, VoidCallback onDecrement,
       VoidCallback onIncrement) {
+    final colors = Theme.of(context).colorScheme;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -76,7 +77,7 @@ class _FilterScreenState extends State<FilterScreen> {
             IconButton(
               icon: const Icon(Icons.remove_circle_outline),
               onPressed: value > 0 ? onDecrement : null,
-              color: value > 0 ? Colors.blue : Colors.grey,
+              color: value > 0 ? colors.primary : colors.onSurfaceVariant,
             ),
             Text('$value+',
                 style:
@@ -84,7 +85,7 @@ class _FilterScreenState extends State<FilterScreen> {
             IconButton(
               icon: const Icon(Icons.add_circle_outline),
               onPressed: onIncrement,
-              color: Colors.blue,
+              color: colors.primary,
             ),
           ],
         )
@@ -94,13 +95,10 @@ class _FilterScreenState extends State<FilterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Advanced Search'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 1,
         actions: [
           TextButton(
             onPressed: _clearFilters,
@@ -121,7 +119,7 @@ class _FilterScreenState extends State<FilterScreen> {
               decoration: InputDecoration(
                 hintText: 'City, title, or description...',
                 filled: true,
-                fillColor: Colors.grey[100],
+                fillColor: colors.surfaceContainerLow,
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: BorderSide.none),
@@ -136,7 +134,7 @@ class _FilterScreenState extends State<FilterScreen> {
               hint: const Text('Property type'),
               decoration: InputDecoration(
                 filled: true,
-                fillColor: Colors.grey[100],
+                fillColor: colors.surfaceContainerLow,
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: BorderSide.none),
@@ -167,7 +165,7 @@ class _FilterScreenState extends State<FilterScreen> {
                     decoration: InputDecoration(
                       hintText: 'Min Price',
                       filled: true,
-                      fillColor: Colors.grey[100],
+                      fillColor: colors.surfaceContainerLow,
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                           borderSide: BorderSide.none),
@@ -185,7 +183,7 @@ class _FilterScreenState extends State<FilterScreen> {
                     decoration: InputDecoration(
                       hintText: 'Max Price',
                       filled: true,
-                      fillColor: Colors.grey[100],
+                      fillColor: colors.surfaceContainerLow,
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                           borderSide: BorderSide.none),
@@ -211,18 +209,20 @@ class _FilterScreenState extends State<FilterScreen> {
       ),
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: colors.surface,
           boxShadow: [
             BoxShadow(
-                color: Colors.black12, blurRadius: 10, offset: Offset(0, -2))
+                color: colors.shadow.withValues(alpha: .1),
+                blurRadius: 10,
+                offset: const Offset(0, -2))
           ],
         ),
         child: ElevatedButton(
           onPressed: _applyFilters,
           style: ElevatedButton.styleFrom(
-            backgroundColor: Theme.of(context).primaryColor,
-            foregroundColor: Colors.white,
+            backgroundColor: colors.primary,
+            foregroundColor: colors.onPrimary,
             padding: const EdgeInsets.symmetric(vertical: 16),
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

@@ -121,7 +121,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       }
     } catch (_) {
       _message(
-          'Haven could not open your photo library. Check photo permissions.');
+          'Haven Zambia could not open your photo library. Check photo permissions.');
     }
   }
 
@@ -141,7 +141,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       }
     } catch (_) {
       _message(
-          'Haven could not open your photo library. Check photo permissions.');
+          'Haven Zambia could not open your photo library. Check photo permissions.');
     }
   }
 
@@ -160,7 +160,8 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         }
       });
     } catch (_) {
-      _message('Haven could not open your video library. Check permissions.');
+      _message(
+          'Haven Zambia could not open your video library. Check permissions.');
     }
   }
 
@@ -242,16 +243,15 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Create listing'),
+            const Text('Create listing'),
             Text(
               'A great listing starts with clear details',
               style: TextStyle(
-                color: AppColors.textSecondary,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 11,
                 fontWeight: FontWeight.w400,
               ),
@@ -678,9 +678,11 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   Widget _bottomActions() {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.divider)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        border: Border(
+            top: BorderSide(
+                color: Theme.of(context).colorScheme.outlineVariant)),
       ),
       child: Row(
         children: [
@@ -801,9 +803,11 @@ class _PhotoPicker extends StatelessWidget {
       child: Container(
         height: 210,
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
           border: Border.all(
-              color: image == null ? AppColors.divider : AppColors.primary),
+              color: image == null
+                  ? Theme.of(context).colorScheme.outlineVariant
+                  : Theme.of(context).colorScheme.primary),
           borderRadius: BorderRadius.circular(20),
         ),
         clipBehavior: Clip.antiAlias,

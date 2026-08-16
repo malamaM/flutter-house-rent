@@ -53,26 +53,32 @@ class _ListerReviewsSectionState extends State<ListerReviewsSection> {
                 Container(
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      border: Border.all(color: AppColors.divider),
+                      color: Theme.of(context).colorScheme.surfaceContainerLow,
+                      border: Border.all(
+                          color: Theme.of(context).colorScheme.outlineVariant),
                       borderRadius: BorderRadius.circular(18)),
                   child: data.total == 0
-                      ? const Row(children: [
+                      ? Row(children: [
                           Icon(Icons.rate_review_outlined,
-                              color: AppColors.textSecondary),
-                          SizedBox(width: 12),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant),
+                          const SizedBox(width: 12),
                           Expanded(
                               child: Text(
                                   'No published reviews yet. Be the first to share a genuine experience.',
                                   style: TextStyle(
-                                      color: AppColors.textSecondary))),
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant))),
                         ])
                       : Row(children: [
                           Text(data.average.toStringAsFixed(1),
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 36,
                                   fontWeight: FontWeight.w800,
-                                  color: AppColors.textPrimary)),
+                                  color:
+                                      Theme.of(context).colorScheme.onSurface)),
                           const SizedBox(width: 14),
                           Expanded(
                               child: Column(
@@ -111,8 +117,9 @@ class _ReviewCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-          color: AppColors.surface,
-          border: Border.all(color: AppColors.divider),
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          border:
+              Border.all(color: Theme.of(context).colorScheme.outlineVariant),
           borderRadius: BorderRadius.circular(16)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
@@ -133,10 +140,8 @@ class _ReviewCard extends StatelessWidget {
         ]),
         const SizedBox(height: 12),
         Text(review.comment,
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.copyWith(color: AppColors.textPrimary, height: 1.45)),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface, height: 1.45)),
       ]),
     );
   }

@@ -52,12 +52,13 @@ class _DetailsAppBarState extends State<DetailsAppBar> {
             imageUrl: widget.house.imageUrl,
             memCacheWidth: 1440,
             fit: BoxFit.cover,
-            placeholder: (_, __) =>
-                Container(color: AppColors.surfaceContainer),
+            placeholder: (_, __) => Container(
+                color: Theme.of(context).colorScheme.surfaceContainer),
             errorWidget: (_, __, ___) => Container(
-              color: AppColors.surfaceContainer,
-              child: const Icon(Icons.home_work_outlined,
-                  color: AppColors.textSecondary, size: 54),
+              color: Theme.of(context).colorScheme.surfaceContainer,
+              child: Icon(Icons.home_work_outlined,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  size: 54),
             ),
           ),
           const DecoratedBox(

@@ -23,7 +23,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   String? imageUrl;
-  String name = 'Haven member';
+  String name = 'Haven Zambia member';
   String email = '';
   bool loading = true;
 
@@ -151,7 +151,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(name.isEmpty ? 'Haven member' : name,
+                            Text(name.isEmpty ? 'Haven Zambia member' : name,
                                 style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 19,
@@ -211,7 +211,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _ProfileItem(
                   icon: Icons.help_outline_rounded,
                   title: 'Help and support',
-                  subtitle: 'Get help using Haven',
+                  subtitle: 'Get help using Haven Zambia',
                   onTap: () => ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                           content: Text('Support details are coming soon.'))),
@@ -273,8 +273,8 @@ class _ProfileItem extends StatelessWidget {
                     Text(subtitle,
                         style: Theme.of(context).textTheme.bodyMedium),
                   ])),
-              const Icon(Icons.chevron_right_rounded,
-                  color: AppColors.textSecondary),
+              Icon(Icons.chevron_right_rounded,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant),
             ],
           ),
         ),

@@ -217,7 +217,9 @@ class _RentalPreferencesScreenState extends State<RentalPreferencesScreen> {
                                 dimension: 22,
                                 child:
                                     CircularProgressIndicator(strokeWidth: 2))
-                            : Text(step == 3 ? 'Build my Haven' : 'Continue'),
+                            : Text(step == 3
+                                ? 'Build my Haven Zambia'
+                                : 'Continue'),
                       ),
                     ),
                   ),
@@ -262,7 +264,7 @@ class _CityStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(children: [
         const _Heading('Your search starts here', 'Where do you want to live?',
-            'Choose the city you want Haven to understand first.'),
+            'Choose the city you want Haven Zambia to understand first.'),
         Expanded(
           child: GridView.builder(
             padding: const EdgeInsets.fromLTRB(22, 4, 22, 20),
@@ -446,33 +448,44 @@ class _ChoiceCard extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(22),
-          child: Padding(
-            padding: const EdgeInsets.all(15),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, color: active ? colors.onPrimary : colors.primary),
-                const SizedBox(height: 8),
-                Text(title,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        color: active ? colors.onPrimary : colors.onSurface,
-                        fontWeight: FontWeight.w800)),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 3),
-                  Text(subtitle!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          color: active
-                              ? colors.onPrimary.withValues(alpha: .78)
-                              : colors.onSurfaceVariant,
-                          fontSize: 11)),
-                ]
-              ],
-            ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxHeight < 100;
+              return Padding(
+                padding: EdgeInsets.symmetric(
+                    horizontal: 15, vertical: compact ? 9 : 15),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(icon,
+                        size: compact ? 22 : 24,
+                        color: active ? colors.onPrimary : colors.primary),
+                    SizedBox(height: compact ? 5 : 8),
+                    Flexible(
+                      child: Text(title,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              color:
+                                  active ? colors.onPrimary : colors.onSurface,
+                              fontWeight: FontWeight.w800)),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 3),
+                      Text(subtitle!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              color: active
+                                  ? colors.onPrimary.withValues(alpha: .78)
+                                  : colors.onSurfaceVariant,
+                              fontSize: 11)),
+                    ]
+                  ],
+                ),
+              );
+            },
           ),
         ),
       ),

@@ -15,7 +15,7 @@ class House {
   static const _feedKeepFor = Duration(days: 14);
   static const _privateFreshFor = Duration(minutes: 2);
   static const _privateKeepFor = Duration(days: 30);
-  static const _homeFeedCacheVersion = 2;
+  static const _homeFeedCacheVersion = 3;
 
   static final ValueNotifier<HouseCacheState> cacheState =
       ValueNotifier(const HouseCacheState());
@@ -31,6 +31,12 @@ class House {
   int carGarage;
   String? description;
   String? status;
+  DateTime? publishedAt;
+  DateTime? expiresAt;
+  DateTime? archivedAt;
+  String lifecycleStatus;
+  int daysUntilExpiry;
+  bool recentlyListed;
   String? country;
   String? province;
   String? district;
@@ -70,6 +76,12 @@ class House {
     this.carGarage = 0,
     this.description,
     this.status,
+    this.publishedAt,
+    this.expiresAt,
+    this.archivedAt,
+    this.lifecycleStatus = 'active',
+    this.daysUntilExpiry = 30,
+    this.recentlyListed = false,
     this.country,
     this.province,
     this.district,
@@ -100,6 +112,9 @@ class House {
 
   String get listingStatusLabel => 'For Rent';
 
+  bool get isArchived => lifecycleStatus == 'archived' || status == 'Archived';
+  bool get canRenew => isArchived || daysUntilExpiry <= 7;
+
   factory House.fromMap(Map<String, dynamic> map, {bool fromCache = false}) {
     final user = map['user'];
     final cover = map['image-cover'] ?? map['image_cover'];
@@ -117,6 +132,13 @@ class House {
       carGarage: _parseInt(map['car_garage']),
       description: map['description'],
       status: map['status'],
+      publishedAt: DateTime.tryParse(map['published_at']?.toString() ?? ''),
+      expiresAt: DateTime.tryParse(map['expires_at']?.toString() ?? ''),
+      archivedAt: DateTime.tryParse(map['archived_at']?.toString() ?? ''),
+      lifecycleStatus: map['lifecycle_status']?.toString() ?? 'active',
+      daysUntilExpiry: _parseInt(map['days_until_expiry'] ?? 30),
+      recentlyListed:
+          map['recently_listed'] == true || map['recently_listed'] == 1,
       country: map['country'],
       province: map['province'],
       district: map['district'],
@@ -170,6 +192,12 @@ class House {
         'car_garage': carGarage,
         'description': description,
         'status': status,
+        'published_at': publishedAt?.toIso8601String(),
+        'expires_at': expiresAt?.toIso8601String(),
+        'archived_at': archivedAt?.toIso8601String(),
+        'lifecycle_status': lifecycleStatus,
+        'days_until_expiry': daysUntilExpiry,
+        'recently_listed': recentlyListed,
         'country': country,
         'province': province,
         'district': district,
@@ -395,7 +423,7 @@ class House {
 
   static Future<List<House>> fetchMyHouses({bool forceRefresh = false}) async {
     final token = await _requiredToken();
-    final key = await AppCache.instance.privateKey('my_houses');
+    final key = await AppCache.instance.privateKey('my_houses:v2');
     return _cachedList(
       key: key,
       resource: 'my_houses',
@@ -655,11 +683,26 @@ class House {
           key.contains(':houses:') ||
           key.contains(':home_feed') ||
           key.contains(':reels:') ||
-          key.endsWith(':my_houses') ||
+          key.contains(':my_houses') ||
           key.endsWith(':saved_houses') ||
           (id != null && key.contains('house:$id')),
     );
     AppCache.instance.announce('houses', id == null ? 'all' : 'house:$id');
+  }
+
+  static Future<bool> renewListing(int id) async {
+    try {
+      final token = await _requiredToken();
+      final response = await http
+          .post(Uri.parse('$_apiBase/houses/$id/renew'),
+              headers: _headers(token))
+          .timeout(const Duration(seconds: 12));
+      if (response.statusCode != 200) return false;
+      await invalidatePropertyData(id: id);
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   static Future<void> recordView(int id) async {

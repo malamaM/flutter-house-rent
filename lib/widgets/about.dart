@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
-import 'package:house_rent/theme/app_colors.dart';
 
 class About extends StatelessWidget {
   final House house;
@@ -21,10 +20,8 @@ class About extends StatelessWidget {
             house.description?.trim().isNotEmpty == true
                 ? house.description!
                 : 'The owner has not added a description yet. Contact them for more information.',
-            style: Theme.of(context)
-                .textTheme
-                .bodyLarge
-                ?.copyWith(color: AppColors.textSecondary),
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
         ],
       ),

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/screens/home/app_shell.dart';
+import 'package:house_rent/screens/login/create_account.dart';
 import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:http/http.dart' as http;
@@ -57,7 +58,7 @@ class _SignInScreenState extends State<SignInScreen> {
       _showMessage(message);
     } catch (_) {
       _showMessage(
-          'We could not reach Haven. Check your connection and try again.');
+          'We could not reach Haven Zambia. Check your connection and try again.');
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -70,14 +71,16 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   void _notAvailable(String feature) {
+    final colors = Theme.of(context).colorScheme;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => Container(
         padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
-        decoration: const BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
+        decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(26))),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -85,7 +88,7 @@ class _SignInScreenState extends State<SignInScreen> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                    color: AppColors.divider,
+                    color: colors.outlineVariant,
                     borderRadius: BorderRadius.circular(4))),
             const SizedBox(height: 24),
             const Icon(Icons.construction_rounded,
@@ -94,7 +97,8 @@ class _SignInScreenState extends State<SignInScreen> {
             Text('$feature is coming soon',
                 style: Theme.of(context).textTheme.headlineMedium),
             const SizedBox(height: 8),
-            Text('For now, ask the Haven team to help you with your account.',
+            Text(
+                'For now, ask the Haven Zambia team to help with your account.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium),
           ],
@@ -105,8 +109,9 @@ class _SignInScreenState extends State<SignInScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -124,10 +129,10 @@ class _SignInScreenState extends State<SignInScreen> {
                         width: 56,
                         height: 56,
                         decoration: BoxDecoration(
-                            color: AppColors.primary,
+                            color: colors.primary,
                             borderRadius: BorderRadius.circular(17)),
-                        child: const Icon(Icons.roofing_rounded,
-                            color: Colors.white, size: 30),
+                        child: Icon(Icons.roofing_rounded,
+                            color: colors.onPrimary, size: 30),
                       ),
                     ),
                     const SizedBox(height: 36),
@@ -139,7 +144,7 @@ class _SignInScreenState extends State<SignInScreen> {
                         style: Theme.of(context)
                             .textTheme
                             .bodyLarge
-                            ?.copyWith(color: AppColors.textSecondary)),
+                            ?.copyWith(color: colors.onSurfaceVariant)),
                     const SizedBox(height: 36),
                     Text('Email address',
                         style: Theme.of(context).textTheme.labelLarge),
@@ -205,14 +210,18 @@ class _SignInScreenState extends State<SignInScreen> {
                           : const Text('Sign in'),
                     ),
                     const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        Text('New to Haven?',
+                        Text('New to Haven Zambia?',
                             style: Theme.of(context).textTheme.bodyMedium),
                         TextButton(
-                            onPressed: () =>
-                                _notAvailable('Account registration'),
+                            onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) =>
+                                        const CreateAccountScreen())),
                             child: const Text('Create account')),
                       ],
                     ),

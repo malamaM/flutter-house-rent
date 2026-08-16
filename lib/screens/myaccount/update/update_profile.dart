@@ -1,364 +1,508 @@
-import 'package:flutter/material.dart';
-import 'package:house_rent/config/api_config.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
+
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
+import 'package:house_rent/config/api_config.dart';
+import 'package:house_rent/services/app_data_service.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:house_rent/services/app_data_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
 
   @override
-  _EditProfileScreenState createState() => _EditProfileScreenState();
+  State<EditProfileScreen> createState() => _EditProfileScreenState();
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  String profileImageUrl = "https://i.postimg.cc/0jqKB6mS/Profile-Image.png";
-  final ImagePicker _picker = ImagePicker();
+  static const _fallbackImage =
+      'https://i.postimg.cc/0jqKB6mS/Profile-Image.png';
+
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _firstNameController = TextEditingController();
-  final TextEditingController _lastNameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
+  final _picker = ImagePicker();
+  final _firstName = TextEditingController();
+  final _lastName = TextEditingController();
+  final _email = TextEditingController();
+  final _phone = TextEditingController();
+  final _whatsApp = TextEditingController();
+
+  String _profileImageUrl = _fallbackImage;
+  bool _loading = true;
+  bool _saving = false;
+  bool _uploadingPhoto = false;
+  bool _whatsAppEnabled = false;
+  bool _whatsAppSameAsPhone = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchUserProfile();
+    _loadProfile();
   }
 
-  @override
-  void dispose() {
-    _firstNameController.dispose();
-    _lastNameController.dispose();
-    _emailController.dispose();
-    _phoneController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _fetchUserProfile() async {
-    final data = await SessionService.currentUser();
-    if (data != null && mounted) {
-      final profilePicture = data['profile_picture'];
-      setState(() {
-        _firstNameController.text = data['first_name'] ?? "";
-        _lastNameController.text = data['last_name'] ?? "";
-        _emailController.text = data['email'] ?? "";
-        _phoneController.text = data['phone_number'] ?? "";
-        if (profilePicture != null) {
-          profileImageUrl = ApiConfig.storageUrl(profilePicture);
-        }
-      });
+  Future<void> _loadProfile({bool forceRefresh = false}) async {
+    final data = await SessionService.currentUser(forceRefresh: forceRefresh);
+    if (!mounted) return;
+    if (data != null) {
+      final phone = data['phone_number']?.toString() ?? '';
+      final whatsapp = data['whatsapp_number']?.toString() ?? '';
+      _firstName.text = data['first_name']?.toString() ?? '';
+      _lastName.text = data['last_name']?.toString() ?? '';
+      _email.text = data['email']?.toString() ?? '';
+      _phone.text = phone;
+      _whatsAppEnabled = whatsapp.isNotEmpty;
+      _whatsAppSameAsPhone = whatsapp.isEmpty || whatsapp == phone;
+      _whatsApp.text = _whatsAppSameAsPhone ? '' : whatsapp;
+      final picture = data['profile_picture']?.toString();
+      _profileImageUrl = picture == null || picture.isEmpty
+          ? _fallbackImage
+          : ApiConfig.storageUrl(picture);
     }
+    setState(() => _loading = false);
   }
 
-  Future<void> _updateUserProfile() async {
-    if (_formKey.currentState!.validate()) {
+  String? _required(String? value) =>
+      value == null || value.trim().isEmpty ? 'This field is required' : null;
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate() || _saving) return;
+    FocusScope.of(context).unfocus();
+    setState(() => _saving = true);
+    try {
       final prefs = await SharedPreferences.getInstance();
-      final String? accessToken = prefs.getString('access_token');
-
-      if (accessToken != null) {
-        final url = Uri.parse('${ApiConfig.apiBase}/update-profile');
-        final headers = {
-          'Authorization': 'Bearer $accessToken',
-          'Content-Type': 'application/json',
-        };
-        final body = json.encode({
-          'first_name': _firstNameController.text,
-          'last_name': _lastNameController.text,
-          'email': _emailController.text,
-          'phone_number': _phoneController.text,
-        });
-
-        final response = await http.post(
-          url,
-          headers: headers,
-          body: body,
-        );
-
-        if (response.statusCode == 200) {
-          await SessionService.updateCachedUser({
-            'first_name': _firstNameController.text,
-            'last_name': _lastNameController.text,
-            'email': _emailController.text,
-            'phone_number': _phoneController.text,
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Profile updated successfully')),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to update profile')),
-          );
-        }
+      final token = prefs.getString('access_token');
+      if (token == null) throw const _ProfileException('Please sign in again.');
+      final whatsappNumber = !_whatsAppEnabled
+          ? null
+          : _whatsAppSameAsPhone
+              ? _phone.text.trim()
+              : _whatsApp.text.trim();
+      final changes = <String, dynamic>{
+        'first_name': _firstName.text.trim(),
+        'last_name': _lastName.text.trim(),
+        'email': _email.text.trim(),
+        'phone_number': _phone.text.trim(),
+        'whatsapp_number': whatsappNumber,
+      };
+      final response = await http
+          .post(
+            Uri.parse('${ApiConfig.apiBase}/update-profile'),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode(changes),
+          )
+          .timeout(const Duration(seconds: 12));
+      if (response.statusCode != 200) {
+        var message = 'Could not save your information.';
+        try {
+          final data = jsonDecode(response.body) as Map<String, dynamic>;
+          final errors = data['errors'];
+          message = errors is Map && errors.isNotEmpty
+              ? (errors.values.first as List).first.toString()
+              : data['message']?.toString() ?? message;
+        } catch (_) {}
+        throw _ProfileException(message);
       }
+      await SessionService.updateCachedUser(changes);
+      _notice('Personal information updated');
+    } on _ProfileException catch (error) {
+      _notice(error.message);
+    } catch (_) {
+      _notice('Could not save your information. Check your connection.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
   Future<void> _pickImage() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      _uploadImage(File(image.path));
-    }
+    final image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 88,
+      maxWidth: 1600,
+    );
+    if (image == null) return;
+    await _uploadImage(File(image.path));
   }
 
   Future<void> _uploadImage(File image) async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? accessToken = prefs.getString('access_token');
-
-    if (accessToken != null) {
+    if (_uploadingPhoto) return;
+    setState(() => _uploadingPhoto = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('access_token');
+      if (token == null) throw const _ProfileException('Please sign in again.');
       final request = http.MultipartRequest(
         'POST',
         Uri.parse('${ApiConfig.apiBase}/update-profile-picture'),
-      );
-      request.headers['Authorization'] = 'Bearer $accessToken';
-      request.files.add(
-          await http.MultipartFile.fromPath('profile_picture', image.path));
-
-      final response = await request.send();
-
-      if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Picture updated')),
-        );
-        await SessionService.currentUser(forceRefresh: true);
-        _fetchUserProfile();
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not update profile picture')),
-        );
+      )
+        ..headers['Authorization'] = 'Bearer $token'
+        ..files.add(
+            await http.MultipartFile.fromPath('profile_picture', image.path));
+      final response =
+          await request.send().timeout(const Duration(seconds: 20));
+      if (response.statusCode != 200) {
+        throw const _ProfileException('Could not update your profile photo.');
       }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please sign in again')),
-        );
-      }
+      await _loadProfile(forceRefresh: true);
+      _notice('Profile photo updated');
+    } on _ProfileException catch (error) {
+      _notice(error.message);
+    } catch (_) {
+      _notice('Could not update your profile photo. Check your connection.');
+    } finally {
+      if (mounted) setState(() => _uploadingPhoto = false);
+    }
+  }
+
+  void _notice(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        centerTitle: false,
-        elevation: 0,
-        backgroundColor: const Color(0xFF00BF6D),
-        foregroundColor: Colors.white,
-        title: const Text("Edit Profile"),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        child: Column(
-          children: [
-            ProfilePic(
-              image: profileImageUrl,
-              imageUploadBtnPress: _pickImage,
-            ),
-            const Divider(),
-            Form(
+      appBar: AppBar(title: const Text('Personal information')),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : Form(
               key: _formKey,
-              child: Column(
+              child: ListView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 36),
                 children: [
-                  UserInfoEditField(
-                    text: "First Name",
-                    child: TextFormField(
-                      controller: _firstNameController,
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor:
-                            const Color(0xFF00BF6D).withValues(alpha: 0.05),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16.0 * 1.5, vertical: 16.0),
-                        border: const OutlineInputBorder(
-                          borderSide: BorderSide.none,
-                          borderRadius: BorderRadius.all(Radius.circular(50)),
-                        ),
-                      ),
-                    ),
+                  _ProfileHeader(
+                    imageUrl: _profileImageUrl,
+                    uploading: _uploadingPhoto,
+                    onChangePhoto: _pickImage,
                   ),
-                  UserInfoEditField(
-                    text: "Last Name",
-                    child: TextFormField(
-                      controller: _lastNameController,
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor:
-                            const Color(0xFF00BF6D).withValues(alpha: 0.05),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16.0 * 1.5, vertical: 16.0),
-                        border: const OutlineInputBorder(
-                          borderSide: BorderSide.none,
-                          borderRadius: BorderRadius.all(Radius.circular(50)),
-                        ),
-                      ),
-                    ),
+                  const SizedBox(height: 26),
+                  const _SectionHeading(
+                    title: 'About you',
+                    subtitle:
+                        'The essentials attached to your Haven Zambia account.',
                   ),
-                  UserInfoEditField(
-                    text: "Email",
-                    child: TextFormField(
-                      controller: _emailController,
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor:
-                            const Color(0xFF00BF6D).withValues(alpha: 0.05),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16.0 * 1.5, vertical: 16.0),
-                        border: const OutlineInputBorder(
-                          borderSide: BorderSide.none,
-                          borderRadius: BorderRadius.all(Radius.circular(50)),
+                  const SizedBox(height: 12),
+                  _FormCard(children: [
+                    Row(children: [
+                      Expanded(
+                        child: _field(
+                          controller: _firstName,
+                          label: 'First name',
+                          icon: Icons.person_outline_rounded,
                         ),
                       ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _field(
+                          controller: _lastName,
+                          label: 'Last name',
+                        ),
+                      ),
+                    ]),
+                    const SizedBox(height: 14),
+                    _field(
+                      controller: _email,
+                      label: 'Email address',
+                      icon: Icons.mail_outline_rounded,
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (value) {
+                        final missing = _required(value);
+                        if (missing != null) return missing;
+                        return value!.contains('@')
+                            ? null
+                            : 'Enter a valid email address';
+                      },
                     ),
+                    const SizedBox(height: 14),
+                    _field(
+                      controller: _phone,
+                      label: 'Phone number',
+                      icon: Icons.phone_outlined,
+                      keyboardType: TextInputType.phone,
+                    ),
+                  ]),
+                  const SizedBox(height: 26),
+                  const _SectionHeading(
+                    title: 'WhatsApp contact',
+                    subtitle:
+                        'Control how renters can reach you from your listings.',
                   ),
-                  UserInfoEditField(
-                    text: "Phone",
-                    child: TextFormField(
-                      controller: _phoneController,
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor:
-                            const Color(0xFF00BF6D).withValues(alpha: 0.05),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16.0 * 1.5, vertical: 16.0),
-                        border: const OutlineInputBorder(
-                          borderSide: BorderSide.none,
-                          borderRadius: BorderRadius.all(Radius.circular(50)),
+                  const SizedBox(height: 12),
+                  _FormCard(children: [
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      secondary: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: colors.primaryContainer,
+                          borderRadius: BorderRadius.circular(13),
                         ),
+                        child: Icon(Icons.chat_rounded,
+                            color: colors.onPrimaryContainer),
                       ),
+                      title: const Text('Available on WhatsApp',
+                          style: TextStyle(fontWeight: FontWeight.w700)),
+                      subtitle: const Padding(
+                        padding: EdgeInsets.only(top: 4),
+                        child: Text('Show a WhatsApp action on your listings.'),
+                      ),
+                      value: _whatsAppEnabled,
+                      onChanged: (value) =>
+                          setState(() => _whatsAppEnabled = value),
                     ),
+                    if (_whatsAppEnabled) ...[
+                      Divider(color: colors.outlineVariant),
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        title: const Text('Use my phone number'),
+                        subtitle: Text(_phone.text.trim().isEmpty
+                            ? 'Add your phone number above'
+                            : _phone.text.trim()),
+                        value: _whatsAppSameAsPhone,
+                        onChanged: (value) => setState(
+                            () => _whatsAppSameAsPhone = value ?? true),
+                      ),
+                      if (!_whatsAppSameAsPhone) ...[
+                        const SizedBox(height: 8),
+                        _field(
+                          controller: _whatsApp,
+                          label: 'Different WhatsApp number',
+                          hint: 'e.g. +260 97 123 4567',
+                          icon: Icons.phone_in_talk_outlined,
+                          keyboardType: TextInputType.phone,
+                          validator: (value) =>
+                              value == null || value.trim().isEmpty
+                                  ? 'Enter your WhatsApp number'
+                                  : null,
+                        ),
+                      ],
+                    ],
+                  ]),
+                  const SizedBox(height: 28),
+                  ElevatedButton.icon(
+                    onPressed: _saving ? null : _save,
+                    icon: _saving
+                        ? const SizedBox(
+                            width: 19,
+                            height: 19,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.check_rounded),
+                    label: Text(_saving ? 'Saving…' : 'Save changes'),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Your contact details are only shown where needed to support enquiries.',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: colors.onSurfaceVariant),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 16.0),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                SizedBox(
-                  width: 120,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context)
-                          .textTheme
-                          .bodyLarge!
-                          .color!
-                          .withValues(alpha: 0.08),
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(double.infinity, 48),
-                      shape: const StadiumBorder(),
-                    ),
-                    child: const Text("Cancel"),
-                  ),
-                ),
-                const SizedBox(width: 16.0),
-                SizedBox(
-                  width: 160,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00BF6D),
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(double.infinity, 48),
-                      shape: const StadiumBorder(),
-                    ),
-                    onPressed: _updateUserProfile,
-                    child: const Text("Save Update"),
-                  ),
+    );
+  }
+
+  Widget _field({
+    required TextEditingController controller,
+    required String label,
+    String? hint,
+    IconData? icon,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      validator: validator ?? _required,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: icon == null ? null : Icon(icon),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _firstName.dispose();
+    _lastName.dispose();
+    _email.dispose();
+    _phone.dispose();
+    _whatsApp.dispose();
+    super.dispose();
+  }
+}
+
+class _ProfileHeader extends StatelessWidget {
+  const _ProfileHeader({
+    required this.imageUrl,
+    required this.uploading,
+    required this.onChangePhoto,
+  });
+
+  final String imageUrl;
+  final bool uploading;
+  final VoidCallback onChangePhoto;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [
+          colors.primaryContainer.withValues(alpha: .8),
+          colors.surfaceContainerLow,
+        ]),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Row(children: [
+        Stack(clipBehavior: Clip.none, children: [
+          Container(
+            width: 82,
+            height: 82,
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: colors.surface,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: colors.shadow.withValues(alpha: .12),
+                  blurRadius: 18,
+                  offset: const Offset(0, 7),
                 ),
               ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class ProfilePic extends StatelessWidget {
-  const ProfilePic({
-    super.key,
-    required this.image,
-    this.isShowPhotoUpload = false,
-    this.imageUploadBtnPress,
-  });
-
-  final String image;
-  final bool isShowPhotoUpload;
-  final VoidCallback? imageUploadBtnPress;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16.0),
-      margin: const EdgeInsets.symmetric(vertical: 16.0),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: Theme.of(context)
-              .textTheme
-              .bodyLarge!
-              .color!
-              .withValues(alpha: 0.08),
-        ),
-      ),
-      child: Stack(
-        alignment: Alignment.bottomRight,
-        children: [
-          CircleAvatar(
-            radius: 50,
-            backgroundImage: CachedNetworkImageProvider(image),
-          ),
-          InkWell(
-            onTap: imageUploadBtnPress,
-            child: CircleAvatar(
-              radius: 13,
-              backgroundColor: Theme.of(context).primaryColor,
-              child: const Icon(
-                Icons.add,
-                color: Colors.white,
-                size: 20,
+            child: ClipOval(
+              child: CachedNetworkImage(
+                imageUrl: imageUrl,
+                fit: BoxFit.cover,
+                placeholder: (_, __) => Container(
+                  color: colors.surfaceContainerHighest,
+                ),
+                errorWidget: (_, __, ___) => Icon(Icons.person_rounded,
+                    size: 42, color: colors.onSurfaceVariant),
               ),
             ),
-          )
-        ],
-      ),
+          ),
+          Positioned(
+            right: -4,
+            bottom: -2,
+            child: Material(
+              color: colors.primary,
+              shape: const CircleBorder(),
+              child: InkWell(
+                onTap: uploading ? null : onChangePhoto,
+                customBorder: const CircleBorder(),
+                child: SizedBox(
+                  width: 34,
+                  height: 34,
+                  child: uploading
+                      ? Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: colors.onPrimary),
+                        )
+                      : Icon(Icons.camera_alt_outlined,
+                          size: 18, color: colors.onPrimary),
+                ),
+              ),
+            ),
+          ),
+        ]),
+        const SizedBox(width: 18),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Your Haven Zambia profile',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800, letterSpacing: -.3)),
+              const SizedBox(height: 5),
+              Text('Keep your identity and contact details current.',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(color: colors.onSurfaceVariant)),
+              const SizedBox(height: 10),
+              TextButton.icon(
+                onPressed: uploading ? null : onChangePhoto,
+                style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(0, 34),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                icon: const Icon(Icons.photo_library_outlined, size: 17),
+                label: const Text('Change photo'),
+              ),
+            ],
+          ),
+        ),
+      ]),
     );
   }
 }
 
-class UserInfoEditField extends StatelessWidget {
-  const UserInfoEditField({
-    super.key,
-    required this.text,
-    required this.child,
-  });
+class _SectionHeading extends StatelessWidget {
+  const _SectionHeading({required this.title, required this.subtitle});
 
-  final String text;
-  final Widget child;
+  final String title;
+  final String subtitle;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16.0 / 2),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: Text(text),
-          ),
-          Expanded(
-            flex: 3,
-            child: child,
-          ),
-        ],
+    final colors = Theme.of(context).colorScheme;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(title,
+          style: Theme.of(context)
+              .textTheme
+              .titleLarge
+              ?.copyWith(fontWeight: FontWeight.w800)),
+      const SizedBox(height: 4),
+      Text(subtitle,
+          style: Theme.of(context)
+              .textTheme
+              .bodyMedium
+              ?.copyWith(color: colors.onSurfaceVariant)),
+    ]);
+  }
+}
+
+class _FormCard extends StatelessWidget {
+  const _FormCard({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: colors.outlineVariant),
       ),
+      child: Column(children: children),
     );
   }
+}
+
+class _ProfileException implements Exception {
+  const _ProfileException(this.message);
+  final String message;
 }

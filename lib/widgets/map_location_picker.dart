@@ -79,9 +79,6 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Pick Location'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 1,
         actions: [
           TextButton(
             onPressed: () {

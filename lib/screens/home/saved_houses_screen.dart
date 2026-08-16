@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/screens/details/details.dart';
-import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/property_card.dart';
 import 'package:house_rent/widgets/screen_state.dart';
 
@@ -31,14 +30,14 @@ class _SavedHousesScreenState extends State<SavedHousesScreen> {
       extendBody: true,
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Saved homes'),
+            const Text('Saved homes'),
             Text('Your shortlist, all in one place',
                 style: TextStyle(
                     fontSize: 12,
-                    color: AppColors.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w400)),
           ],
         ),

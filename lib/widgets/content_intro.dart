@@ -29,15 +29,46 @@ class ContentIntro extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(house.name, style: Theme.of(context).textTheme.headlineLarge),
-          if (house.demandLabel != null) ...[
+          if (house.demandLabel != null || house.recentlyListed) ...[
             const SizedBox(height: 10),
-            DemandBadge(demandLabel: house.demandLabel),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (house.recentlyListed)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.auto_awesome_rounded,
+                          size: 14,
+                          color:
+                              Theme.of(context).colorScheme.onPrimaryContainer),
+                      const SizedBox(width: 5),
+                      Text('Listed recently',
+                          style: TextStyle(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onPrimaryContainer,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700)),
+                    ]),
+                  ),
+                if (house.demandLabel != null)
+                  DemandBadge(demandLabel: house.demandLabel),
+              ],
+            ),
           ],
           const SizedBox(height: 8),
           Row(
             children: [
-              const Icon(Icons.location_on_outlined,
-                  color: AppColors.textSecondary, size: 18),
+              Icon(Icons.location_on_outlined,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  size: 18),
               const SizedBox(width: 5),
               Expanded(
                   child: Text(

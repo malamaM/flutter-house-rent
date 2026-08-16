@@ -47,6 +47,7 @@ dependencies:
   latlong2: ^0.8.2
   geolocator: ^11.0.1
   permission_handler: ^11.3.1
+  url_launcher: ^6.3.1
   flutter_map_marker_cluster: any
   google_fonts: ^4.0.4
 

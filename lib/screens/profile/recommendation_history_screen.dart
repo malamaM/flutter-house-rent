@@ -63,7 +63,7 @@ class _RecommendationHistoryScreenState
       builder: (context) => AlertDialog(
         title: const Text('Reset recommendation learning?'),
         content: const Text(
-            'Haven will forget viewing, skipping, saving and contact patterns. Your chosen locations, amenities and saved homes will remain.'),
+            'Haven Zambia will forget viewing, skipping, saving and contact patterns. Your chosen locations, amenities and saved homes will remain.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -160,7 +160,7 @@ class _RecommendationHistoryScreenState
                       ]),
                 ),
                 const SizedBox(height: 16),
-                Text('What Haven remembers',
+                Text('What Haven Zambia remembers',
                     style: Theme.of(context).textTheme.headlineSmall),
                 const SizedBox(height: 10),
                 Row(children: [

@@ -16,6 +16,7 @@ class MyListingsScreen extends StatefulWidget {
 
 class _MyListingsScreenState extends State<MyListingsScreen> {
   late Future<List<House>> listings;
+  final Set<int> _renewing = {};
 
   @override
   void initState() {
@@ -47,18 +48,53 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
     }
   }
 
+  Future<void> _renew(House house) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Renew this listing?'),
+        content: Text(
+            '“${house.name}” will remain visible to renters for another 30 days.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Not now')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Renew listing')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _renewing.add(house.id));
+    final renewed = await House.renewListing(house.id);
+    if (!mounted) return;
+    if (renewed) {
+      setState(() {
+        _renewing.remove(house.id);
+        _reload(forceRefresh: true);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Listing renewed for 30 days')));
+    } else {
+      setState(() => _renewing.remove(house.id));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Could not renew this listing. Try again.')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('My listings'),
+            const Text('My listings'),
             Text('Manage your published properties',
                 style: TextStyle(
                     fontSize: 12,
-                    color: AppColors.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w400)),
           ],
         ),
@@ -102,17 +138,26 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
               separatorBuilder: (_, __) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final house = items[index];
-                return PropertyCard(
-                  horizontal: true,
-                  showSave: false,
-                  house: house,
-                  secondaryLabel: 'Edit listing',
-                  onSecondaryAction: () => _edit(house),
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              Details(house: house, isOwnerView: true))),
+                return Column(
+                  children: [
+                    PropertyCard(
+                      horizontal: true,
+                      showSave: false,
+                      house: house,
+                      secondaryLabel: 'Edit listing',
+                      onSecondaryAction: () => _edit(house),
+                      onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) =>
+                                  Details(house: house, isOwnerView: true))),
+                    ),
+                    _ListingLifecycleBar(
+                      house: house,
+                      renewing: _renewing.contains(house.id),
+                      onRenew: () => _renew(house),
+                    ),
+                  ],
                 );
               },
             ),
@@ -126,6 +171,66 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
         icon: const Icon(Icons.add_rounded),
         label: const Text('New listing'),
       ),
+    );
+  }
+}
+
+class _ListingLifecycleBar extends StatelessWidget {
+  const _ListingLifecycleBar({
+    required this.house,
+    required this.renewing,
+    required this.onRenew,
+  });
+
+  final House house;
+  final bool renewing;
+  final VoidCallback onRenew;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final urgent = house.isArchived || house.daysUntilExpiry <= 3;
+    final label = house.isArchived
+        ? 'Archived after 30 days'
+        : house.daysUntilExpiry == 0
+            ? 'Expires today'
+            : '${house.daysUntilExpiry} days remaining';
+    return Container(
+      margin: const EdgeInsets.only(top: 7),
+      padding: const EdgeInsets.fromLTRB(13, 8, 9, 8),
+      decoration: BoxDecoration(
+        color: urgent ? colors.errorContainer : colors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+            color: urgent
+                ? colors.error.withValues(alpha: .25)
+                : colors.outlineVariant),
+      ),
+      child: Row(children: [
+        Icon(house.isArchived ? Icons.inventory_2_outlined : Icons.schedule,
+            size: 17, color: urgent ? colors.onErrorContainer : colors.primary),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(label,
+              style: TextStyle(
+                  color: urgent
+                      ? colors.onErrorContainer
+                      : colors.onSurfaceVariant,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700)),
+        ),
+        if (house.canRenew)
+          TextButton.icon(
+            onPressed: renewing ? null : onRenew,
+            icon: renewing
+                ? const SizedBox(
+                    width: 15,
+                    height: 15,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.refresh_rounded, size: 18),
+            label: const Text('Renew'),
+          ),
+      ]),
     );
   }
 }

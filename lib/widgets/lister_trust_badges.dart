@@ -25,7 +25,7 @@ class ListerTrustBadges extends StatelessWidget {
             icon: Icons.verified_user_rounded,
             label: 'Identity verified',
             description:
-                'Haven has reviewed this lister’s identity details. Always inspect a property before paying.',
+                'Haven Zambia has reviewed this lister’s identity details. Always inspect a property before paying.',
             color: AppColors.primary,
             background: AppColors.primaryLight,
             compact: compact,

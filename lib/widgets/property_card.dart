@@ -92,10 +92,11 @@ class _PropertyCardState extends State<PropertyCard> {
               ),
             ),
             errorWidget: (_, __, ___) => Container(
-              color: AppColors.surfaceContainer,
+              color: Theme.of(context).colorScheme.surfaceContainer,
               alignment: Alignment.center,
-              child: const Icon(Icons.home_work_outlined,
-                  color: AppColors.textSecondary, size: 36),
+              child: Icon(Icons.home_work_outlined,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  size: 36),
             ),
           ),
           if (widget.house.demandLabel != null)
@@ -215,14 +216,50 @@ class _PropertyCardState extends State<PropertyCard> {
                     _PropertyCopy(house: widget.house, compact: true),
                     if (widget.onSecondaryAction != null) ...[
                       const SizedBox(height: 8),
-                      GestureDetector(
-                        onTap: widget.onSecondaryAction,
-                        child: Text(
-                          widget.secondaryLabel ?? 'Manage listing',
-                          style: const TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
+                      Material(
+                        color: Theme.of(context).colorScheme.primary,
+                        borderRadius: BorderRadius.circular(10),
+                        child: InkWell(
+                          onTap: widget.onSecondaryAction,
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 7),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onPrimary
+                                    .withValues(alpha: .2),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.edit_outlined,
+                                    size: 15,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onPrimary),
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    widget.secondaryLabel ?? 'Manage listing',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onPrimary,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),

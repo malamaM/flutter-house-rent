@@ -30,7 +30,7 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
   bool loading = true;
   bool loadingMore = false;
   int activeIndex = 0;
-  bool muted = false;
+  bool muted = true;
   bool _tabActive = false;
   DateTime _shownAt = DateTime.now();
 
@@ -93,7 +93,7 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
 
   Future<void> _restoreAudio() async {
     final prefs = await SharedPreferences.getInstance();
-    muted = prefs.getBool('reels_muted') ?? false;
+    muted = prefs.getBool('reels_muted_v2') ?? true;
     if (!muted && _tabActive) {
       try {
         await music.play();
@@ -106,7 +106,7 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
     PremiumHaptics.action();
     setState(() => muted = !muted);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('reels_muted', muted);
+    await prefs.setBool('reels_muted_v2', muted);
     if (muted) {
       await music.pause();
     } else {
@@ -144,7 +144,6 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
           .track('pause', previous.id, durationMs: watched));
     }
     _shownAt = DateTime.now();
-    PremiumHaptics.selection();
     setState(() => activeIndex = value);
     unawaited(
         RecommendationService.instance.track('impression', houses[value].id));
@@ -390,7 +389,6 @@ class _ReelCardState extends State<_ReelCard> {
             onPageChanged: (value) {
               autoAdvancePausedUntil =
                   DateTime.now().add(const Duration(seconds: 12));
-              PremiumHaptics.selection();
               setState(() => photoIndex = value);
               _precacheNextImage();
               widget.onSignal('media_swipe', .35);
@@ -419,55 +417,68 @@ class _ReelCardState extends State<_ReelCard> {
           );
         },
       ),
-      const DecoratedBox(
-          decoration: BoxDecoration(
-              gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Colors.black26, Colors.transparent, Colors.black87],
-                  stops: [0, .42, 1]))),
+      const IgnorePointer(
+        child: DecoratedBox(
+            decoration: BoxDecoration(
+                gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+              Colors.black26,
+              Colors.transparent,
+              Colors.black87
+            ],
+                    stops: [
+              0,
+              .42,
+              1
+            ]))),
+      ),
       Positioned(
         left: 18,
         right: 76,
         bottom: 108,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          if (widget.house.demandLabel != null) ...[
-            DemandBadge(demandLabel: widget.house.demandLabel),
-            const SizedBox(height: 10)
-          ],
-          Text(widget.house.name,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 25,
-                  fontWeight: FontWeight.w800,
-                  height: 1.08)),
-          const SizedBox(height: 8),
-          Text(
-              '${widget.house.address} · ${widget.house.bedrooms} bed · ${widget.house.bathrooms} bath',
-              style: const TextStyle(color: Colors.white70, fontSize: 13)),
-          const SizedBox(height: 9),
-          Text(formatPropertyPrice(widget.house),
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800)),
-          if (widget.house.isVerified || widget.house.isTopRated) ...[
-            const SizedBox(height: 10),
-            ListerTrustBadges(
-                verified: widget.house.isVerified,
-                topRated: widget.house.isTopRated,
-                compact: true),
-          ],
-          const SizedBox(height: 11),
-          const Row(children: [
-            Icon(Icons.music_note_rounded, color: Colors.white70, size: 15),
-            SizedBox(width: 5),
-            Text('Original Haven ambient',
-                style: TextStyle(color: Colors.white70, fontSize: 11))
+        child: IgnorePointer(
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if (widget.house.demandLabel != null) ...[
+              DemandBadge(demandLabel: widget.house.demandLabel),
+              const SizedBox(height: 10)
+            ],
+            Text(widget.house.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 25,
+                    fontWeight: FontWeight.w800,
+                    height: 1.08)),
+            const SizedBox(height: 8),
+            Text(
+                '${widget.house.address} · ${widget.house.bedrooms} bed · ${widget.house.bathrooms} bath',
+                style: const TextStyle(color: Colors.white70, fontSize: 13)),
+            const SizedBox(height: 9),
+            Text(formatPropertyPrice(widget.house),
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800)),
+            if (widget.house.isVerified || widget.house.isTopRated) ...[
+              const SizedBox(height: 10),
+              ListerTrustBadges(
+                  verified: widget.house.isVerified,
+                  topRated: widget.house.isTopRated,
+                  compact: true),
+            ],
+            const SizedBox(height: 11),
+            const Row(children: [
+              Icon(Icons.music_note_rounded, color: Colors.white70, size: 15),
+              SizedBox(width: 5),
+              Text('Original Haven ambient',
+                  style: TextStyle(color: Colors.white70, fontSize: 11))
+            ]),
           ]),
-        ]),
+        ),
       ),
       Positioned(
         right: 14,
@@ -499,42 +510,45 @@ class _ReelCardState extends State<_ReelCard> {
         top: 82,
         left: 18,
         right: 18,
-        child: FutureBuilder<List<_TourAsset>>(
-          future: assets,
-          builder: (_, snapshot) {
-            final count = snapshot.data?.length ?? 0;
-            if (count < 2) return const SizedBox.shrink();
-            return Column(children: [
-              Row(
-                children: List.generate(
-                  count,
-                  (index) => Expanded(
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      height: 3,
-                      margin:
-                          EdgeInsets.only(right: index == count - 1 ? 0 : 4),
-                      decoration: BoxDecoration(
-                        color:
-                            index == photoIndex ? Colors.white : Colors.white38,
-                        borderRadius: BorderRadius.circular(3),
+        child: IgnorePointer(
+          child: FutureBuilder<List<_TourAsset>>(
+            future: assets,
+            builder: (_, snapshot) {
+              final count = snapshot.data?.length ?? 0;
+              if (count < 2) return const SizedBox.shrink();
+              return Column(children: [
+                Row(
+                  children: List.generate(
+                    count,
+                    (index) => Expanded(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        height: 3,
+                        margin:
+                            EdgeInsets.only(right: index == count - 1 ? 0 : 4),
+                        decoration: BoxDecoration(
+                          color: index == photoIndex
+                              ? Colors.white
+                              : Colors.white38,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              const Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                Icon(Icons.swipe_rounded, color: Colors.white70, size: 15),
-                SizedBox(width: 5),
-                Text('Swipe for more',
-                    style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600)),
-              ]),
-            ]);
-          },
+                const SizedBox(height: 8),
+                const Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                  Icon(Icons.swipe_rounded, color: Colors.white70, size: 15),
+                  SizedBox(width: 5),
+                  Text('Swipe for more',
+                      style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600)),
+                ]),
+              ]);
+            },
+          ),
         ),
       ),
     ]);

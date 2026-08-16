@@ -1,241 +1,235 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:house_rent/config/api_config.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ChangePassword extends StatefulWidget {
   const ChangePassword({super.key});
 
   @override
-  _ChangePasswordState createState() => _ChangePasswordState();
+  State<ChangePassword> createState() => _ChangePasswordState();
 }
 
 class _ChangePasswordState extends State<ChangePassword> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _currentPasswordController =
-      TextEditingController();
-  final TextEditingController _newPasswordController = TextEditingController();
-  final TextEditingController _confirmNewPasswordController =
-      TextEditingController();
+  final _currentPassword = TextEditingController();
+  final _newPassword = TextEditingController();
+  final _confirmation = TextEditingController();
+  bool _saving = false;
+  bool _showCurrent = false;
+  bool _showNew = false;
 
   Future<void> _changePassword() async {
-    if (_formKey.currentState!.validate()) {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      String? accessToken = prefs.getString('access_token');
-
-      if (accessToken != null) {
-        const url = '${ApiConfig.apiBase}/change-password';
-        final headers = {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $accessToken',
-        };
-        final body = jsonEncode({
-          'current_password': _currentPasswordController.text,
-          'new_password': _newPasswordController.text,
-          'new_password_confirmation': _confirmNewPasswordController.text,
-        });
-
-        // Print request details
-        final response = await http.post(
-          Uri.parse(url),
-          headers: headers,
-          body: body,
-        );
-
-        // Print response details
-        if (response.statusCode == 200) {
-          // Handle successful password change
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Password updated successfully')),
-          );
-        } else {
-          // Handle error
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to update password')),
-          );
-        }
-      } else {
-        // Handle missing access token
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Access token not found')),
-        );
+    if (!_formKey.currentState!.validate() || _saving) return;
+    FocusScope.of(context).unfocus();
+    setState(() => _saving = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('access_token');
+      if (token == null) {
+        _notice('Please sign in again.');
+        return;
       }
+      final response = await http
+          .post(
+            Uri.parse('${ApiConfig.apiBase}/change-password'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({
+              'current_password': _currentPassword.text,
+              'new_password': _newPassword.text,
+              'new_password_confirmation': _confirmation.text,
+            }),
+          )
+          .timeout(const Duration(seconds: 12));
+      if (response.statusCode == 200) {
+        _currentPassword.clear();
+        _newPassword.clear();
+        _confirmation.clear();
+        _notice('Password updated successfully');
+        return;
+      }
+      var message = 'Could not update your password.';
+      try {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final errors = data['errors'];
+        message = errors is Map && errors.isNotEmpty
+            ? (errors.values.first as List).first.toString()
+            : data['message']?.toString() ?? message;
+      } catch (_) {}
+      _notice(message);
+    } catch (_) {
+      _notice('Could not update your password. Check your connection.');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  void _notice(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        centerTitle: false,
-        elevation: 0,
-        backgroundColor: const Color(0xFF00BF6D),
-        foregroundColor: Colors.white,
-        title: const Text("Change Password"),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        child: Column(
-          children: [
-            Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  UserInfoEditField(
-                    text: "Current Password",
-                    child: TextFormField(
-                      controller: _currentPasswordController,
-                      obscureText: true,
-                      decoration: InputDecoration(
-                        hintText: "Current Password",
-                        filled: true,
-                        fillColor:
-                            const Color(0xFF00BF6D).withValues(alpha: 0.05),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16.0 * 1.5, vertical: 16.0),
-                        border: const OutlineInputBorder(
-                          borderSide: BorderSide.none,
-                          borderRadius: BorderRadius.all(Radius.circular(50)),
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your current password';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                  UserInfoEditField(
-                    text: "New Password",
-                    child: TextFormField(
-                      controller: _newPasswordController,
-                      obscureText: true,
-                      decoration: InputDecoration(
-                        hintText: "New Password",
-                        filled: true,
-                        fillColor:
-                            const Color(0xFF00BF6D).withValues(alpha: 0.05),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16.0 * 1.5, vertical: 16.0),
-                        border: const OutlineInputBorder(
-                          borderSide: BorderSide.none,
-                          borderRadius: BorderRadius.all(Radius.circular(50)),
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your new password';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                  UserInfoEditField(
-                    text: "Confirm New Password",
-                    child: TextFormField(
-                      controller: _confirmNewPasswordController,
-                      obscureText: true,
-                      decoration: InputDecoration(
-                        hintText: "Confirm New Password",
-                        filled: true,
-                        fillColor:
-                            const Color(0xFF00BF6D).withValues(alpha: 0.05),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16.0 * 1.5, vertical: 16.0),
-                        border: const OutlineInputBorder(
-                          borderSide: BorderSide.none,
-                          borderRadius: BorderRadius.all(Radius.circular(50)),
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please confirm your new password';
-                        }
-                        if (value != _newPasswordController.text) {
-                          return 'Passwords do not match';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16.0),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                SizedBox(
-                  width: 120,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context)
-                          .textTheme
-                          .bodyLarge!
-                          .color!
-                          .withValues(alpha: 0.08),
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(double.infinity, 48),
-                      shape: const StadiumBorder(),
-                    ),
-                    child: const Text("Cancel"),
-                  ),
-                ),
-                const SizedBox(width: 16.0),
-                SizedBox(
-                  width: 160,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00BF6D),
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(double.infinity, 48),
-                      shape: const StadiumBorder(),
-                    ),
-                    onPressed: _changePassword,
-                    child: const Text("Save Update"),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class UserInfoEditField extends StatelessWidget {
-  const UserInfoEditField({
-    super.key,
-    required this.text,
-    required this.child,
-  });
-
-  final String text;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16.0 / 2),
-      child: Row(
+      appBar: AppBar(title: const Text('Password')),
+      body: ListView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 36),
         children: [
-          Expanded(
-            flex: 2,
-            child: Text(text),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [
+                colors.primaryContainer.withValues(alpha: .8),
+                colors.surfaceContainerLow,
+              ]),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: colors.outlineVariant),
+            ),
+            child: Row(children: [
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                    color: colors.primary,
+                    borderRadius: BorderRadius.circular(17)),
+                child: Icon(Icons.lock_outline_rounded,
+                    color: colors.onPrimary, size: 27),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Protect your account',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800, letterSpacing: -.3)),
+                    const SizedBox(height: 5),
+                    Text('Choose a strong password you do not use elsewhere.',
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(color: colors.onSurfaceVariant)),
+                  ],
+                ),
+              ),
+            ]),
           ),
-          Expanded(
-            flex: 3,
-            child: child,
+          const SizedBox(height: 26),
+          Text('Update password',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 5),
+          Text('Confirm your current password before setting a new one.',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: colors.onSurfaceVariant)),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: colors.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: colors.outlineVariant),
+            ),
+            child: Form(
+              key: _formKey,
+              child: Column(children: [
+                _passwordField(
+                  controller: _currentPassword,
+                  label: 'Current password',
+                  visible: _showCurrent,
+                  onVisibility: () =>
+                      setState(() => _showCurrent = !_showCurrent),
+                ),
+                const SizedBox(height: 14),
+                _passwordField(
+                  controller: _newPassword,
+                  label: 'New password',
+                  visible: _showNew,
+                  onVisibility: () => setState(() => _showNew = !_showNew),
+                  validator: (value) => value == null || value.length < 8
+                      ? 'Use at least 8 characters'
+                      : null,
+                ),
+                const SizedBox(height: 14),
+                _passwordField(
+                  controller: _confirmation,
+                  label: 'Confirm new password',
+                  visible: _showNew,
+                  onVisibility: () => setState(() => _showNew = !_showNew),
+                  validator: (value) => value != _newPassword.text
+                      ? 'Passwords do not match'
+                      : value == null || value.isEmpty
+                          ? 'Confirm your new password'
+                          : null,
+                ),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 28),
+          ElevatedButton.icon(
+            onPressed: _saving ? null : _changePassword,
+            icon: _saving
+                ? const SizedBox(
+                    width: 19,
+                    height: 19,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.shield_outlined),
+            label: Text(_saving ? 'Updating…' : 'Update password'),
           ),
         ],
       ),
     );
+  }
+
+  Widget _passwordField({
+    required TextEditingController controller,
+    required String label,
+    required bool visible,
+    required VoidCallback onVisibility,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      obscureText: !visible,
+      enableSuggestions: false,
+      autocorrect: false,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: const Icon(Icons.key_rounded),
+        suffixIcon: IconButton(
+          onPressed: onVisibility,
+          icon: Icon(visible
+              ? Icons.visibility_off_outlined
+              : Icons.visibility_outlined),
+        ),
+      ),
+      validator: validator ??
+          (value) => value == null || value.isEmpty
+              ? 'Enter your current password'
+              : null,
+    );
+  }
+
+  @override
+  void dispose() {
+    _currentPassword.dispose();
+    _newPassword.dispose();
+    _confirmation.dispose();
+    super.dispose();
   }
 }

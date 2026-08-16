@@ -4,6 +4,7 @@ import 'package:house_rent/screens/home/app_shell.dart';
 import 'package:house_rent/screens/login/login.dart';
 import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/theme/app_colors.dart';
+import 'package:house_rent/widgets/zambian_signature.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -62,7 +63,10 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    const backdrop = Color(0xFF102A24);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final backdrop = dark ? const Color(0xFF0D1210) : const Color(0xFF102A24);
+    final glow = dark ? const Color(0xFF275E4D) : AppColors.primary;
+    final accent = dark ? const Color(0xFFD99055) : const Color(0xFFF0A365);
     return Scaffold(
         backgroundColor: backdrop,
         body: Stack(children: [
@@ -79,7 +83,7 @@ class _SplashScreenState extends State<SplashScreen>
                           decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               gradient: RadialGradient(colors: [
-                                AppColors.primary.withValues(alpha: .48),
+                                glow.withValues(alpha: dark ? .25 : .48),
                                 Colors.transparent
                               ])))))),
           Positioned(
@@ -88,8 +92,11 @@ class _SplashScreenState extends State<SplashScreen>
               child: Container(
                   width: 360,
                   height: 360,
-                  decoration: const BoxDecoration(
-                      shape: BoxShape.circle, color: Color(0x0FF0A365)))),
+                  decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: dark
+                          ? const Color(0x0AD99055)
+                          : const Color(0x0FF0A365)))),
           SafeArea(
               child: Padding(
                   padding: const EdgeInsets.all(32),
@@ -116,18 +123,20 @@ class _SplashScreenState extends State<SplashScreen>
                                     child: const Icon(Icons.roofing_rounded,
                                         color: AppColors.primary, size: 37)),
                                 const SizedBox(height: 25),
-                                const Text('HAVEN',
+                                const Text('HAVEN ZAMBIA',
                                     style: TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.w800,
-                                        fontSize: 36,
-                                        letterSpacing: 3)),
+                                        fontSize: 31,
+                                        letterSpacing: 2.2)),
                                 const SizedBox(height: 7),
                                 const Text('Find where you belong.',
                                     style: TextStyle(
                                         color: Color(0xFFB8CBC4),
                                         fontSize: 17)),
                                 const Spacer(),
+                                const ZambianSignature(onDark: true),
+                                const SizedBox(height: 18),
                                 AnimatedBuilder(
                                     animation: _progress,
                                     builder: (_, __) => ClipRRect(
@@ -136,7 +145,7 @@ class _SplashScreenState extends State<SplashScreen>
                                             value: _progress.value,
                                             minHeight: 4,
                                             backgroundColor: Colors.white10,
-                                            color: const Color(0xFFF0A365)))),
+                                            color: accent))),
                               ]))))),
         ]));
   }

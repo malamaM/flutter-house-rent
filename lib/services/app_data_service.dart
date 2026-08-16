@@ -121,7 +121,8 @@ class PropertyDetailsService {
   }) async {
     // Contact details are deliberately kept in the private namespace so they
     // are purged on logout instead of surviving as shared public cache data.
-    final key = await AppCache.instance.privateKey('house:$houseId:owner');
+    final key =
+        await AppCache.instance.privateKey('house:$houseId:owner:contact-v2');
     final cached = await AppCache.instance.read(key);
     if (!forceRefresh && cached != null && !cached.isExpired) {
       if (!cached.isFresh) {
@@ -410,7 +411,7 @@ class ListerReviewData {
       id: int.tryParse('${map['id']}') ?? 0,
       rating: int.tryParse('${map['rating']}') ?? 0,
       comment: '${map['comment'] ?? ''}',
-      reviewerName: reviewerName.isEmpty ? 'Haven user' : reviewerName,
+      reviewerName: reviewerName.isEmpty ? 'Haven Zambia user' : reviewerName,
       createdAt: DateTime.tryParse('${map['created_at'] ?? ''}'),
     );
   }

@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
     return AnimatedBuilder(
       animation: ThemeController.instance,
       builder: (_, __) => MaterialApp(
-        title: 'Haven',
+        title: 'Haven Zambia',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,

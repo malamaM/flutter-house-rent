@@ -30,7 +30,7 @@ class CacheStatusBanner extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Showing saved results${_age(state.updatedAt)} while Haven refreshes.',
+                  'Showing saved results${_age(state.updatedAt)} while Haven Zambia refreshes.',
                   style: const TextStyle(
                     color: AppColors.primaryDark,
                     fontSize: 12,

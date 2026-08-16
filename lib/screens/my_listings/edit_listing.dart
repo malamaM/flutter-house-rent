@@ -131,7 +131,7 @@ class _EditListingScreenState extends State<EditListingScreen> {
       }
     } catch (_) {
       _message(
-          'Haven could not open your photo library. Check photo permissions.');
+          'Haven Zambia could not open your photo library. Check photo permissions.');
     }
   }
 
@@ -150,7 +150,7 @@ class _EditListingScreenState extends State<EditListingScreen> {
       }
     } catch (_) {
       _message(
-          'Haven could not open your photo library. Check photo permissions.');
+          'Haven Zambia could not open your photo library. Check photo permissions.');
     }
   }
 
@@ -169,7 +169,8 @@ class _EditListingScreenState extends State<EditListingScreen> {
         }
       });
     } catch (_) {
-      _message('Haven could not open your video library. Check permissions.');
+      _message(
+          'Haven Zambia could not open your video library. Check permissions.');
     }
   }
 
@@ -237,15 +238,14 @@ class _EditListingScreenState extends State<EditListingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Edit Listing'),
+            const Text('Edit Listing'),
             Text('Keep every detail accurate and inviting',
                 style: TextStyle(
-                    color: AppColors.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 11,
                     fontWeight: FontWeight.w400)),
           ],
@@ -354,9 +354,11 @@ class _EditListingScreenState extends State<EditListingScreen> {
       bottomNavigationBar: SafeArea(
         child: Container(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
-          decoration: const BoxDecoration(
-              color: AppColors.surface,
-              border: Border(top: BorderSide(color: AppColors.divider))),
+          decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              border: Border(
+                  top: BorderSide(
+                      color: Theme.of(context).colorScheme.outlineVariant))),
           child: ElevatedButton(
             onPressed: saving ? null : _save,
             child: saving
@@ -410,16 +412,19 @@ class _EditListingScreenState extends State<EditListingScreen> {
             Padding(
               padding: const EdgeInsets.all(14),
               child: Row(children: [
-                const Expanded(
+                Expanded(
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                      Text('Cover photo',
+                      const Text('Cover photo',
                           style: TextStyle(fontWeight: FontWeight.w700)),
-                      SizedBox(height: 3),
+                      const SizedBox(height: 3),
                       Text('The first image people see',
                           style: TextStyle(
-                              color: AppColors.textSecondary, fontSize: 12))
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                              fontSize: 12))
                     ])),
                 TextButton.icon(
                     onPressed: _pickCover,
@@ -451,11 +456,12 @@ class _EditListingScreenState extends State<EditListingScreen> {
                     padding: EdgeInsets.all(18),
                     child: CircularProgressIndicator()))
           else if (existingGalleryImages.isEmpty && newGalleryImages.isEmpty)
-            const Padding(
-                padding: EdgeInsets.symmetric(vertical: 18),
+            Padding(
+                padding: const EdgeInsets.symmetric(vertical: 18),
                 child: Text(
                     'No gallery photos yet. Add a few views of the property.',
-                    style: TextStyle(color: AppColors.textSecondary)))
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant)))
           else
             Wrap(spacing: 9, runSpacing: 9, children: [
               ...existingGalleryImages.map((image) => _NetworkThumb(

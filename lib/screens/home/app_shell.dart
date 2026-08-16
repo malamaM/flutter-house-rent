@@ -6,7 +6,6 @@ import 'package:house_rent/screens/home/home.dart';
 import 'package:house_rent/screens/home/reels_screen.dart';
 import 'package:house_rent/screens/home/saved_houses_screen.dart';
 import 'package:house_rent/services/current_location_service.dart';
-import 'package:house_rent/services/premium_haptics.dart';
 import 'package:house_rent/services/navigation_warmup_service.dart';
 import 'package:house_rent/widgets/custom_bottom_navigation_bar.dart';
 
@@ -78,7 +77,6 @@ class _AppShellState extends State<AppShell> {
       _navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
       return;
     }
-    PremiumHaptics.selection();
     setState(() {
       _mountedTabs.add(index);
       _currentIndex = index;

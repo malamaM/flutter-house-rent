@@ -50,7 +50,8 @@ class MyAccount extends StatelessWidget {
                 secondary: const Icon(Icons.dark_mode_outlined),
                 title: const Text('Dark mode',
                     style: TextStyle(fontWeight: FontWeight.w700)),
-                subtitle: const Text('Use Haven’s calm evening appearance'),
+                subtitle:
+                    const Text('Use Haven Zambia’s calm evening appearance'),
                 value: ThemeController.instance.isDark,
                 onChanged: ThemeController.instance.setDark,
               ),

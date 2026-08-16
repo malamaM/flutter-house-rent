@@ -37,11 +37,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('HAVEN',
+                  const Text('HAVEN ZAMBIA',
                       style: TextStyle(
                           fontWeight: FontWeight.w800,
-                          fontSize: 16,
-                          letterSpacing: 1.2)),
+                          fontSize: 14,
+                          letterSpacing: .9)),
                   Text('Find where you belong',
                       style: TextStyle(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,

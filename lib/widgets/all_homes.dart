@@ -200,8 +200,9 @@ class _AllHomesState extends State<AllHomes> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
               decoration: BoxDecoration(
-                color: AppColors.surface,
-                border: Border.all(color: AppColors.divider),
+                color: Theme.of(context).colorScheme.surfaceContainerLow,
+                border: Border.all(
+                    color: Theme.of(context).colorScheme.outlineVariant),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(Icons.sort_rounded,
@@ -229,8 +230,8 @@ class _AllHomesState extends State<AllHomes> {
               color: AppColors.primary, size: 14),
           const SizedBox(width: 5),
           Text('Showing $sortLabel',
-              style: const TextStyle(
-                  color: AppColors.textSecondary,
+              style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   fontSize: 11,
                   fontWeight: FontWeight.w600)),
         ]),
@@ -281,17 +282,22 @@ class _AllHomesState extends State<AllHomes> {
                             ),
                           )
                         else if (homes.isNotEmpty)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 8),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
                             child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(Icons.check_circle_outline_rounded,
-                                      size: 16, color: AppColors.textSecondary),
-                                  SizedBox(width: 6),
+                                      size: 16,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant),
+                                  const SizedBox(width: 6),
                                   Text('You have reached the end',
                                       style: TextStyle(
-                                          color: AppColors.textSecondary,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant,
                                           fontSize: 11)),
                                 ]),
                           ),
@@ -314,7 +320,7 @@ class _LoadingHomes extends StatelessWidget {
             height: 172,
             margin: const EdgeInsets.only(bottom: 12),
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: Theme.of(context).colorScheme.surfaceContainerLow,
               borderRadius: BorderRadius.circular(18),
             ),
           ),
@@ -332,12 +338,14 @@ class _LoadError extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          border: Border.all(color: AppColors.divider),
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          border:
+              Border.all(color: Theme.of(context).colorScheme.outlineVariant),
           borderRadius: BorderRadius.circular(18),
         ),
         child: Column(children: [
-          const Icon(Icons.cloud_off_rounded, color: AppColors.textSecondary),
+          Icon(Icons.cloud_off_rounded,
+              color: Theme.of(context).colorScheme.onSurfaceVariant),
           const SizedBox(height: 8),
           const Text('Homes could not be loaded'),
           TextButton(onPressed: onRetry, child: const Text('Try again')),
