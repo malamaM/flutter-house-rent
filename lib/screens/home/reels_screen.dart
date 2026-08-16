@@ -65,6 +65,7 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
         loading = false;
       });
       if (houses.isNotEmpty) {
+        unawaited(_warmAround(0));
         unawaited(RecommendationService.instance
             .track('impression', houses.first.id));
       }
@@ -86,6 +87,7 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
         nextCursor = page.nextCursor;
         loadingMore = false;
       });
+      unawaited(_warmAround(activeIndex));
     } catch (_) {
       loadingMore = false;
     }
@@ -116,35 +118,68 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
     }
   }
 
-  void _learn(House house, String event, double weight) {
+  void _learn(House house, String event, double weight, {bool rerank = true}) {
     SessionRecommendation.instance.observe(house, weight);
     unawaited(RecommendationService.instance.track(event, house.id));
-    _rerankUnseen();
+    if (rerank) _rerankUnseen();
   }
 
   void _rerankUnseen() {
+    setState(_sortUnseenInPlace);
+  }
+
+  void _sortUnseenInPlace() {
     final start = activeIndex + 2;
     if (start >= houses.length - 1) return;
     final tail = houses.sublist(start);
     tail.sort((a, b) => SessionRecommendation.instance
         .score(b)
         .compareTo(SessionRecommendation.instance.score(a)));
-    setState(() => houses.replaceRange(start, houses.length, tail));
+    houses.replaceRange(start, houses.length, tail);
+  }
+
+  Future<void> _warmAround(int index) async {
+    for (var offset = 1; offset <= 2; offset++) {
+      final next = index + offset;
+      if (!mounted || next >= houses.length) return;
+      final house = houses[next];
+      final featured = house.reelAssets.where((asset) => asset.featured);
+      final asset = featured.isNotEmpty
+          ? featured.first
+          : house.reelAssets.isNotEmpty
+              ? house.reelAssets.first
+              : null;
+      final url = asset?.isVideo == true
+          ? (asset?.posterUrl?.isNotEmpty == true
+              ? asset!.posterUrl!
+              : house.imageUrl)
+          : (asset?.url.isNotEmpty == true ? asset!.url : house.imageUrl);
+      if (url.isEmpty) continue;
+      try {
+        await precacheImage(CachedNetworkImageProvider(url), context);
+      } catch (_) {
+        // The card retains its dark placeholder if an adjacent asset fails.
+      }
+    }
   }
 
   void _changedPage(int value) {
     final previous = houses[activeIndex];
     final watched = DateTime.now().difference(_shownAt).inMilliseconds;
     if (watched < 2500) {
-      _learn(previous, 'fast_skip', -1.3);
+      _learn(previous, 'fast_skip', -1.3, rerank: false);
     } else if (watched > 8000) {
-      _learn(previous, 'complete', 1.1);
+      _learn(previous, 'complete', 1.1, rerank: false);
     } else {
       unawaited(RecommendationService.instance
           .track('pause', previous.id, durationMs: watched));
     }
     _shownAt = DateTime.now();
-    setState(() => activeIndex = value);
+    setState(() {
+      activeIndex = value;
+      _sortUnseenInPlace();
+    });
+    unawaited(_warmAround(value));
     unawaited(
         RecommendationService.instance.track('impression', houses[value].id));
     if (value >= houses.length - 8) _loadMore();
@@ -183,14 +218,24 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
                   PageView.builder(
                     key: const PageStorageKey('tours-pages'),
                     scrollDirection: Axis.vertical,
+                    allowImplicitScrolling: true,
                     itemCount: houses.length,
+                    findChildIndexCallback: (key) {
+                      if (key is! ValueKey<int>) return null;
+                      final index =
+                          houses.indexWhere((house) => house.id == key.value);
+                      return index < 0 ? null : index;
+                    },
                     onPageChanged: _changedPage,
-                    itemBuilder: (context, index) => _ReelCard(
-                      house: houses[index],
-                      active: index == activeIndex,
-                      muted: muted,
-                      onSignal: (event, weight) =>
-                          _learn(houses[index], event, weight),
+                    itemBuilder: (context, index) => RepaintBoundary(
+                      key: ValueKey<int>(houses[index].id),
+                      child: _ReelCard(
+                        house: houses[index],
+                        active: index == activeIndex,
+                        muted: muted,
+                        onSignal: (event, weight) =>
+                            _learn(houses[index], event, weight),
+                      ),
                     ),
                   ),
                   SafeArea(
@@ -397,6 +442,7 @@ class _ReelCardState extends State<_ReelCard> {
               final item = items[index];
               if (item.isVideo) {
                 return _TourVideo(
+                    key: ValueKey(item.url),
                     url: item.url,
                     active: widget.active && index == photoIndex,
                     muted: widget.muted,
@@ -575,7 +621,8 @@ class _TourVideo extends StatefulWidget {
   final bool featured;
   final String? posterUrl;
   const _TourVideo(
-      {required this.url,
+      {super.key,
+      required this.url,
       required this.active,
       required this.muted,
       required this.featured,
