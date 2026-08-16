@@ -136,8 +136,9 @@ class House {
       ownerId: user == null ? null : _parseInt(user['id']),
       ownerName: _ownerName(user),
       isVerified: user != null &&
-          ((user['is_verified'] == true || user['is_verified'] == 1) ||
-              _hasBadge(user, 'verified')),
+          (user['is_verified'] == true ||
+              user['is_verified'] == 1 ||
+              user['verification_status'] == 'verified'),
       isTopRated: user != null && _hasBadge(user, 'top_rated'),
       averageRating:
           user == null ? 0 : _parseDouble(user['average_rating']) ?? 0,
@@ -299,8 +300,8 @@ class House {
   }) async {
     final token = await _token();
     final scope = token == null
-        ? AppCache.instance.publicKey('reels')
-        : await AppCache.instance.privateKey('reels');
+        ? AppCache.instance.publicKey('reels-v2')
+        : await AppCache.instance.privateKey('reels-v2');
     final key = '$scope:${cursor ?? 'first'}';
     final cached = cursor == null ? await AppCache.instance.read(key) : null;
     if (!forceRefresh && cached != null && !cached.isExpired) {

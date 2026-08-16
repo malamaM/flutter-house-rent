@@ -52,8 +52,8 @@
 	<key>NSMicrophoneUsageDescription</key>
 	<string>We need access to the microphone for video recording.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>We need access to your location to easily pinpoint your property's location on the map.</string>
+	<string>Haven uses your location while the app is open to show nearby rental homes and center the map around you.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
-	<string>We need access to your location to easily pinpoint your property's location on the map.</string>
+	<string>Haven uses your location to help show rental homes near your current area.</string>
 </dict>
 </plist>

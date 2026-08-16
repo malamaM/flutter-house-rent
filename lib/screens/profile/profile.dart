@@ -6,6 +6,7 @@ import 'package:house_rent/screens/login/login.dart';
 import 'package:house_rent/screens/my_listings/my_listings.dart';
 import 'package:house_rent/screens/myaccount/myaccount.dart';
 import 'package:house_rent/screens/profile/verification_request_screen.dart';
+import 'package:house_rent/screens/profile/recommendation_history_screen.dart';
 import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:http/http.dart' as http;
@@ -188,6 +189,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   subtitle: 'Personal details and password',
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const MyAccount())),
+                ),
+                _ProfileItem(
+                  icon: Icons.auto_awesome_outlined,
+                  title: 'Your home search',
+                  subtitle: 'Preferences and recommendation history',
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const RecommendationHistoryScreen())),
                 ),
                 _ProfileItem(
                   icon: Icons.verified_user_outlined,

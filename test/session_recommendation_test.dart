@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/services/session_recommendation.dart';
 
@@ -21,6 +22,28 @@ void main() {
     final ranked = session.rank([formerLeader, similar]);
 
     expect(ranked.first.id, similar.id);
+    session.reset();
+  });
+
+  testWidgets('session learning never notifies listeners during build',
+      (tester) async {
+    final session = SessionRecommendation.instance..reset();
+    final house = House('Home', 'Lusaka', '', id: 7, areaId: 2);
+    var observed = false;
+    await tester.pumpWidget(MaterialApp(
+      home: AnimatedBuilder(
+        animation: session,
+        builder: (_, __) {
+          if (!observed) {
+            observed = true;
+            session.observe(house, 1);
+          }
+          return const SizedBox();
+        },
+      ),
+    ));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
     session.reset();
   });
 }

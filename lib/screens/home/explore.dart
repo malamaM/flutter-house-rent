@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/services/app_cache.dart';
+import 'package:house_rent/services/current_location_service.dart';
 import 'package:house_rent/screens/details/details.dart';
 import 'package:house_rent/screens/home/filter_screen.dart';
 import 'package:house_rent/theme/app_colors.dart';
@@ -21,12 +22,43 @@ class _ExploreState extends State<Explore> {
   Map<String, String> filters = {};
   List<House> houses = [];
   bool loading = true;
+  LatLng? currentLocation;
+  bool _mapReady = false;
+  bool _centeredOnUser = false;
 
   @override
   void initState() {
     super.initState();
     AppCache.instance.refreshes.addListener(_handleCacheRefresh);
     _fetch();
+    _loadCurrentLocation();
+  }
+
+  Future<void> _loadCurrentLocation({bool refresh = false}) async {
+    final position = refresh
+        ? await CurrentLocationService.instance.refresh()
+        : await CurrentLocationService.instance.warm();
+    if (!mounted || position == null) return;
+    setState(() {
+      currentLocation = LatLng(position.latitude, position.longitude);
+    });
+    _centerOnCurrentLocation();
+  }
+
+  void _centerOnCurrentLocation() {
+    if (!_mapReady || currentLocation == null) return;
+    mapController.move(currentLocation!, 14.5);
+    _centeredOnUser = true;
+  }
+
+  void _onMapReady() {
+    _mapReady = true;
+    if (currentLocation != null) {
+      _centerOnCurrentLocation();
+    } else if (houses.isNotEmpty) {
+      mapController.move(
+          LatLng(houses.first.latitude!, houses.first.longitude!), 12.5);
+    }
   }
 
   void _handleCacheRefresh() {
@@ -52,7 +84,10 @@ class _ExploreState extends State<Explore> {
             .toList();
         loading = false;
       });
-      if (houses.isNotEmpty) {
+      if (_mapReady &&
+          !_centeredOnUser &&
+          currentLocation == null &&
+          houses.isNotEmpty) {
         mapController.move(
             LatLng(houses.first.latitude!, houses.first.longitude!), 12.5);
       }
@@ -119,7 +154,10 @@ class _ExploreState extends State<Explore> {
           FlutterMap(
             mapController: mapController,
             options: MapOptions(
-                center: LatLng(-15.3875, 28.3228), zoom: 12, maxZoom: 18),
+                center: LatLng(-15.3875, 28.3228),
+                zoom: 12,
+                maxZoom: 18,
+                onMapReady: _onMapReady),
             children: [
               if (darkMap)
                 ColorFiltered(
@@ -207,6 +245,26 @@ class _ExploreState extends State<Explore> {
                   ),
                 ),
               ),
+              if (currentLocation != null)
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: currentLocation!,
+                      width: 30,
+                      height: 30,
+                      builder: (_) => Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1677FF),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 4),
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black26, blurRadius: 8)
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
             ],
           ),
           SafeArea(
@@ -261,6 +319,17 @@ class _ExploreState extends State<Explore> {
                   ),
                 ],
               ),
+            ),
+          ),
+          Positioned(
+            right: 16,
+            bottom: 156,
+            child: FloatingActionButton.small(
+              heroTag: 'map-current-location',
+              onPressed: () => _loadCurrentLocation(refresh: true),
+              backgroundColor: Theme.of(context).colorScheme.surface,
+              foregroundColor: AppColors.primary,
+              child: const Icon(Icons.my_location_rounded),
             ),
           ),
           Positioned(

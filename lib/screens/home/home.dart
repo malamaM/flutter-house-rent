@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
+import 'package:house_rent/screens/home/app_shell.dart';
 import 'package:house_rent/screens/home/explore.dart';
 import 'package:house_rent/widgets/best_offer.dart';
 import 'package:house_rent/widgets/all_homes.dart';
@@ -14,6 +15,7 @@ import 'package:house_rent/widgets/welcome_text.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:house_rent/screens/onboarding/rental_preferences_screen.dart';
 import 'package:house_rent/services/recommendation_service.dart';
+import 'package:house_rent/services/app_cache.dart';
 
 class Home extends StatefulWidget {
   const Home({Key? key}) : super(key: key);
@@ -32,6 +34,28 @@ class _HomeState extends State<Home> {
     super.initState();
     feed = _initialFeed();
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkPreferences());
+    AppCache.instance.refreshes.addListener(_handleRecommendationRefresh);
+  }
+
+  void _handleRecommendationRefresh() {
+    if (AppCache.instance.refreshes.value?.resource != 'houses' || !mounted) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final refreshedFeed =
+            House.fetchHomeFeed(type: selectedType, forceRefresh: true);
+        setState(() {
+          feed = refreshedFeed;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    AppCache.instance.refreshes.removeListener(_handleRecommendationRefresh);
+    super.dispose();
   }
 
   Future<void> _checkPreferences() async {
@@ -46,8 +70,11 @@ class _HomeState extends State<Home> {
         ),
       );
       if (completed == true && mounted) {
-        setState(() =>
-            feed = House.fetchHomeFeed(type: selectedType, forceRefresh: true));
+        final refreshedFeed =
+            House.fetchHomeFeed(type: selectedType, forceRefresh: true);
+        setState(() {
+          feed = refreshedFeed;
+        });
       }
     } catch (_) {}
   }
@@ -110,9 +137,12 @@ class _HomeState extends State<Home> {
             children: [
               const WelcomeText(),
               const CacheStatusBanner(resource: 'houses'),
-              SearchInput(
-                  onTap: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const Explore()))),
+              SearchInput(onTap: () {
+                if (!AppShell.selectTab(context, 1)) {
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const Explore()));
+                }
+              }),
               const SizedBox(height: 24),
               const _SectionLabel(
                   title: 'Browse by type',

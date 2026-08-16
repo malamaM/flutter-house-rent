@@ -30,6 +30,31 @@ void main() {
     expect(formatPropertyPrice(rental), 'K6,500 / month');
   });
 
+  test('listing verification follows the current owner status', () {
+    final staleBadge = House.fromMap({
+      'id': 1,
+      'user': {
+        'id': 9,
+        'is_verified': false,
+        'verification_status': 'unverified',
+        'trust_badges': [
+          {'type': 'verified'}
+        ],
+      },
+    });
+    final verifiedOwner = House.fromMap({
+      'id': 2,
+      'user': {
+        'id': 9,
+        'is_verified': false,
+        'verification_status': 'verified',
+      },
+    });
+
+    expect(staleBadge.isVerified, isFalse);
+    expect(verifiedOwner.isVerified, isTrue);
+  });
+
   Widget app(Widget child) =>
       MaterialApp(theme: AppTheme.lightTheme, home: child);
 

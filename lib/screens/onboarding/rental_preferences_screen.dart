@@ -2,9 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:house_rent/models/recommendation.dart';
 import 'package:house_rent/services/premium_haptics.dart';
 import 'package:house_rent/services/recommendation_service.dart';
+import 'package:house_rent/services/session_recommendation.dart';
 
 class RentalPreferencesScreen extends StatefulWidget {
-  const RentalPreferencesScreen({super.key});
+  final bool allowCancel;
+  final bool editExisting;
+  final bool startNewSearch;
+  const RentalPreferencesScreen({
+    super.key,
+    this.allowCancel = false,
+    this.editExisting = false,
+    this.startNewSearch = false,
+  });
   @override
   State<RentalPreferencesScreen> createState() =>
       _RentalPreferencesScreenState();
@@ -24,7 +33,31 @@ class _RentalPreferencesScreenState extends State<RentalPreferencesScreen> {
   @override
   void initState() {
     super.initState();
-    options = RecommendationService.instance.options();
+    options = _loadOptions();
+  }
+
+  Future<RecommendationOptions> _loadOptions() async {
+    final loaded = await RecommendationService.instance.options();
+    if (widget.editExisting && !widget.startNewSearch) {
+      final profile = await RecommendationService.instance.profile();
+      if (profile != null) {
+        final cityId = int.tryParse('${profile['city_id']}');
+        city = loaded.cities.where((item) => item.id == cityId).firstOrNull;
+        areaIds.addAll(
+            (profile['areas'] is List ? profile['areas'] as List : const [])
+                .whereType<Map>()
+                .map((item) => int.tryParse('${item['id']}'))
+                .whereType<int>());
+        amenityIds.addAll((profile['amenities'] is List
+                ? profile['amenities'] as List
+                : const [])
+            .whereType<Map>()
+            .map((item) => int.tryParse('${item['id']}'))
+            .whereType<int>());
+        bedroomStart = int.tryParse('${profile['min_bedrooms']}') ?? 1;
+      }
+    }
+    return loaded;
   }
 
   @override
@@ -61,7 +94,9 @@ class _RentalPreferencesScreenState extends State<RentalPreferencesScreen> {
         minBedrooms: bedroomStart,
         maxBedrooms: bedroomStart + 1,
         amenityIds: amenityIds,
+        startNewSearch: widget.startNewSearch,
       );
+      if (widget.startNewSearch) SessionRecommendation.instance.reset();
       if (mounted) Navigator.pop(context, true);
     } catch (error) {
       if (!mounted) return;
@@ -73,7 +108,7 @@ class _RentalPreferencesScreenState extends State<RentalPreferencesScreen> {
 
   @override
   Widget build(BuildContext context) => PopScope(
-        canPop: false,
+        canPop: widget.allowCancel,
         child: Scaffold(
           body: SafeArea(
             child: FutureBuilder<RecommendationOptions>(
@@ -99,6 +134,11 @@ class _RentalPreferencesScreenState extends State<RentalPreferencesScreen> {
                                 curve: Curves.easeOutCubic);
                           },
                           icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                        )
+                      else if (widget.allowCancel)
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close_rounded),
                         )
                       else
                         const SizedBox(width: 48),

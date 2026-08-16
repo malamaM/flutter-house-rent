@@ -8,6 +8,7 @@ class PerformanceMonitor {
 
   final Queue<NetworkTiming> _requests = Queue();
   int _slowFrames = 0;
+  int _severelySlowFrames = 0;
   bool _initialized = false;
 
   void initialize() {
@@ -15,7 +16,12 @@ class PerformanceMonitor {
     _initialized = true;
     SchedulerBinding.instance.addTimingsCallback((timings) {
       for (final timing in timings) {
-        if (timing.totalSpan > const Duration(milliseconds: 24)) _slowFrames++;
+        // 17 ms catches missed 60 Hz deadlines, while 9 ms catches frames that
+        // cannot sustain a 120 Hz display's 8.33 ms budget.
+        if (timing.totalSpan > const Duration(milliseconds: 9)) _slowFrames++;
+        if (timing.totalSpan > const Duration(milliseconds: 17)) {
+          _severelySlowFrames++;
+        }
       }
     });
   }
@@ -38,6 +44,7 @@ class PerformanceMonitor {
 
   PerformanceSnapshot get snapshot => PerformanceSnapshot(
         slowFrames: _slowFrames,
+        severelySlowFrames: _severelySlowFrames,
         recentRequests: List.unmodifiable(_requests),
       );
 }
@@ -51,7 +58,11 @@ class NetworkTiming {
 
 class PerformanceSnapshot {
   final int slowFrames;
+  final int severelySlowFrames;
   final List<NetworkTiming> recentRequests;
-  const PerformanceSnapshot(
-      {required this.slowFrames, required this.recentRequests});
+  const PerformanceSnapshot({
+    required this.slowFrames,
+    required this.severelySlowFrames,
+    required this.recentRequests,
+  });
 }

@@ -76,9 +76,14 @@ class _ListingVideoCardState extends State<_ListingVideoCard> {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: controller.value.isInitialized
-          ? () => setState(() => controller.value.isPlaying
-              ? controller.pause()
-              : controller.play())
+          ? () {
+              if (controller.value.isPlaying) {
+                controller.pause();
+              } else {
+                controller.play();
+              }
+              setState(() {});
+            }
           : null,
       child: Container(
         width: 300,

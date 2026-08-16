@@ -4,6 +4,7 @@ import 'dart:math';
 
 import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/models/recommendation.dart';
+import 'package:house_rent/models/house.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -46,6 +47,7 @@ class RecommendationService {
     required int minBedrooms,
     required int maxBedrooms,
     required Set<int> amenityIds,
+    bool startNewSearch = false,
   }) async {
     final token = await _token();
     if (token == null) throw Exception('Sign in required');
@@ -63,6 +65,7 @@ class RecommendationService {
             'min_bedrooms': minBedrooms,
             'max_bedrooms': maxBedrooms,
             'amenity_ids': amenityIds.toList(),
+            'start_new_search': startNewSearch,
           }),
         )
         .timeout(const Duration(seconds: 15));
@@ -71,6 +74,49 @@ class RecommendationService {
     }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('recommendation_profile_complete', true);
+    await House.invalidatePropertyData();
+  }
+
+  Future<Map<String, dynamic>?> profile() async {
+    final token = await _token();
+    if (token == null) return null;
+    final response = await http.get(
+      Uri.parse('${ApiConfig.apiBase}/recommendation-profile'),
+      headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+    ).timeout(const Duration(seconds: 10));
+    if (response.statusCode != 200) return null;
+    final body = Map<String, dynamic>.from(jsonDecode(response.body));
+    return body['profile'] is Map
+        ? Map<String, dynamic>.from(body['profile'])
+        : null;
+  }
+
+  Future<Map<String, dynamic>> history() async {
+    final token = await _token();
+    if (token == null) throw Exception('Sign in required');
+    final response = await http.get(
+      Uri.parse('${ApiConfig.apiBase}/recommendation-history'),
+      headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+    ).timeout(const Duration(seconds: 10));
+    if (response.statusCode != 200) {
+      throw Exception('Could not load recommendation history');
+    }
+    return Map<String, dynamic>.from(jsonDecode(response.body));
+  }
+
+  Future<void> resetHistory() async {
+    final token = await _token();
+    if (token == null) throw Exception('Sign in required');
+    final response = await http.delete(
+      Uri.parse('${ApiConfig.apiBase}/recommendation-history'),
+      headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+    ).timeout(const Duration(seconds: 10));
+    if (response.statusCode != 200) {
+      throw Exception('Could not reset recommendation history');
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_queueKey);
+    await House.invalidatePropertyData();
   }
 
   Future<void> track(String type, int houseId,

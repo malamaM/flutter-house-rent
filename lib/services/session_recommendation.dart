@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:house_rent/models/house.dart';
 
 /// Fast, in-memory learning for the current app session. Server preferences
@@ -13,6 +14,7 @@ class SessionRecommendation extends ChangeNotifier {
   final Map<int, double> _bedrooms = {};
   final Map<int, double> _priceBands = {};
   final Map<int, double> _houses = {};
+  bool _notificationScheduled = false;
 
   void reset() {
     _areas.clear();
@@ -21,7 +23,7 @@ class SessionRecommendation extends ChangeNotifier {
     _bedrooms.clear();
     _priceBands.clear();
     _houses.clear();
-    notifyListeners();
+    _notifySafely();
   }
 
   void observe(House house, double weight) {
@@ -32,7 +34,20 @@ class SessionRecommendation extends ChangeNotifier {
     _add(_bedrooms, house.bedrooms, weight * .7);
     _add(_priceBands, _priceBand(house.priceRental), weight * .5);
     _add(_houses, house.id, weight * 2);
-    notifyListeners();
+    _notifySafely();
+  }
+
+  void _notifySafely() {
+    if (SchedulerBinding.instance.schedulerPhase == SchedulerPhase.idle) {
+      notifyListeners();
+      return;
+    }
+    if (_notificationScheduled) return;
+    _notificationScheduled = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _notificationScheduled = false;
+      notifyListeners();
+    });
   }
 
   double score(House house) {
