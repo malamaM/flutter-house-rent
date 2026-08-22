@@ -20,7 +20,8 @@ class RecommendedHouse extends StatefulWidget {
 }
 
 class _RecommendedHouseState extends State<RecommendedHouse> {
-  late Future<List<House>> houses;
+  Future<List<House>>? houses;
+  List<House>? _settledHouses;
 
   Map<String, String> get recommendedFilters => {
         ...widget.filters,
@@ -30,9 +31,10 @@ class _RecommendedHouseState extends State<RecommendedHouse> {
   @override
   void initState() {
     super.initState();
+    _settledHouses = widget.initialHouses;
     houses = widget.initialHouses == null
         ? House.fetchHouses(filters: recommendedFilters)
-        : Future.value(widget.initialHouses);
+        : null;
     AppCache.instance.refreshes.addListener(_handleRefresh);
     SessionRecommendation.instance.addListener(_handleSessionChange);
   }
@@ -47,7 +49,8 @@ class _RecommendedHouseState extends State<RecommendedHouse> {
     if (widget.initialHouses != null &&
         !identical(widget.initialHouses, oldWidget.initialHouses)) {
       setState(() {
-        houses = Future<List<House>>.value(widget.initialHouses!);
+        _settledHouses = widget.initialHouses;
+        houses = null;
       });
     }
   }
@@ -56,6 +59,7 @@ class _RecommendedHouseState extends State<RecommendedHouse> {
     if (AppCache.instance.refreshes.value?.resource == 'houses' && mounted) {
       final refreshedHouses = House.fetchHouses(filters: recommendedFilters);
       setState(() {
+        _settledHouses = null;
         houses = refreshedHouses;
       });
     }
@@ -91,8 +95,10 @@ class _RecommendedHouseState extends State<RecommendedHouse> {
           height: 355,
           child: FutureBuilder<List<House>>(
             future: houses,
+            initialData: _settledHouses,
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
+              if (snapshot.data == null &&
+                  snapshot.connectionState == ConnectionState.waiting) {
                 return ListView.separated(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   scrollDirection: Axis.horizontal,

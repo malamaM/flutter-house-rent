@@ -18,16 +18,18 @@ class BestOffer extends StatefulWidget {
 }
 
 class _BestOfferState extends State<BestOffer> {
-  late Future<List<House>> offers;
+  Future<List<House>>? offers;
+  List<House>? _settledOffers;
 
   Map<String, String> get dealFilters => {...widget.filters, 'deal': '1'};
 
   @override
   void initState() {
     super.initState();
+    _settledOffers = widget.initialHouses;
     offers = widget.initialHouses == null
         ? House.fetchHouses(filters: dealFilters)
-        : Future.value(widget.initialHouses);
+        : null;
     AppCache.instance.refreshes.addListener(_handleRefresh);
     SessionRecommendation.instance.addListener(_handleSessionChange);
   }
@@ -42,7 +44,8 @@ class _BestOfferState extends State<BestOffer> {
     if (widget.initialHouses != null &&
         !identical(widget.initialHouses, oldWidget.initialHouses)) {
       setState(() {
-        offers = Future<List<House>>.value(widget.initialHouses!);
+        _settledOffers = widget.initialHouses;
+        offers = null;
       });
     }
   }
@@ -51,6 +54,7 @@ class _BestOfferState extends State<BestOffer> {
     if (AppCache.instance.refreshes.value?.resource == 'houses' && mounted) {
       final refreshedOffers = House.fetchHouses(filters: dealFilters);
       setState(() {
+        _settledOffers = null;
         offers = refreshedOffers;
       });
     }
@@ -98,8 +102,10 @@ class _BestOfferState extends State<BestOffer> {
         height: 355,
         child: FutureBuilder<List<House>>(
           future: offers,
+          initialData: _settledOffers,
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
+            if (snapshot.data == null &&
+                snapshot.connectionState == ConnectionState.waiting) {
               return ListView.separated(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 scrollDirection: Axis.horizontal,

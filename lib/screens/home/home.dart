@@ -18,7 +18,14 @@ import 'package:house_rent/services/recommendation_service.dart';
 import 'package:house_rent/services/app_cache.dart';
 
 class Home extends StatefulWidget {
-  const Home({Key? key}) : super(key: key);
+  const Home({
+    Key? key,
+    this.initialFeed,
+    this.initialType,
+  }) : super(key: key);
+
+  final HomeFeedData? initialFeed;
+  final String? initialType;
 
   @override
   State<Home> createState() => _HomeState();
@@ -26,15 +33,22 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> {
   String? selectedType;
-  late Future<HomeFeedData> feed;
+  Future<HomeFeedData>? feed;
+  HomeFeedData? _settledFeed;
   bool _refreshing = false;
   final ScrollController _scrollController = ScrollController();
+  Timer? _preferenceCheckTimer;
 
   @override
   void initState() {
     super.initState();
-    feed = _initialFeed();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkPreferences());
+    selectedType = widget.initialType;
+    _settledFeed = widget.initialFeed;
+    feed = widget.initialFeed == null ? _initialFeed() : null;
+    _preferenceCheckTimer = Timer(
+      const Duration(milliseconds: 5000),
+      _checkPreferences,
+    );
     AppCache.instance.refreshes.addListener(_handleRecommendationRefresh);
   }
 
@@ -56,6 +70,7 @@ class _HomeState extends State<Home> {
         final refreshedFeed =
             House.fetchHomeFeed(type: selectedType, forceRefresh: true);
         setState(() {
+          _settledFeed = null;
           feed = refreshedFeed;
         });
       }
@@ -65,6 +80,7 @@ class _HomeState extends State<Home> {
   @override
   void dispose() {
     AppCache.instance.refreshes.removeListener(_handleRecommendationRefresh);
+    _preferenceCheckTimer?.cancel();
     _scrollController.dispose();
     super.dispose();
   }
@@ -84,6 +100,7 @@ class _HomeState extends State<Home> {
         final refreshedFeed =
             House.fetchHomeFeed(type: selectedType, forceRefresh: true);
         setState(() {
+          _settledFeed = null;
           feed = refreshedFeed;
         });
       }
@@ -102,6 +119,7 @@ class _HomeState extends State<Home> {
         : prefs.setString('home_property_type', value)));
     setState(() {
       selectedType = value;
+      _settledFeed = null;
       feed = House.fetchHomeFeed(type: value, forceRefresh: true);
     });
   }
@@ -114,7 +132,8 @@ class _HomeState extends State<Home> {
           await House.fetchHomeFeed(type: selectedType, forceRefresh: true);
       if (!mounted) return;
       setState(() {
-        feed = Future<HomeFeedData>.value(refreshed);
+        _settledFeed = refreshed;
+        feed = null;
       });
     } catch (_) {
       if (mounted) {
@@ -137,75 +156,79 @@ class _HomeState extends State<Home> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: const CustomAppBar(),
       extendBody: true,
-      body: RefreshIndicator(
-        onRefresh: _refresh,
-        child: SingleChildScrollView(
-          controller: _scrollController,
-          key: const PageStorageKey('home-scroll'),
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.only(bottom: 112),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const WelcomeText(),
-              const CacheStatusBanner(resource: 'houses'),
-              SearchInput(onTap: () {
-                if (!AppShell.selectTab(context, 1)) {
-                  Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const Explore()));
-                }
-              }),
-              const SizedBox(height: 24),
-              const _SectionLabel(
-                  title: 'Browse by type',
-                  subtitle: 'A quicker way to narrow it down'),
-              const SizedBox(height: 12),
-              Categories(
-                selectedType: selectedType,
-                onSelected: _selectType,
-              ),
-              const SizedBox(height: 28),
-              FutureBuilder<HomeFeedData>(
-                future: feed,
-                builder: (context, snapshot) {
-                  final data = snapshot.data;
-                  if (data == null &&
-                      snapshot.connectionState == ConnectionState.waiting) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 20),
-                      child: Column(children: [
-                        _FeedSkeleton(height: 323),
-                        SizedBox(height: 28),
-                        _FeedSkeleton(height: 323),
-                        SizedBox(height: 28),
-                        _FeedSkeleton(height: 420),
-                      ]),
-                    );
+      body: FutureBuilder<HomeFeedData>(
+        future: feed,
+        initialData: _settledFeed,
+        builder: (context, snapshot) {
+          final data = snapshot.data;
+          final waiting = data == null &&
+              snapshot.connectionState == ConnectionState.waiting;
+          final sections = <Widget>[
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const WelcomeText(),
+                const CacheStatusBanner(resource: 'houses'),
+                SearchInput(onTap: () {
+                  if (!AppShell.selectTab(context, 1)) {
+                    Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const Explore()));
                   }
-                  return Column(children: [
-                    RecommendedHouse(
-                      key: ValueKey('recommended:$selectedType'),
-                      filters: sectionFilters,
-                      initialHouses: data?.recommended,
-                    ),
-                    const SizedBox(height: 28),
-                    BestOffer(
-                      key: ValueKey('deals:$selectedType'),
-                      filters: sectionFilters,
-                      initialHouses: data?.deals,
-                    ),
-                    const SizedBox(height: 28),
-                    AllHomes(
-                      key: ValueKey('all:$selectedType'),
-                      filters: sectionFilters,
-                      initialHouses: data?.all,
-                    ),
-                  ]);
-                },
+                }),
+                const SizedBox(height: 24),
+                const _SectionLabel(
+                    title: 'Browse by type',
+                    subtitle: 'A quicker way to narrow it down'),
+                const SizedBox(height: 12),
+                Categories(
+                  selectedType: selectedType,
+                  onSelected: _selectType,
+                ),
+                const SizedBox(height: 28),
+              ],
+            ),
+            if (waiting)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: _FeedSkeleton(height: 323),
+              )
+            else
+              RecommendedHouse(
+                key: ValueKey('recommended:$selectedType'),
+                filters: sectionFilters,
+                initialHouses: data?.recommended,
               ),
-            ],
-          ),
-        ),
+            if (!waiting) const SizedBox(height: 28),
+            if (!waiting)
+              BestOffer(
+                key: ValueKey('deals:$selectedType'),
+                filters: sectionFilters,
+                initialHouses: data?.deals,
+              ),
+            if (!waiting) const SizedBox(height: 28),
+            if (!waiting)
+              AllHomes(
+                key: ValueKey('all:$selectedType'),
+                filters: sectionFilters,
+                initialHouses: data?.all,
+              ),
+            const SizedBox(height: 112),
+          ];
+          return RefreshIndicator(
+            onRefresh: _refresh,
+            child: CustomScrollView(
+              controller: _scrollController,
+              key: const PageStorageKey('home-scroll'),
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                SliverList.builder(
+                  itemCount: sections.length,
+                  itemBuilder: (_, index) => sections[index],
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

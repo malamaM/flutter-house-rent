@@ -14,6 +14,10 @@ class SessionService {
   static String get _apiBase => ApiConfig.apiBase;
   static Map<String, dynamic>? _memoryUser;
 
+  /// The splash hydrates this before Home is mounted, allowing lightweight
+  /// header widgets to render their final values on their very first frame.
+  static Map<String, dynamic>? get cachedUser => _memoryUser;
+
   static Future<Map<String, dynamic>?> currentUser({
     bool forceRefresh = false,
     bool allowExpired = true,

@@ -196,7 +196,14 @@ class _PropertyCardState extends State<PropertyCard> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.horizontal) return _buildHorizontal(context);
+    return RepaintBoundary(
+      child: widget.horizontal
+          ? _buildHorizontal(context)
+          : _buildVertical(context),
+    );
+  }
+
+  Widget _buildVertical(BuildContext context) {
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(22),

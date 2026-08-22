@@ -84,6 +84,8 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
   @override
   void initState() {
     super.initState();
+    final picture = SessionService.cachedUser?['profile_picture'];
+    if (picture != null) profileImageUrl = ApiConfig.storageUrl(picture);
     _fetchProfileImage();
   }
 
@@ -91,8 +93,9 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
     try {
       final user = await SessionService.currentUser();
       final picture = user?['profile_picture'];
-      if (picture != null && mounted) {
-        setState(() => profileImageUrl = ApiConfig.storageUrl(picture));
+      final resolved = picture == null ? null : ApiConfig.storageUrl(picture);
+      if (mounted && resolved != profileImageUrl) {
+        setState(() => profileImageUrl = resolved);
       }
     } catch (_) {}
   }

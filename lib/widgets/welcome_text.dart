@@ -10,11 +10,12 @@ class WelcomeText extends StatefulWidget {
 }
 
 class _WelcomeTextState extends State<WelcomeText> {
-  String firstName = 'there';
+  late String firstName;
 
   @override
   void initState() {
     super.initState();
+    firstName = '${SessionService.cachedUser?['first_name'] ?? 'there'}';
     _loadName();
   }
 
@@ -22,7 +23,9 @@ class _WelcomeTextState extends State<WelcomeText> {
     try {
       final user = await SessionService.currentUser();
       final value = user?['first_name'];
-      if (value != null && mounted) setState(() => firstName = value);
+      if (value != null && mounted && value != firstName) {
+        setState(() => firstName = value);
+      }
     } catch (_) {}
   }
 

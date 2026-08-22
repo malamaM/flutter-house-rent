@@ -8,7 +8,7 @@ import 'package:house_rent/screens/home/home.dart';
 import 'package:house_rent/screens/home/reels_screen.dart';
 import 'package:house_rent/screens/home/saved_houses_screen.dart';
 import 'package:house_rent/screens/profile/offline_sync_screen.dart';
-import 'package:house_rent/services/current_location_service.dart';
+import 'package:house_rent/models/house.dart';
 import 'package:house_rent/services/navigation_warmup_service.dart';
 import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/widgets/custom_bottom_navigation_bar.dart';
@@ -16,7 +16,14 @@ import 'package:house_rent/widgets/offline_status_pill.dart';
 
 /// Keeps every primary tab and its nested navigation stack alive.
 class AppShell extends StatefulWidget {
-  const AppShell({super.key});
+  const AppShell({
+    super.key,
+    this.initialHomeFeed,
+    this.initialHomeType,
+  });
+
+  final HomeFeedData? initialHomeFeed;
+  final String? initialHomeType;
 
   /// Selects a primary tab without pushing a duplicate tab screen onto the
   /// current tab's nested navigator.
@@ -54,32 +61,19 @@ class _AppShellState extends State<AppShell> {
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      unawaited(CurrentLocationService.instance.warm());
-      // The splash has already prepared the first home feed. Leave a little
-      // breathing room before mounting the heavier cached tabs so their map,
-      // media and route work cannot compete with the first interactive frames.
-      _warmupTimers.add(Timer(const Duration(milliseconds: 3200),
-          () => _queueIdleMount(1))); // Map first after launch settles.
+      // Fetch next-tab data quietly first. Mounting a live map or media page
+      // offstage creates platform views and decoders on the UI thread, which
+      // was causing the short first-open freeze. Widgets mount on demand; the
+      // data and likely detail routes are already warmed when they do.
       _warmupTimers.add(
-          Timer(const Duration(milliseconds: 4800), () => _queueIdleMount(3)));
+          Timer(const Duration(milliseconds: 6500), () => _queueIdleWarmup(1)));
       _warmupTimers.add(
-          Timer(const Duration(milliseconds: 6400), () => _queueIdleMount(2)));
-      _warmupTimers.add(
-          Timer(const Duration(milliseconds: 3500), () => _queueIdleWarmup(0)));
+          Timer(const Duration(milliseconds: 8500), () => _queueIdleWarmup(3)));
+      _warmupTimers.add(Timer(
+          const Duration(milliseconds: 10500), () => _queueIdleWarmup(2)));
+      _warmupTimers.add(Timer(
+          const Duration(milliseconds: 12500), () => _queueIdleWarmup(0)));
     });
-  }
-
-  void _mountTab(int index) {
-    if (mounted && _mountedTabs.add(index)) setState(() {});
-  }
-
-  void _queueIdleMount(int index) {
-    if (!mounted || _mountedTabs.contains(index)) return;
-    SchedulerBinding.instance.scheduleTask(
-      () => _mountTab(index),
-      Priority.idle,
-      debugLabel: 'preload-tab-$index',
-    );
   }
 
   void _queueIdleWarmup(int index) {
@@ -148,7 +142,10 @@ class _AppShellState extends State<AppShell> {
                           observers: [_observers[index]],
                           onGenerateRoute: (_) {
                             final page = switch (index) {
-                              0 => const Home(),
+                              0 => Home(
+                                  initialFeed: widget.initialHomeFeed,
+                                  initialType: widget.initialHomeType,
+                                ),
                               1 => const Explore(),
                               2 => const ReelsScreen(),
                               _ => const SavedHousesScreen(),
