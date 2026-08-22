@@ -144,16 +144,7 @@ class _RecommendationHistoryScreenState
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
               children: [
                 if (payload['intent_shift_detected'] == true)
-                  _Panel(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                    child: const Row(children: [
-                      Icon(Icons.auto_awesome_rounded),
-                      SizedBox(width: 12),
-                      Expanded(
-                          child: Text(
-                              'Your recent activity looks different from your saved preferences. You can update them or start a fresh search.')),
-                    ]),
-                  ),
+                  const _IntentShiftPanel(),
                 _Panel(
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -245,6 +236,30 @@ class _Panel extends StatelessWidget {
         ),
         child: child,
       );
+}
+
+class _IntentShiftPanel extends StatelessWidget {
+  const _IntentShiftPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final background = dark ? const Color(0xFF243B5A) : const Color(0xFFE7F0FC);
+    final foreground = dark ? const Color(0xFFBBD7FF) : const Color(0xFF164C86);
+    return _Panel(
+      color: background,
+      child: Row(children: [
+        Icon(Icons.auto_awesome_rounded, color: foreground),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            'Your recent activity looks different from your saved preferences. You can update them or start a fresh search.',
+            style: TextStyle(color: foreground, height: 1.35),
+          ),
+        ),
+      ]),
+    );
+  }
 }
 
 class _Fact extends StatelessWidget {

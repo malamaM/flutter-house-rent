@@ -5,6 +5,10 @@ class ApiConfig {
   ApiConfig._();
 
   static const _envOrigin = String.fromEnvironment('API_ORIGIN');
+  static const _developmentHost = String.fromEnvironment(
+    'DEV_API_HOST',
+    defaultValue: 'malamas-MacBook-Pro.local',
+  );
 
   /// Production server URL used when building release versions if API_ORIGIN is omitted.
   static const _productionOrigin = 'https://api.havenzambia.com';
@@ -12,7 +16,9 @@ class ApiConfig {
   /// Server origin:
   /// 1. Uses `--dart-define=API_ORIGIN=...` if provided.
   /// 2. In Release/Production mode: defaults to your live production HTTPS domain.
-  /// 3. In Debug mode: automatically defaults to 10.0.2.2 (Android) or 127.0.0.1 (iOS/desktop).
+  /// 3. In Debug mode: mobile builds use the Mac's Bonjour hostname so both
+  ///    simulators and physical devices survive DHCP address changes. Desktop
+  ///    and web builds continue to use loopback.
   static String get origin {
     if (_envOrigin.isNotEmpty) {
       return _envOrigin;
@@ -23,8 +29,8 @@ class ApiConfig {
     if (kIsWeb) {
       return 'http://127.0.0.1:8000';
     }
-    if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8000';
+    if (Platform.isAndroid || Platform.isIOS) {
+      return 'http://$_developmentHost:8000';
     }
     return 'http://127.0.0.1:8000';
   }

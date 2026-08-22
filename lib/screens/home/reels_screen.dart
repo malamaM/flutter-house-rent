@@ -542,10 +542,7 @@ class _ReelCardState extends State<_ReelCard> {
               label: 'View',
               onTap: () {
                 widget.onSignal('details', 1.2);
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => Details(house: widget.house)));
+                Navigator.push(context, Details.route(widget.house));
               }),
           const SizedBox(height: 18),
           _ReelAction(

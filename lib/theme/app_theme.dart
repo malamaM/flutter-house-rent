@@ -1,5 +1,5 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
 class AppTheme {
@@ -32,16 +32,17 @@ class AppTheme {
       scaffoldBackgroundColor: background,
       canvasColor: surface,
       cardColor: surface,
-      textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme)
+      textTheme: ThemeData.dark()
+          .textTheme
           .apply(bodyColor: text, displayColor: text)
           .copyWith(
               bodyMedium:
-                  GoogleFonts.inter(color: muted, fontSize: 14, height: 1.45)),
+                  const TextStyle(color: muted, fontSize: 14, height: 1.45)),
       appBarTheme: AppBarTheme(
           backgroundColor: background.withValues(alpha: .94),
           surfaceTintColor: Colors.transparent,
           elevation: 0,
-          titleTextStyle: GoogleFonts.inter(
+          titleTextStyle: const TextStyle(
               color: text, fontSize: 20, fontWeight: FontWeight.w700),
           iconTheme: const IconThemeData(color: text)),
       cardTheme: CardThemeData(
@@ -104,9 +105,9 @@ class AppTheme {
           surfaceTintColor: Colors.transparent,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(24))),
-      snackBarTheme: SnackBarThemeData(
+      snackBarTheme: const SnackBarThemeData(
           backgroundColor: container,
-          contentTextStyle: GoogleFonts.inter(color: text),
+          contentTextStyle: TextStyle(color: text),
           behavior: SnackBarBehavior.floating),
     );
   }
@@ -124,46 +125,44 @@ class AppTheme {
         TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
         TargetPlatform.android: CupertinoPageTransitionsBuilder(),
       }),
-      textTheme: GoogleFonts.interTextTheme(
-        ThemeData.light().textTheme,
-      ).copyWith(
-        displayLarge: GoogleFonts.inter(
-          fontSize: 36,
-          height: 1.08,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary,
-          letterSpacing: -1.2,
-        ),
-        headlineLarge: GoogleFonts.inter(
-          fontSize: 28,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary,
-          letterSpacing: -0.7,
-        ),
-        headlineMedium: GoogleFonts.inter(
-          fontSize: 21,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary,
-          letterSpacing: -0.35,
-        ),
-        titleLarge: GoogleFonts.inter(
-          fontSize: 18,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary,
-        ),
-        bodyLarge: GoogleFonts.inter(
-          fontSize: 16,
-          height: 1.5,
-          color: AppColors.textPrimary,
-        ),
-        bodyMedium: GoogleFonts.inter(
-          fontSize: 14,
-          height: 1.45,
-          color: AppColors.textSecondary,
-        ),
-        labelLarge:
-            GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
-      ),
+      textTheme: ThemeData.light().textTheme.copyWith(
+            displayLarge: const TextStyle(
+              fontSize: 36,
+              height: 1.08,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+              letterSpacing: -1.2,
+            ),
+            headlineLarge: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+              letterSpacing: -0.7,
+            ),
+            headlineMedium: const TextStyle(
+              fontSize: 21,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+              letterSpacing: -0.35,
+            ),
+            titleLarge: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+            bodyLarge: const TextStyle(
+              fontSize: 16,
+              height: 1.5,
+              color: AppColors.textPrimary,
+            ),
+            bodyMedium: const TextStyle(
+              fontSize: 14,
+              height: 1.45,
+              color: AppColors.textSecondary,
+            ),
+            labelLarge:
+                const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.glassSurface,
@@ -185,7 +184,7 @@ class AppTheme {
           borderSide: const BorderSide(color: AppColors.error),
           borderRadius: BorderRadius.circular(16),
         ),
-        hintStyle: GoogleFonts.inter(color: AppColors.textSecondary),
+        hintStyle: const TextStyle(color: AppColors.textSecondary),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -197,7 +196,7 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
-          textStyle: GoogleFonts.inter(
+          textStyle: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
@@ -206,7 +205,7 @@ class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.primary,
-          textStyle: GoogleFonts.inter(
+          textStyle: const TextStyle(
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -257,7 +256,7 @@ class AppTheme {
         scrolledUnderElevation: 0,
         centerTitle: false,
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
-        titleTextStyle: GoogleFonts.inter(
+        titleTextStyle: const TextStyle(
           color: AppColors.textPrimary,
           fontSize: 20,
           fontWeight: FontWeight.w700,
@@ -267,7 +266,7 @@ class AppTheme {
           const DividerThemeData(color: AppColors.divider, thickness: 1),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: AppColors.surfaceDark,
-        contentTextStyle: GoogleFonts.inter(color: Colors.white),
+        contentTextStyle: const TextStyle(color: Colors.white),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),

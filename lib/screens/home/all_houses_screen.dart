@@ -98,8 +98,7 @@ class _AllHousesScreenState extends State<AllHousesScreen> {
                 return PropertyCard(
                   horizontal: true,
                   house: house,
-                  onTap: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => Details(house: house))),
+                  onTap: () => Navigator.push(context, Details.route(house)),
                 );
               },
             ),

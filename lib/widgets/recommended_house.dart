@@ -130,10 +130,7 @@ class _RecommendedHouseState extends State<RecommendedHouse> {
                   final house = items[index];
                   return PropertyCard(
                     house: house,
-                    onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => Details(house: house))),
+                    onTap: () => Navigator.push(context, Details.route(house)),
                   );
                 },
               );

@@ -1,0 +1,40 @@
+{
+  "name": "file_picker_darwin",
+  "version": "1.0.0",
+  "summary": "iOS and macOS implementation of file_picker plugin",
+  "description": "iOS and macOS implementation of file_picker plugin",
+  "homepage": "https://github.com/miguelpruivo/flutter_file_picker",
+  "license": {
+    "type": "MIT",
+    "file": "../LICENSE"
+  },
+  "authors": "Miguel Ruivo, Dominik Roszkowski",
+  "source": {
+    "path": "."
+  },
+  "source_files": "file_picker_darwin/Sources/file_picker_darwin/**/*",
+  "resource_bundles": {
+    "file_picker_darwin_privacy": [
+      "file_picker_darwin/Resources/PrivacyInfo.xcprivacy"
+    ]
+  },
+  "ios": {
+    "dependencies": {
+      "Flutter": []
+    }
+  },
+  "osx": {
+    "dependencies": {
+      "FlutterMacOS": []
+    }
+  },
+  "platforms": {
+    "ios": "14.0",
+    "osx": "10.13"
+  },
+  "pod_target_xcconfig": {
+    "DEFINES_MODULE": "YES"
+  },
+  "swift_versions": "5.0",
+  "swift_version": "5.0"
+}

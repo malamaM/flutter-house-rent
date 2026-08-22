@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/glass_surface.dart';
+import 'package:share_plus/share_plus.dart';
 
 class DetailsAppBar extends StatefulWidget {
   final House house;
@@ -39,6 +40,41 @@ class _DetailsAppBarState extends State<DetailsAppBar> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content:
             Text(saved ? 'Added to saved homes' : 'Removed from saved homes')));
+  }
+
+  Future<void> _share() async {
+    final house = widget.house;
+    final price = house.priceRental > 0
+        ? 'K${house.priceRental.toString()}/month'
+        : 'Price on request';
+    final details = <String>[
+      house.name,
+      '${house.address} · $price',
+      if (house.bedrooms > 0)
+        '${house.bedrooms} bedroom${house.bedrooms == 1 ? '' : 's'}',
+      'Find it on Haven Zambia',
+      // This URL is deliberately a stable app deep-link shape. The web
+      // listing route can be enabled independently of the mobile release.
+      'https://havenzambia.com/homes/${house.id}',
+    ].join('\n');
+
+    try {
+      final renderObject = context.findRenderObject();
+      final sharePositionOrigin =
+          renderObject is RenderBox && renderObject.hasSize
+              ? renderObject.localToGlobal(Offset.zero) & renderObject.size
+              : null;
+      await SharePlus.instance.share(ShareParams(
+        text: details,
+        subject: '${house.name} · Haven Zambia',
+        sharePositionOrigin: sharePositionOrigin,
+      ));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Sharing is unavailable right now. Please try again.'),
+      ));
+    }
   }
 
   @override
@@ -108,6 +144,15 @@ class _DetailsAppBarState extends State<DetailsAppBar> {
               ),
             ),
           ),
+          Positioned(
+            right: 20,
+            bottom: 12,
+            child: _RoundAction(
+              icon: Icons.ios_share_rounded,
+              onTap: _share,
+              tooltip: 'Share this home',
+            ),
+          ),
         ],
       ),
     );
@@ -117,8 +162,13 @@ class _DetailsAppBarState extends State<DetailsAppBar> {
 class _RoundAction extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onTap;
+  final String? tooltip;
 
-  const _RoundAction({required this.icon, required this.onTap});
+  const _RoundAction({
+    required this.icon,
+    required this.onTap,
+    this.tooltip,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -134,6 +184,7 @@ class _RoundAction extends StatelessWidget {
         color: Colors.transparent,
         child: IconButton(
             onPressed: onTap,
+            tooltip: tooltip,
             icon: Icon(icon, color: AppColors.textPrimary),
             iconSize: 21),
       ),

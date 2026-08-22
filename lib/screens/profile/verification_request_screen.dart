@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:house_rent/config/api_config.dart';
-import 'package:house_rent/theme/app_colors.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -81,10 +80,10 @@ class _VerificationRequestScreenState extends State<VerificationRequestScreen> {
     XFile? selected;
     if (source == 'file') {
       try {
-        final result = await FilePicker.platform.pickFiles(
+        final file = await FilePicker.pickFile(
             type: FileType.custom,
             allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'pdf']);
-        final path = result?.files.single.path;
+        final path = file?.path;
         if (path != null) selected = XFile(path);
       } on MissingPluginException {
         if (!mounted) return;
@@ -207,6 +206,13 @@ class _VerificationRequestScreenState extends State<VerificationRequestScreen> {
   @override
   Widget build(BuildContext context) {
     final locked = status == 'pending' || status == 'verified';
+    final colors = Theme.of(context).colorScheme;
+    final verifiedBackground = Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF164B3B)
+        : const Color(0xFFE0F4EA);
+    final verifiedForeground = Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFFA7E6C7)
+        : const Color(0xFF0A5F42);
     return Scaffold(
         appBar: AppBar(title: const Text('Lister verification')),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -219,8 +225,8 @@ class _VerificationRequestScreenState extends State<VerificationRequestScreen> {
                         padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
                             color: status == 'verified'
-                                ? Theme.of(context).colorScheme.primaryContainer
-                                : Theme.of(context).colorScheme.surface,
+                                ? verifiedBackground
+                                : colors.surface,
                             borderRadius: BorderRadius.circular(20)),
                         child: Row(children: [
                           Icon(
@@ -229,20 +235,23 @@ class _VerificationRequestScreenState extends State<VerificationRequestScreen> {
                                   : status == 'pending'
                                       ? Icons.schedule_rounded
                                       : Icons.shield_outlined,
-                              color: AppColors.primary),
+                              color: status == 'verified'
+                                  ? verifiedForeground
+                                  : colors.primary),
                           const SizedBox(width: 13),
                           Expanded(
                               child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                 Text(
-                                    status == 'verified'
-                                        ? 'Identity verified'
-                                        : status == 'pending'
-                                            ? 'Review in progress'
-                                            : 'Earn renter confidence',
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.w800)),
+                                  status == 'verified'
+                                      ? 'Identity verified'
+                                      : status == 'pending'
+                                          ? 'Review in progress'
+                                          : 'Earn renter confidence',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w800),
+                                ),
                                 const SizedBox(height: 4),
                                 Text(
                                     status == 'verified'
@@ -252,9 +261,10 @@ class _VerificationRequestScreenState extends State<VerificationRequestScreen> {
                                             : 'Submit genuine identity evidence. Verification is never guaranteed and can be revoked.',
                                     style: TextStyle(
                                         fontSize: 12,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurfaceVariant))
+                                        color: status == 'verified'
+                                            ? verifiedForeground.withValues(
+                                                alpha: .9)
+                                            : colors.onSurfaceVariant))
                               ]))
                         ])),
                     if (!locked) ...[

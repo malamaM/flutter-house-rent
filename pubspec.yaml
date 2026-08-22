@@ -33,7 +33,7 @@ dependencies:
   http: ^0.13.4
   cached_network_image: ^3.2.0
   image_picker: ^0.8.4+4
-  file_picker: ^8.1.7
+  file_picker: ^12.0.0
   audioplayers: ^6.6.0
   video_player: ^2.9.5
   sqflite: ^2.4.2
@@ -48,8 +48,8 @@ dependencies:
   geolocator: ^11.0.1
   permission_handler: ^11.3.1
   url_launcher: ^6.3.1
+  share_plus: ^13.3.0
   flutter_map_marker_cluster: any
-  google_fonts: ^4.0.4
 
 dev_dependencies:
   flutter_test:
@@ -68,6 +68,11 @@ dev_dependencies:
 
 # The following section is specific to Flutter.
 flutter:
+  # Keep this existing CocoaPods-based iOS project deterministic while its
+  # plugins are migrated to Swift Package Manager support.
+  config:
+    enable-swift-package-manager: false
+
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

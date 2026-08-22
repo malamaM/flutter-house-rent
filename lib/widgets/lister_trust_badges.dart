@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:house_rent/theme/app_colors.dart';
 
 class ListerTrustBadges extends StatelessWidget {
   final bool verified;
@@ -16,6 +15,7 @@ class ListerTrustBadges extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!verified && !topRated) return const SizedBox.shrink();
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Wrap(
       spacing: 7,
       runSpacing: 7,
@@ -26,8 +26,9 @@ class ListerTrustBadges extends StatelessWidget {
             label: 'Identity verified',
             description:
                 'Haven Zambia has reviewed this lister’s identity details. Always inspect a property before paying.',
-            color: AppColors.primary,
-            background: AppColors.primaryLight,
+            color: dark ? const Color(0xFFA7E6C7) : const Color(0xFF0A5F42),
+            background:
+                dark ? const Color(0xFF164B3B) : const Color(0xFFE0F4EA),
             compact: compact,
           ),
         if (topRated)
@@ -36,8 +37,9 @@ class ListerTrustBadges extends StatelessWidget {
             label: 'Top rated',
             description:
                 'Earned through at least five published reviews and a rating of 4.5 or higher.',
-            color: const Color(0xFF8A5B00),
-            background: const Color(0xFFFFEDC2),
+            color: dark ? const Color(0xFFFFD98B) : const Color(0xFF8A5B00),
+            background:
+                dark ? const Color(0xFF4D3812) : const Color(0xFFFFEDC2),
             compact: compact,
           ),
       ],

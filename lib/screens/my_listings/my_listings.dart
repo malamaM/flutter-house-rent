@@ -147,10 +147,7 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
                       secondaryLabel: 'Edit listing',
                       onSecondaryAction: () => _edit(house),
                       onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) =>
-                                  Details(house: house, isOwnerView: true))),
+                          context, Details.route(house, isOwnerView: true)),
                     ),
                     _ListingLifecycleBar(
                       house: house,

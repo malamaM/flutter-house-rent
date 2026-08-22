@@ -290,8 +290,7 @@ class _ExploreState extends State<Explore> {
               house: house,
               onTap: () {
                 Navigator.pop(context);
-                tabNavigator.push(
-                    MaterialPageRoute(builder: (_) => Details(house: house)));
+                tabNavigator.push(Details.route(house));
               },
             ),
           ],
@@ -497,8 +496,7 @@ class _ExploreState extends State<Explore> {
             loadingMore: _loadingMore,
             hasFilters: filters.isNotEmpty,
             onLoadMore: _loadMore,
-            onOpen: (house) => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => Details(house: house))),
+            onOpen: (house) => Navigator.push(context, Details.route(house)),
           ),
         ],
       ),

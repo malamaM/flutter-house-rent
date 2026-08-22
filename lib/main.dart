@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -9,7 +10,11 @@ import 'package:house_rent/services/app_feedback.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await ThemeController.instance.load();
+  // Never hold the first Flutter frame on a platform channel. On a physical
+  // device the preferences channel can take a moment to become available;
+  // rendering the splash first keeps launch responsive and lets the saved
+  // theme apply as soon as it is available.
+  unawaited(ThemeController.instance.load());
   PerformanceMonitor.instance.initialize();
   FlutterError.onError = (details) {
     FlutterError.presentError(details);

@@ -252,10 +252,7 @@ class _AllHomesState extends State<AllHomes> {
                                 horizontal: true,
                                 house: house,
                                 onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) => Details(house: house)),
-                                ),
+                                    context, Details.route(house)),
                               ),
                             )),
                         if (hasMore)

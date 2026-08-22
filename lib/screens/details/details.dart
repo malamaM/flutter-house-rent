@@ -21,12 +21,55 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+class _DetailsPageRoute extends MaterialPageRoute<void> {
+  _DetailsPageRoute({required House house, required bool isOwnerView})
+      : super(
+          builder: (_) => Details(house: house, isOwnerView: isOwnerView),
+          allowSnapshotting: true,
+        );
+
+  @override
+  Duration get transitionDuration => const Duration(milliseconds: 320);
+
+  @override
+  Duration get reverseTransitionDuration => const Duration(milliseconds: 260);
+
+  @override
+  Widget buildTransitions(BuildContext context, Animation<double> animation,
+      Animation<double> secondaryAnimation, Widget child) {
+    final curved = CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOutQuart,
+      reverseCurve: Curves.easeInQuart,
+    );
+    return FadeTransition(
+      opacity: curved,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(.14, 0),
+          end: Offset.zero,
+        ).animate(curved),
+        child: child,
+      ),
+    );
+  }
+}
+
 class Details extends StatefulWidget {
   final House house;
   final bool isOwnerView;
 
   const Details({Key? key, required this.house, this.isOwnerView = false})
       : super(key: key);
+
+  /// A lightweight transition keeps the first details frame smooth on Android
+  /// while the gallery, videos, owner data, and map initialize behind it.
+  static Route<void> route(House house, {bool isOwnerView = false}) {
+    return _DetailsPageRoute(
+      house: house,
+      isOwnerView: isOwnerView,
+    );
+  }
 
   @override
   State<Details> createState() => _DetailsState();
@@ -35,11 +78,14 @@ class Details extends StatefulWidget {
 class _DetailsState extends State<Details> {
   int _reviewVersion = 0;
   late Future<Map<String, dynamic>> _ownerFuture;
+  bool _ownerLoaded = false;
 
   @override
   void initState() {
     super.initState();
-    _ownerFuture = PropertyDetailsService.owner(widget.house.id);
+    // Owner details are only needed when the contact sheet opens. Deferring
+    // this request keeps the route's first frames free for the transition.
+    _ownerFuture = Future.value(const <String, dynamic>{});
     if (!widget.isOwnerView) {
       House.recordView(widget.house.id);
       SessionRecommendation.instance.observe(widget.house, 1.1);
@@ -68,6 +114,12 @@ class _DetailsState extends State<Details> {
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       _notice('Could not open WhatsApp on this device.');
     }
+  }
+
+  void _ensureOwnerLoaded() {
+    if (_ownerLoaded) return;
+    _ownerLoaded = true;
+    _ownerFuture = PropertyDetailsService.owner(widget.house.id);
   }
 
   Future<void> _callOwner(String number) async {
@@ -205,6 +257,7 @@ class _DetailsState extends State<Details> {
   }
 
   void _showContact() {
+    _ensureOwnerLoaded();
     SessionRecommendation.instance.observe(widget.house, 4.5);
     unawaited(RecommendationService.instance
         .track('contact', widget.house.id, surface: 'details'));
