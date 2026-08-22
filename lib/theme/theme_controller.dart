@@ -7,7 +7,12 @@ class ThemeController extends ChangeNotifier {
 
   ThemeMode _mode = ThemeMode.system;
   ThemeMode get mode => _mode;
-  bool get isDark => _mode == ThemeMode.dark;
+
+  String get preferenceLabel => switch (_mode) {
+        ThemeMode.system => 'Automatic',
+        ThemeMode.dark => 'On',
+        ThemeMode.light => 'Off',
+      };
 
   Future<void> load() async {
     try {
@@ -27,10 +32,16 @@ class ThemeController extends ChangeNotifier {
     }
   }
 
-  Future<void> setDark(bool enabled) async {
-    _mode = enabled ? ThemeMode.dark : ThemeMode.light;
+  Future<void> setMode(ThemeMode mode) async {
+    if (_mode == mode) return;
+    _mode = mode;
     notifyListeners();
+    final stored = switch (mode) {
+      ThemeMode.dark => 'dark',
+      ThemeMode.light => 'light',
+      ThemeMode.system => 'system',
+    };
     await (await SharedPreferences.getInstance())
-        .setString('theme_mode', enabled ? 'dark' : 'light');
+        .setString('theme_mode', stored);
   }
 }

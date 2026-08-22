@@ -46,14 +46,21 @@ class MyAccount extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: 12),
             child: ListenableBuilder(
               listenable: ThemeController.instance,
-              builder: (context, _) => SwitchListTile(
-                secondary: const Icon(Icons.dark_mode_outlined),
+              builder: (context, _) => ListTile(
+                onTap: () => _showThemeModePicker(context),
+                leading: const Icon(Icons.dark_mode_outlined),
                 title: const Text('Dark mode',
                     style: TextStyle(fontWeight: FontWeight.w700)),
-                subtitle:
-                    const Text('Use Haven Zambia’s calm evening appearance'),
-                value: ThemeController.instance.isDark,
-                onChanged: ThemeController.instance.setDark,
+                subtitle: Text(
+                    '${ThemeController.instance.preferenceLabel} · follows your device when automatic'),
+                trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Text(ThemeController.instance.preferenceLabel,
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.w700)),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.chevron_right_rounded),
+                ]),
               ),
             ),
           ),
@@ -72,6 +79,52 @@ class MyAccount extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _showThemeModePicker(BuildContext context) =>
+      showModalBottomSheet<void>(
+        context: context,
+        showDragHandle: true,
+        builder: (sheetContext) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 20),
+            child: ListenableBuilder(
+              listenable: ThemeController.instance,
+              builder: (_, __) => Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const ListTile(
+                    title: Text('Dark mode',
+                        style: TextStyle(fontWeight: FontWeight.w800)),
+                    subtitle: Text('Choose how Haven Zambia should look.'),
+                  ),
+                  for (final option in const <(ThemeMode, String, String)>[
+                    (ThemeMode.system, 'Automatic', 'Match this device'),
+                    (ThemeMode.dark, 'On', 'Always use dark mode'),
+                    (ThemeMode.light, 'Off', 'Always use light mode'),
+                  ])
+                    ListTile(
+                      onTap: () async {
+                        await ThemeController.instance.setMode(option.$1);
+                        if (sheetContext.mounted) Navigator.pop(sheetContext);
+                      },
+                      leading: Icon(switch (option.$1) {
+                        ThemeMode.system => Icons.brightness_auto_rounded,
+                        ThemeMode.dark => Icons.dark_mode_rounded,
+                        ThemeMode.light => Icons.light_mode_rounded,
+                      }),
+                      title: Text(option.$2),
+                      subtitle: Text(option.$3),
+                      trailing: ThemeController.instance.mode == option.$1
+                          ? Icon(Icons.check_circle_rounded,
+                              color: Theme.of(sheetContext).colorScheme.primary)
+                          : const Icon(Icons.circle_outlined),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
 }
 
 class _AccountItem extends StatelessWidget {

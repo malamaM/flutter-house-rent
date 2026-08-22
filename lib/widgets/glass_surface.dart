@@ -25,6 +25,15 @@ class GlassSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final usesDefaultTint = tint == const Color(0xEFFFFFFF);
+    final usesDefaultBorder = borderColor == AppColors.glassBorder;
+    final resolvedTint = dark && usesDefaultTint
+        ? Theme.of(context).colorScheme.surfaceContainer.withValues(alpha: .92)
+        : tint;
+    final resolvedBorder = dark && usesDefaultBorder
+        ? Theme.of(context).colorScheme.outline.withValues(alpha: .68)
+        : borderColor;
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: borderRadius,
@@ -36,15 +45,15 @@ class GlassSurface extends StatelessWidget {
           filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: tint,
+              color: resolvedTint,
               borderRadius: borderRadius,
-              border: Border.all(color: borderColor, width: .8),
+              border: Border.all(color: resolvedBorder, width: .8),
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Colors.white.withValues(alpha: .16),
-                  Colors.white.withValues(alpha: .02),
+                  Colors.white.withValues(alpha: dark ? .045 : .16),
+                  Colors.white.withValues(alpha: dark ? .008 : .02),
                 ],
               ),
             ),

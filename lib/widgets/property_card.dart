@@ -46,6 +46,13 @@ class PropertyCard extends StatefulWidget {
 class _PropertyCardState extends State<PropertyCard> {
   bool _saving = false;
 
+  Color _cardBorder(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Theme.of(context).brightness == Brightness.dark
+        ? scheme.outline.withValues(alpha: .72)
+        : AppColors.glassBorder;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -214,7 +221,7 @@ class _PropertyCardState extends State<PropertyCard> {
           width: 278,
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface,
-            border: Border.all(color: AppColors.glassBorder, width: .8),
+            border: Border.all(color: _cardBorder(context), width: .8),
             borderRadius: BorderRadius.circular(22),
             boxShadow: AppColors.premiumShadow,
           ),
@@ -252,7 +259,7 @@ class _PropertyCardState extends State<PropertyCard> {
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface,
-            border: Border.all(color: AppColors.glassBorder, width: .8),
+            border: Border.all(color: _cardBorder(context), width: .8),
             borderRadius: BorderRadius.circular(18),
             boxShadow: AppColors.premiumShadow,
           ),
