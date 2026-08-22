@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/services/app_cache.dart';
+import 'package:house_rent/services/offline_sync_service.dart';
 import 'package:house_rent/services/performance_monitor.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -68,6 +69,7 @@ class House {
   double averageRating;
   int totalReviews;
   bool isFromCache;
+  DateTime? cachedAt;
   List<HouseReelAsset> reelAssets;
   double recommendationScore;
   List<String> recommendationReasons;
@@ -113,6 +115,7 @@ class House {
     this.averageRating = 0,
     this.totalReviews = 0,
     this.isFromCache = false,
+    this.cachedAt,
     this.reelAssets = const [],
     this.recommendationScore = 0,
     this.recommendationReasons = const [],
@@ -123,7 +126,8 @@ class House {
   bool get isArchived => lifecycleStatus == 'archived' || status == 'Archived';
   bool get canRenew => isArchived || daysUntilExpiry <= 7;
 
-  factory House.fromMap(Map<String, dynamic> map, {bool fromCache = false}) {
+  factory House.fromMap(Map<String, dynamic> map,
+      {bool fromCache = false, DateTime? cachedAt}) {
     final user = map['user'];
     final cover = map['image-cover'] ?? map['image_cover'];
     return House(
@@ -174,6 +178,7 @@ class House {
           user == null ? 0 : _parseDouble(user['average_rating']) ?? 0,
       totalReviews: user == null ? 0 : _parseInt(user['total_reviews']),
       isFromCache: fromCache,
+      cachedAt: cachedAt,
       reelAssets: _reelAssets(map),
       recommendationScore: _parseDouble(map['recommendation_score']) ?? 0,
       recommendationReasons: (map['recommendation_reasons'] is List
@@ -303,7 +308,7 @@ class House {
         unawaited(fetchHomeFeed(type: type, forceRefresh: true));
       }
       return HomeFeedData.fromMap(Map<String, dynamic>.from(cached.value),
-          fromCache: true);
+          fromCache: true, cachedAt: cached.storedAt);
     }
     try {
       final uri = Uri.parse('$_apiBase/home-feed')
@@ -324,7 +329,7 @@ class House {
     } catch (_) {
       if (cached != null) {
         return HomeFeedData.fromMap(Map<String, dynamic>.from(cached.value),
-            fromCache: true);
+            fromCache: true, cachedAt: cached.storedAt);
       }
       rethrow;
     }
@@ -342,7 +347,7 @@ class House {
     final cached = cursor == null ? await AppCache.instance.read(key) : null;
     if (!forceRefresh && cached != null && !cached.isExpired) {
       return ReelsPageData.fromMap(Map<String, dynamic>.from(cached.value),
-          fromCache: true);
+          fromCache: true, cachedAt: cached.storedAt);
     }
     try {
       final uri = Uri.parse('$_apiBase/reels').replace(queryParameters: {
@@ -367,7 +372,7 @@ class House {
     } catch (_) {
       if (cached != null) {
         return ReelsPageData.fromMap(Map<String, dynamic>.from(cached.value),
-            fromCache: true);
+            fromCache: true, cachedAt: cached.storedAt);
       }
       rethrow;
     }
@@ -410,23 +415,48 @@ class House {
       {bool forceRefresh = false}) async {
     final token = await _requiredToken();
     final key = await AppCache.instance.privateKey('saved_houses');
-    return _cachedList(
-      key: key,
-      resource: 'saved_houses',
-      freshFor: _privateFreshFor,
-      keepFor: _privateKeepFor,
-      forceRefresh: forceRefresh,
-      fetch: () async {
-        final response = await http
-            .get(Uri.parse('$_apiBase/saved-houses'), headers: _headers(token))
-            .timeout(const Duration(seconds: 12));
-        if (response.statusCode != 200) {
-          throw HttpException(
-              'Could not load saved homes', response.statusCode);
-        }
-        return _dataList(response.body);
-      },
-    );
+    try {
+      return await _cachedList(
+        key: key,
+        resource: 'saved_houses',
+        freshFor: _privateFreshFor,
+        keepFor: _privateKeepFor,
+        forceRefresh: forceRefresh,
+        fetch: () async {
+          final response = await http
+              .get(Uri.parse('$_apiBase/saved-houses'),
+                  headers: _headers(token))
+              .timeout(const Duration(seconds: 12));
+          if (response.statusCode != 200) {
+            throw HttpException(
+                'Could not load saved homes', response.statusCode);
+          }
+          return _dataList(response.body);
+        },
+      );
+    } catch (_) {
+      // Even if Saved Homes has never been opened online, recover its contents
+      // from cached Home, Explore and Tours payloads.
+      final values = await AppCache.instance.valuesMatching((cacheKey) =>
+          cacheKey.contains(':houses:') ||
+          cacheKey.contains(':home_feed') ||
+          cacheKey.contains(':reels:'));
+      final recovered = <int, House>{};
+      for (final value in values) {
+        _collectSavedHouses(value, recovered);
+      }
+      if (recovered.isNotEmpty) {
+        cacheState.value = HouseCacheState(
+          resource: 'saved_houses',
+          servedFromCache: true,
+          isStale: true,
+          refreshFailed: true,
+          updatedAt: DateTime.now(),
+        );
+        return recovered.values.toList();
+      }
+      rethrow;
+    }
   }
 
   static Future<List<House>> fetchMyHouses({bool forceRefresh = false}) async {
@@ -461,7 +491,8 @@ class House {
   }) async {
     final cached = await AppCache.instance.read(key);
     if (!forceRefresh && cached != null && !cached.isExpired) {
-      final houses = _housesFromValue(cached.value, fromCache: true);
+      final houses = _housesFromValue(cached.value,
+          fromCache: true, cachedAt: cached.storedAt);
       cacheState.value = HouseCacheState(
         resource: resource,
         servedFromCache: true,
@@ -505,7 +536,8 @@ class House {
           keepFor: keepFor,
           fetch: fetch,
         );
-        return _housesFromValue(cached.value, fromCache: true);
+        return _housesFromValue(cached.value,
+            fromCache: true, cachedAt: cached.storedAt);
       }
       rethrow;
     }
@@ -603,37 +635,66 @@ class House {
     _refreshRetryAttempts.remove(key);
   }
 
-  static Future<bool> toggleSaveHouse(
+  static Future<SaveHouseResult> toggleSaveHouse(
     int houseId, {
     bool? currentlySaved,
+    House? house,
   }) async {
     final token = await _requiredToken();
+    final previous = currentlySaved ?? false;
+    final desired = !previous;
     try {
       final response = await http
-          .post(
-            Uri.parse('$_apiBase/houses/$houseId/save'),
-            headers: _headers(token),
+          .put(
+            Uri.parse('$_apiBase/houses/$houseId/saved'),
+            headers: {
+              ..._headers(token),
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({'is_saved': desired}),
           )
           .timeout(const Duration(seconds: 10));
-      if (response.statusCode != 200) return currentlySaved ?? false;
+      if (response.statusCode >= 500) {
+        throw HttpException('Could not update saved home', response.statusCode);
+      }
+      if (response.statusCode != 200) {
+        return SaveHouseResult(isSaved: previous);
+      }
       final isSaved = json.decode(response.body)['is_saved'] == true;
-      await _patchSavedStatus(houseId, isSaved);
-      return isSaved;
+      // The response is the confirmation point. Let every visible card update
+      // immediately; cache persistence can safely finish in the background.
+      unawaited(_patchSavedStatus(houseId, isSaved,
+              confirmed: true, cachedHouse: house)
+          .catchError((_) {}));
+      return SaveHouseResult(isSaved: isSaved, confirmed: true);
     } catch (_) {
-      return currentlySaved ?? false;
+      await OfflineSyncService.instance.queueSavedState(houseId, desired);
+      unawaited(_patchSavedStatus(houseId, desired,
+              confirmed: false, cachedHouse: house)
+          .catchError((_) {}));
+      return SaveHouseResult(isSaved: desired, queued: true);
     }
   }
 
-  static Future<void> _patchSavedStatus(int houseId, bool isSaved) async {
+  static Future<void> _patchSavedStatus(int houseId, bool isSaved,
+      {required bool confirmed, House? cachedHouse}) async {
+    AppCache.instance
+        .announce('saved_state', 'house:$houseId:${isSaved ? '1' : '0'}');
     await AppCache.instance.mutateMatching(
-      (key) => key.contains(':houses:'),
-      (value) => _mapList(value, (item) {
-        if (_parseInt(item['id']) == houseId) item['is_saved'] = isSaved;
-        return item;
-      }),
+      (key) =>
+          key.contains(':houses:') ||
+          key.contains(':home_feed') ||
+          key.contains(':reels:'),
+      (value) => _patchSavedInValue(value, houseId, isSaved),
     );
-    await AppCache.instance.removeMatching(
+    // Keep the dedicated shortlist cache intact. Invalidating it after every
+    // confirmed save made Saved Homes need the server again, which defeats its
+    // offline promise. We patch the canonical cache for both online and queued
+    // changes; the next successful normal refresh still reconciles it.
+    await AppCache.instance.mutateMatching(
       (key) => key.endsWith(':saved_houses'),
+      (value) => _patchOfflineSavedList(
+          value, houseId, isSaved, cachedHouse?.toCacheMap()),
     );
     AppCache.instance.announce('saved_houses', 'house:$houseId');
   }
@@ -781,26 +842,74 @@ class House {
     return data is List ? data : <dynamic>[];
   }
 
-  static List<House> _housesFromValue(dynamic value, {bool fromCache = false}) {
+  static List<House> _housesFromValue(dynamic value,
+      {bool fromCache = false, DateTime? cachedAt}) {
     if (value is! List) return [];
     return value
         .whereType<Map>()
         .map((item) => House.fromMap(
               Map<String, dynamic>.from(item),
               fromCache: fromCache,
+              cachedAt: cachedAt,
             ))
         .toList();
   }
 
-  static dynamic _mapList(
-    dynamic value,
-    Map<String, dynamic> Function(Map<String, dynamic>) transform,
-  ) {
+  static dynamic _patchSavedInValue(dynamic value, int houseId, bool isSaved) {
+    if (value is List) {
+      return value
+          .map((item) => _patchSavedInValue(item, houseId, isSaved))
+          .toList();
+    }
+    if (value is Map) {
+      final patched = Map<String, dynamic>.from(value);
+      if (_parseInt(patched['id']) == houseId) patched['is_saved'] = isSaved;
+      for (final entry in patched.entries.toList()) {
+        if (entry.value is Map || entry.value is List) {
+          patched[entry.key] =
+              _patchSavedInValue(entry.value, houseId, isSaved);
+        }
+      }
+      return patched;
+    }
+    return value;
+  }
+
+  static dynamic _patchOfflineSavedList(dynamic value, int houseId,
+      bool isSaved, Map<String, dynamic>? cachedHouse) {
     if (value is! List) return value;
-    return value.map((item) {
-      if (item is! Map) return item;
-      return transform(Map<String, dynamic>.from(item));
-    }).toList();
+    final items = value
+        .where((item) => item is! Map || _parseInt(item['id']) != houseId)
+        .toList();
+    if (isSaved && cachedHouse != null) {
+      cachedHouse['is_saved'] = true;
+      items.insert(0, cachedHouse);
+    }
+    return items;
+  }
+
+  static void _collectSavedHouses(dynamic value, Map<int, House> result) {
+    if (value is List) {
+      for (final item in value) {
+        _collectSavedHouses(item, result);
+      }
+      return;
+    }
+    if (value is! Map) return;
+    final map = Map<String, dynamic>.from(value);
+    final id = _parseInt(map['id']);
+    if (id > 0 &&
+        (map['is_saved'] == true || map['is_saved'] == 1) &&
+        (map.containsKey('title') || map.containsKey('name'))) {
+      try {
+        result[id] = House.fromMap(map, fromCache: true);
+      } catch (_) {}
+    }
+    for (final nested in map.values) {
+      if (nested is Map || nested is List) {
+        _collectSavedHouses(nested, result);
+      }
+    }
   }
 
   static String _canonicalFilters(Map<String, String> filters) {
@@ -878,6 +987,18 @@ class HouseCacheState {
   });
 }
 
+class SaveHouseResult {
+  final bool isSaved;
+  final bool confirmed;
+  final bool queued;
+
+  const SaveHouseResult({
+    required this.isSaved,
+    this.confirmed = false,
+    this.queued = false,
+  });
+}
+
 class HouseReelAsset {
   final String url;
   final bool isVideo;
@@ -907,12 +1028,12 @@ class HomeFeedData {
       this.fromCache = false});
 
   factory HomeFeedData.fromMap(Map<String, dynamic> map,
-      {bool fromCache = false}) {
+      {bool fromCache = false, DateTime? cachedAt}) {
     List<House> parse(String key) =>
         (map[key] is List ? map[key] as List : const [])
             .whereType<Map>()
             .map((item) => House.fromMap(Map<String, dynamic>.from(item),
-                fromCache: fromCache))
+                fromCache: fromCache, cachedAt: cachedAt))
             .toList();
     return HomeFeedData(
       recommended: parse('recommended'),
@@ -932,13 +1053,13 @@ class ReelsPageData {
       {required this.houses, this.nextCursor, this.fromCache = false});
 
   factory ReelsPageData.fromMap(Map<String, dynamic> map,
-      {bool fromCache = false}) {
+      {bool fromCache = false, DateTime? cachedAt}) {
     final raw = map['data'] is List ? map['data'] as List : const [];
     return ReelsPageData(
       houses: raw
           .whereType<Map>()
           .map((item) => House.fromMap(Map<String, dynamic>.from(item),
-              fromCache: fromCache))
+              fromCache: fromCache, cachedAt: cachedAt))
           .toList(),
       nextCursor: map['next_cursor']?.toString(),
       fromCache: fromCache,

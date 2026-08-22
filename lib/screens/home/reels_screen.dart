@@ -9,6 +9,7 @@ import 'package:house_rent/services/reels_music_service.dart';
 import 'package:house_rent/services/premium_haptics.dart';
 import 'package:house_rent/services/recommendation_service.dart';
 import 'package:house_rent/services/session_recommendation.dart';
+import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/widgets/demand_badge.dart';
 import 'package:house_rent/widgets/lister_trust_badges.dart';
 import 'package:house_rent/widgets/property_card.dart';
@@ -25,6 +26,7 @@ class ReelsScreen extends StatefulWidget {
 
 class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
   final music = ReelsMusicService();
+  final PageController _pageController = PageController();
   final List<House> houses = [];
   String? nextCursor;
   bool loading = true;
@@ -33,13 +35,35 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
   bool muted = true;
   bool _tabActive = false;
   DateTime _shownAt = DateTime.now();
+  int _loadGeneration = 0;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    AppCache.instance.refreshes.addListener(_handleTabRefresh);
     _loadInitial();
     _restoreAudio();
+  }
+
+  void _handleTabRefresh() {
+    final event = AppCache.instance.refreshes.value;
+    if (!mounted ||
+        event?.resource != 'tab-refresh' ||
+        event?.logicalKey != '2') {
+      return;
+    }
+    setState(() {
+      houses.clear();
+      nextCursor = null;
+      activeIndex = 0;
+      loading = true;
+      loadingMore = false;
+    });
+    if (_pageController.hasClients) {
+      _pageController.jumpToPage(0);
+    }
+    unawaited(_loadInitial());
   }
 
   @override
@@ -56,9 +80,10 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _loadInitial() async {
+    final generation = ++_loadGeneration;
     try {
       final page = await House.fetchReelsPage();
-      if (!mounted) return;
+      if (!mounted || generation != _loadGeneration) return;
       setState(() {
         houses.addAll(page.houses);
         nextCursor = page.nextCursor;
@@ -70,17 +95,20 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
             .track('impression', houses.first.id));
       }
     } catch (_) {
-      if (mounted) setState(() => loading = false);
+      if (mounted && generation == _loadGeneration) {
+        setState(() => loading = false);
+      }
     }
   }
 
   Future<void> _loadMore() async {
     final cursor = nextCursor;
     if (cursor == null || loadingMore) return;
+    final generation = _loadGeneration;
     loadingMore = true;
     try {
       final page = await House.fetchReelsPage(cursor: cursor);
-      if (!mounted) return;
+      if (!mounted || generation != _loadGeneration) return;
       setState(() {
         final known = houses.map((house) => house.id).toSet();
         houses.addAll(page.houses.where((house) => known.add(house.id)));
@@ -89,7 +117,9 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
       });
       unawaited(_warmAround(activeIndex));
     } catch (_) {
-      loadingMore = false;
+      if (mounted && generation == _loadGeneration) {
+        setState(() => loadingMore = false);
+      }
     }
   }
 
@@ -164,6 +194,17 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
   }
 
   void _changedPage(int value) {
+    // A refresh deliberately clears the buffer before its replacement arrives.
+    // PageController.jumpToPage can synchronously emit one final change event
+    // from the old viewport, so never read from an empty/stale list here.
+    if (!mounted ||
+        houses.isEmpty ||
+        activeIndex < 0 ||
+        activeIndex >= houses.length ||
+        value < 0 ||
+        value >= houses.length) {
+      return;
+    }
     final previous = houses[activeIndex];
     final watched = DateTime.now().difference(_shownAt).inMilliseconds;
     if (watched < 2500) {
@@ -196,7 +237,9 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    AppCache.instance.refreshes.removeListener(_handleTabRefresh);
     WidgetsBinding.instance.removeObserver(this);
+    _pageController.dispose();
     music.dispose();
     super.dispose();
   }
@@ -216,6 +259,7 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
                       message: 'New rental stories will appear here.'))
               : Stack(children: [
                   PageView.builder(
+                    controller: _pageController,
                     key: const PageStorageKey('tours-pages'),
                     scrollDirection: Axis.vertical,
                     allowImplicitScrolling: true,
@@ -296,8 +340,23 @@ class _ReelCardState extends State<_ReelCard> {
   void initState() {
     super.initState();
     saved = widget.house.isSaved;
+    AppCache.instance.refreshes.addListener(_syncSavedState);
     assets = _loadAssets();
     _schedule();
+  }
+
+  void _syncSavedState() {
+    final event = AppCache.instance.refreshes.value;
+    if (!mounted || event?.resource != 'saved_state') return;
+    final parts = event!.logicalKey.split(':');
+    if (parts.length != 3 || int.tryParse(parts[1]) != widget.house.id) return;
+    final isSaved = parts[2] == '1';
+    if (saved != isSaved) {
+      setState(() {
+        saved = isSaved;
+        widget.house.isSaved = isSaved;
+      });
+    }
   }
 
   Future<List<_TourAsset>> _loadAssets() async {
@@ -360,11 +419,34 @@ class _ReelCardState extends State<_ReelCard> {
   Future<void> _toggleSave() async {
     final previous = saved;
     setState(() => saved = !saved);
-    PremiumHaptics.action();
-    final result =
-        await House.toggleSaveHouse(widget.house.id, currentlySaved: previous);
-    if (mounted && result != saved) setState(() => saved = result);
-    widget.onSignal(result ? 'save' : 'unsave', result ? 2.4 : -1);
+    widget.house.isSaved = !previous;
+    if (!previous) PremiumHaptics.save();
+    final result = await House.toggleSaveHouse(widget.house.id,
+        currentlySaved: previous, house: widget.house);
+    if (!mounted) return;
+    if (result.isSaved != saved) setState(() => saved = result.isSaved);
+    widget.house.isSaved = result.isSaved;
+    widget.onSignal(
+        result.isSaved ? 'save' : 'unsave', result.isSaved ? 2.4 : -1);
+    if (result.confirmed && result.isSaved != previous) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(result.isSaved
+            ? 'Saved to your shortlist'
+            : 'Removed from saved homes'),
+        duration: const Duration(milliseconds: 1500),
+        behavior: SnackBarBehavior.floating,
+      ));
+    } else if (result.queued) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(result.isSaved
+            ? 'Saved on this device · will sync when online'
+            : 'Removed on this device · will sync when online'),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
   }
 
   Future<void> _feedback() async {
@@ -414,6 +496,7 @@ class _ReelCardState extends State<_ReelCard> {
 
   @override
   void dispose() {
+    AppCache.instance.refreshes.removeListener(_syncSavedState);
     timer?.cancel();
     photos.dispose();
     super.dispose();

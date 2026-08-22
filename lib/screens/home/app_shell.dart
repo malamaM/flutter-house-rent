@@ -1,14 +1,18 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:house_rent/screens/home/explore.dart';
 import 'package:house_rent/screens/home/home.dart';
 import 'package:house_rent/screens/home/reels_screen.dart';
 import 'package:house_rent/screens/home/saved_houses_screen.dart';
+import 'package:house_rent/screens/profile/offline_sync_screen.dart';
 import 'package:house_rent/services/current_location_service.dart';
 import 'package:house_rent/services/navigation_warmup_service.dart';
+import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/widgets/custom_bottom_navigation_bar.dart';
+import 'package:house_rent/widgets/offline_status_pill.dart';
 
 /// Keeps every primary tab and its nested navigation stack alive.
 class AppShell extends StatefulWidget {
@@ -51,14 +55,17 @@ class _AppShellState extends State<AppShell> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       unawaited(CurrentLocationService.instance.warm());
-      _warmupTimers.add(Timer(const Duration(milliseconds: 1700),
+      // The splash has already prepared the first home feed. Leave a little
+      // breathing room before mounting the heavier cached tabs so their map,
+      // media and route work cannot compete with the first interactive frames.
+      _warmupTimers.add(Timer(const Duration(milliseconds: 3200),
           () => _queueIdleMount(1))); // Map first after launch settles.
       _warmupTimers.add(
-          Timer(const Duration(milliseconds: 3200), () => _queueIdleMount(3)));
+          Timer(const Duration(milliseconds: 4800), () => _queueIdleMount(3)));
       _warmupTimers.add(
-          Timer(const Duration(milliseconds: 4800), () => _queueIdleMount(2)));
+          Timer(const Duration(milliseconds: 6400), () => _queueIdleMount(2)));
       _warmupTimers.add(
-          Timer(const Duration(milliseconds: 1000), () => _queueIdleWarmup(0)));
+          Timer(const Duration(milliseconds: 3500), () => _queueIdleWarmup(0)));
     });
   }
 
@@ -93,15 +100,22 @@ class _AppShellState extends State<AppShell> {
   }
 
   void _selectTab(int index) {
-    if (index == _currentIndex) {
-      _navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
+    if (index < 0 || index >= _navigatorKeys.length) return;
+    final changedTab = index != _currentIndex;
+    if (changedTab) {
+      setState(() {
+        _mountedTabs.add(index);
+        _currentIndex = index;
+      });
+      unawaited(NavigationWarmupService.instance.warmTab(index));
       return;
     }
-    setState(() {
-      _mountedTabs.add(index);
-      _currentIndex = index;
-    });
-    unawaited(NavigationWarmupService.instance.warmTab(index));
+
+    // A second tap on the active tab mirrors Instagram: return to its root,
+    // scroll its primary content to the top, then fetch a fresh view. This is
+    // separate from house-cache updates, so it cannot reset a warm tab.
+    _navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
+    AppCache.instance.announce('tab-refresh', '$index');
   }
 
   @override
@@ -119,32 +133,64 @@ class _AppShellState extends State<AppShell> {
       },
       child: Scaffold(
         extendBody: true,
-        body: IndexedStack(
-          index: _currentIndex,
-          children: List.generate(
-            4,
-            (index) => !_mountedTabs.contains(index)
-                ? const SizedBox.shrink()
-                : RepaintBoundary(
-                    child: TickerMode(
-                      enabled: index == _currentIndex,
-                      child: Navigator(
-                        key: _navigatorKeys[index],
-                        observers: [_observers[index]],
-                        onGenerateRoute: (_) => MaterialPageRoute<void>(
-                          builder: (_) => switch (index) {
-                            0 => const Home(),
-                            1 => const Explore(),
-                            2 => const ReelsScreen(),
-                            _ => const SavedHousesScreen(),
+        body: Stack(children: [
+          IndexedStack(
+            index: _currentIndex,
+            children: List.generate(
+              4,
+              (index) => !_mountedTabs.contains(index)
+                  ? const SizedBox.shrink()
+                  : RepaintBoundary(
+                      child: TickerMode(
+                        enabled: index == _currentIndex,
+                        child: Navigator(
+                          key: _navigatorKeys[index],
+                          observers: [_observers[index]],
+                          onGenerateRoute: (_) {
+                            final page = switch (index) {
+                              0 => const Home(),
+                              1 => const Explore(),
+                              2 => const ReelsScreen(),
+                              _ => const SavedHousesScreen(),
+                            };
+                            final settings = RouteSettings(name: 'tab-$index');
+                            // The tab root must also be Cupertino on iOS. Mixing
+                            // Material below a Cupertino details page can prevent
+                            // Flutter from enabling its native edge-back gesture.
+                            if (Theme.of(context).platform ==
+                                TargetPlatform.iOS) {
+                              return CupertinoPageRoute<void>(
+                                builder: (_) => page,
+                                settings: settings,
+                              );
+                            }
+                            return MaterialPageRoute<void>(
+                              builder: (_) => page,
+                              settings: settings,
+                            );
                           },
-                          settings: RouteSettings(name: 'tab-$index'),
                         ),
                       ),
                     ),
-                  ),
+            ),
           ),
-        ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: _routeDepths[_currentIndex] <= 1 ? 94 : 18,
+            child: SafeArea(
+              top: false,
+              child: Center(
+                child: OfflineStatusPill(
+                  onTap: () => _navigatorKeys[_currentIndex].currentState?.push(
+                        MaterialPageRoute<void>(
+                            builder: (_) => const OfflineSyncScreen()),
+                      ),
+                ),
+              ),
+            ),
+          ),
+        ]),
         bottomNavigationBar: _routeDepths[_currentIndex] <= 1
             ? CustomBottomNavigationBar(
                 currentIndex: _currentIndex,

@@ -7,6 +7,7 @@ import 'package:house_rent/widgets/lister_trust_badges.dart';
 import 'package:house_rent/services/premium_haptics.dart';
 import 'package:house_rent/services/recommendation_service.dart';
 import 'package:house_rent/services/session_recommendation.dart';
+import 'package:house_rent/services/app_cache.dart';
 import 'dart:async';
 
 String formatPropertyPrice(House house) {
@@ -45,6 +46,33 @@ class PropertyCard extends StatefulWidget {
 class _PropertyCardState extends State<PropertyCard> {
   bool _saving = false;
 
+  @override
+  void initState() {
+    super.initState();
+    AppCache.instance.refreshes.addListener(_syncSavedState);
+  }
+
+  @override
+  void dispose() {
+    AppCache.instance.refreshes.removeListener(_syncSavedState);
+    super.dispose();
+  }
+
+  void _syncSavedState() {
+    final event = AppCache.instance.refreshes.value;
+    if (!mounted || event?.resource != 'saved_state') return;
+    final parts = event!.logicalKey.split(':');
+    if (parts.length != 3 ||
+        int.tryParse(parts[1]) != widget.house.id ||
+        _saving) {
+      return;
+    }
+    final isSaved = parts[2] == '1';
+    if (widget.house.isSaved != isSaved) {
+      setState(() => widget.house.isSaved = isSaved);
+    }
+  }
+
   Future<void> _toggleSave() async {
     if (_saving) return;
     final previous = widget.house.isSaved;
@@ -52,19 +80,48 @@ class _PropertyCardState extends State<PropertyCard> {
       _saving = true;
       widget.house.isSaved = !previous;
     });
-    PremiumHaptics.action();
-    final saved = await House.toggleSaveHouse(
+    if (!previous) PremiumHaptics.save();
+    final result = await House.toggleSaveHouse(
       widget.house.id,
       currentlySaved: previous,
+      house: widget.house,
     );
     if (!mounted) return;
     setState(() {
-      widget.house.isSaved = saved;
+      widget.house.isSaved = result.isSaved;
       _saving = false;
     });
-    SessionRecommendation.instance.observe(widget.house, saved ? 3.8 : -1.5);
-    unawaited(RecommendationService.instance
-        .track(saved ? 'save' : 'unsave', widget.house.id, surface: 'home'));
+    SessionRecommendation.instance
+        .observe(widget.house, result.isSaved ? 3.8 : -1.5);
+    unawaited(RecommendationService.instance.track(
+        result.isSaved ? 'save' : 'unsave', widget.house.id,
+        surface: 'home'));
+    if (result.confirmed && result.isSaved != previous) {
+      _showSavedBanner(result.isSaved);
+    } else if (result.queued) {
+      _showQueuedBanner(result.isSaved);
+    }
+  }
+
+  void _showSavedBanner(bool saved) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content:
+          Text(saved ? 'Saved to your shortlist' : 'Removed from saved homes'),
+      duration: const Duration(milliseconds: 1500),
+      behavior: SnackBarBehavior.floating,
+    ));
+  }
+
+  void _showQueuedBanner(bool saved) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(saved
+          ? 'Saved on this device · will sync when online'
+          : 'Removed on this device · will sync when online'),
+      duration: const Duration(seconds: 2),
+      behavior: SnackBarBehavior.floating,
+    ));
   }
 
   Widget _image(
@@ -121,18 +178,13 @@ class _PropertyCardState extends State<PropertyCard> {
                   child: SizedBox(
                     width: 38,
                     height: 38,
-                    child: _saving
-                        ? const Padding(
-                            padding: EdgeInsets.all(11),
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Icon(
-                            widget.house.isSaved
-                                ? Icons.bookmark_rounded
-                                : Icons.bookmark_border_rounded,
-                            color: AppColors.primary,
-                            size: 21,
-                          ),
+                    child: Icon(
+                      widget.house.isSaved
+                          ? Icons.bookmark_rounded
+                          : Icons.bookmark_border_rounded,
+                      color: AppColors.primary,
+                      size: 21,
+                    ),
                   ),
                 ),
               ),

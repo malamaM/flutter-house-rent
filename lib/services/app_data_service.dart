@@ -3,6 +3,8 @@ import 'dart:convert';
 
 import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/services/app_cache.dart';
+import 'package:house_rent/services/offline_sync_service.dart';
+import 'package:house_rent/services/recommendation_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -106,7 +108,11 @@ class SessionService {
 
   static Future<void> clear() async {
     _memoryUser = null;
-    await AppCache.instance.clearPrivateData();
+    await Future.wait([
+      AppCache.instance.clearPrivateData(),
+      OfflineSyncService.instance.clear(),
+      RecommendationService.instance.clearQueuedEvents(),
+    ]);
   }
 }
 

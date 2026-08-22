@@ -236,9 +236,7 @@ class _RentalPreferencesScreenState extends State<RentalPreferencesScreen> {
                                 dimension: 22,
                                 child:
                                     CircularProgressIndicator(strokeWidth: 2))
-                            : Text(step == 4
-                                ? 'Build my Haven'
-                                : 'Continue'),
+                            : Text(step == 4 ? 'Build my Haven' : 'Continue'),
                       ),
                     ),
                   ),

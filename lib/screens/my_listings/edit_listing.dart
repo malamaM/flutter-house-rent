@@ -1,10 +1,12 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/services/premium_haptics.dart';
+import 'package:house_rent/services/listing_draft_service.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/listing_form_components.dart';
 import 'package:image_picker/image_picker.dart';
@@ -50,6 +52,24 @@ class _EditListingScreenState extends State<EditListingScreen> {
   bool loadingImages = true;
   bool saving = false;
   double uploadProgress = 0;
+  Timer? _draftDebounce;
+  bool _completed = false;
+  String get _draftId => 'edit-${widget.house.id}';
+
+  List<TextEditingController> get _controllers => [
+        title,
+        city,
+        description,
+        bedrooms,
+        bathrooms,
+        size,
+        country,
+        province,
+        district,
+        houseNumber,
+        rentalPrice,
+        parking,
+      ];
 
   @override
   void initState() {
@@ -74,6 +94,10 @@ class _EditListingScreenState extends State<EditListingScreen> {
     gym = house.gym == 1;
     pool = house.swimmingPool == 1;
     garage = house.garage == 1;
+    for (final controller in _controllers) {
+      controller.addListener(_scheduleDraft);
+    }
+    unawaited(_restoreDraft());
     _fetchGallery();
     _fetchMedia();
   }
@@ -81,6 +105,89 @@ class _EditListingScreenState extends State<EditListingScreen> {
   String _option(String? value, List<String> values, String fallback) {
     return values.contains(value) ? value! : fallback;
   }
+
+  void _scheduleDraft() {
+    _draftDebounce?.cancel();
+    _draftDebounce = Timer(const Duration(milliseconds: 700), _saveDraft);
+  }
+
+  Future<void> _restoreDraft() async {
+    final draft = await ListingDraftService.instance.load(_draftId);
+    if (draft == null || !mounted) return;
+    final fields = <String, TextEditingController>{
+      'title': title,
+      'city': city,
+      'description': description,
+      'bedrooms': bedrooms,
+      'bathrooms': bathrooms,
+      'size': size,
+      'country': country,
+      'province': province,
+      'district': district,
+      'house_number': houseNumber,
+      'price': rentalPrice,
+      'parking': parking,
+    };
+    for (final entry in fields.entries) {
+      if (draft[entry.key] != null) entry.value.text = '${draft[entry.key]}';
+    }
+    File? file(String key) {
+      final value = draft[key]?.toString();
+      return value != null && File(value).existsSync() ? File(value) : null;
+    }
+
+    List<File> files(String key) =>
+        (draft[key] is List ? draft[key] as List : const [])
+            .map((item) => File('$item'))
+            .where((item) => item.existsSync())
+            .toList();
+    setState(() {
+      propertyType = draft['type']?.toString() ?? propertyType;
+      gym = draft['gym'] == true;
+      pool = draft['pool'] == true;
+      garage = draft['garage'] == true;
+      newCoverImage = file('cover');
+      newReelVideo = file('reel_video');
+      newGalleryImages.addAll(files('gallery'));
+      newVideos.addAll(files('videos'));
+      deletedImageIds.addAll((draft['deleted_image_ids'] is List
+              ? draft['deleted_image_ids'] as List
+              : const [])
+          .map((item) => int.tryParse('$item') ?? 0)
+          .where((id) => id > 0));
+      deletedMediaIds.addAll((draft['deleted_media_ids'] is List
+              ? draft['deleted_media_ids'] as List
+              : const [])
+          .map((item) => int.tryParse('$item') ?? 0)
+          .where((id) => id > 0));
+    });
+    _message('Your unsent listing changes were restored.');
+  }
+
+  Future<void> _saveDraft() => ListingDraftService.instance.save(_draftId, {
+        'title': title.text,
+        'city': city.text,
+        'description': description.text,
+        'bedrooms': bedrooms.text,
+        'bathrooms': bathrooms.text,
+        'size': size.text,
+        'country': country.text,
+        'province': province.text,
+        'district': district.text,
+        'house_number': houseNumber.text,
+        'price': rentalPrice.text,
+        'parking': parking.text,
+        'type': propertyType,
+        'gym': gym,
+        'pool': pool,
+        'garage': garage,
+        'cover': newCoverImage?.path,
+        'reel_video': newReelVideo?.path,
+        'gallery': newGalleryImages.map((item) => item.path).toList(),
+        'videos': newVideos.map((item) => item.path).toList(),
+        'deleted_image_ids': deletedImageIds,
+        'deleted_media_ids': deletedMediaIds,
+      });
 
   Future<void> _fetchGallery() async {
     try {
@@ -103,20 +210,9 @@ class _EditListingScreenState extends State<EditListingScreen> {
 
   @override
   void dispose() {
-    for (final controller in [
-      title,
-      city,
-      description,
-      bedrooms,
-      bathrooms,
-      size,
-      country,
-      province,
-      district,
-      houseNumber,
-      rentalPrice,
-      parking
-    ]) {
+    _draftDebounce?.cancel();
+    if (!_completed) unawaited(_saveDraft());
+    for (final controller in _controllers) {
       controller.dispose();
     }
     super.dispose();
@@ -127,7 +223,10 @@ class _EditListingScreenState extends State<EditListingScreen> {
       final image = await picker.pickImage(
           source: ImageSource.gallery, imageQuality: 78, maxWidth: 1800);
       if (image != null && mounted) {
-        setState(() => newCoverImage = File(image.path));
+        final retained = await ListingDraftService.instance
+            .retainMedia(_draftId, image.path);
+        if (mounted) setState(() => newCoverImage = retained);
+        unawaited(_saveDraft());
       }
     } catch (_) {
       _message(
@@ -140,13 +239,16 @@ class _EditListingScreenState extends State<EditListingScreen> {
       final images =
           await picker.pickMultiImage(imageQuality: 75, maxWidth: 1800);
       if (images.isNotEmpty && mounted) {
+        final retained = await Future.wait(images.map((image) =>
+            ListingDraftService.instance.retainMedia(_draftId, image.path)));
         setState(() {
-          newGalleryImages.addAll(images.map((image) => File(image.path)));
+          newGalleryImages.addAll(retained);
           final available = (12 - existingGalleryImages.length).clamp(0, 12);
           if (newGalleryImages.length > available) {
             newGalleryImages.removeRange(available, newGalleryImages.length);
           }
         });
+        unawaited(_saveDraft());
       }
     } catch (_) {
       _message(
@@ -161,13 +263,16 @@ class _EditListingScreenState extends State<EditListingScreen> {
         maxDuration: featured ? const Duration(minutes: 2) : null,
       );
       if (video == null || !mounted) return;
+      final retained =
+          await ListingDraftService.instance.retainMedia(_draftId, video.path);
       setState(() {
         if (featured) {
-          newReelVideo = File(video.path);
+          newReelVideo = retained;
         } else if (newVideos.length < 4) {
-          newVideos.add(File(video.path));
+          newVideos.add(retained);
         }
       });
+      unawaited(_saveDraft());
     } catch (_) {
       _message(
           'Haven Zambia could not open your video library. Check permissions.');
@@ -177,6 +282,9 @@ class _EditListingScreenState extends State<EditListingScreen> {
   Future<void> _save() async {
     FocusScope.of(context).unfocus();
     if (!formKey.currentState!.validate()) return;
+    // Acknowledge the tap straight away; publishing feedback remains separate
+    // and is only used once the request actually succeeds.
+    PremiumHaptics.action();
     setState(() {
       saving = true;
       uploadProgress = 0;
@@ -220,10 +328,13 @@ class _EditListingScreenState extends State<EditListingScreen> {
     if (!mounted) return;
     setState(() => saving = false);
     if (success) {
+      _completed = true;
+      await ListingDraftService.instance.clear(_draftId);
       PremiumHaptics.success();
       _message('Your listing changes are live.');
       Navigator.pop(context, true);
     } else {
+      await _saveDraft();
       _message('The listing could not be updated. Please try again.');
     }
   }

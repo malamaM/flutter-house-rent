@@ -7,6 +7,7 @@ import 'package:house_rent/models/house.dart';
 import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/services/current_location_service.dart';
 import 'package:house_rent/services/recommendation_service.dart';
+import 'package:house_rent/services/cached_map_tile_provider.dart';
 import 'package:house_rent/screens/details/details.dart';
 import 'package:house_rent/screens/home/filter_screen.dart';
 import 'package:house_rent/theme/app_colors.dart';
@@ -22,6 +23,8 @@ class Explore extends StatefulWidget {
 
 class _ExploreState extends State<Explore> {
   final MapController mapController = MapController();
+  final DraggableScrollableController _resultsSheetController =
+      DraggableScrollableController();
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
   Map<String, String> filters = {};
@@ -149,7 +152,17 @@ class _ExploreState extends State<Explore> {
   }
 
   void _handleCacheRefresh() {
-    if (AppCache.instance.refreshes.value?.resource == 'houses' && mounted) {
+    final event = AppCache.instance.refreshes.value;
+    final isActiveTabRefresh =
+        event?.resource == 'tab-refresh' && event?.logicalKey == '1';
+    if ((event?.resource == 'houses' || isActiveTabRefresh) && mounted) {
+      if (isActiveTabRefresh && _resultsSheetController.isAttached) {
+        unawaited(_resultsSheetController.animateTo(
+          .18,
+          duration: const Duration(milliseconds: 360),
+          curve: Curves.easeOutCubic,
+        ));
+      }
       _fetch(showLoading: false);
     }
   }
@@ -162,6 +175,7 @@ class _ExploreState extends State<Explore> {
     _searchFocus
       ..removeListener(_refreshSuggestions)
       ..dispose();
+    _resultsSheetController.dispose();
     super.dispose();
   }
 
@@ -339,6 +353,7 @@ class _ExploreState extends State<Explore> {
                     0,
                   ]),
                   child: TileLayer(
+                    tileProvider: CachedMapTileProvider.instance,
                     urlTemplate:
                         'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
                     subdomains: const ['a', 'b', 'c', 'd'],
@@ -347,6 +362,7 @@ class _ExploreState extends State<Explore> {
                 )
               else
                 TileLayer(
+                  tileProvider: CachedMapTileProvider.instance,
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                   userAgentPackageName: 'com.malamachiluwe.houserent',
                 ),
@@ -491,6 +507,7 @@ class _ExploreState extends State<Explore> {
             ),
           ),
           _ResultsSheet(
+            controller: _resultsSheetController,
             houses: houses,
             loading: loading,
             loadingMore: _loadingMore,
@@ -652,6 +669,7 @@ class _AreaSuggestions extends StatelessWidget {
 }
 
 class _ResultsSheet extends StatelessWidget {
+  final DraggableScrollableController controller;
   final List<House> houses;
   final bool loading;
   final bool loadingMore;
@@ -660,6 +678,7 @@ class _ResultsSheet extends StatelessWidget {
   final ValueChanged<House> onOpen;
 
   const _ResultsSheet({
+    required this.controller,
     required this.houses,
     required this.loading,
     required this.loadingMore,
@@ -672,6 +691,7 @@ class _ResultsSheet extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(bottom: 84),
         child: DraggableScrollableSheet(
+          controller: controller,
           initialChildSize: .18,
           minChildSize: .14,
           maxChildSize: .82,

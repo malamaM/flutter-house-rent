@@ -2,17 +2,46 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:flutter/widgets.dart';
 import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/models/recommendation.dart';
 import 'package:house_rent/models/house.dart';
+import 'package:house_rent/services/app_cache.dart';
+import 'package:house_rent/services/offline_sync_service.dart';
+import 'package:house_rent/services/network_status_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-class RecommendationService {
+class RecommendationService with WidgetsBindingObserver {
   RecommendationService._();
   static final instance = RecommendationService._();
   static const _queueKey = 'recommendation_event_queue_v1';
   Timer? _flushTimer;
+  bool _flushing = false;
+  bool _initialized = false;
+
+  /// Starts durable event delivery. Events are still accepted before this is
+  /// called, but initialization lets a restored network flush them promptly.
+  void initialize() {
+    if (_initialized) return;
+    _initialized = true;
+    WidgetsBinding.instance.addObserver(this);
+    NetworkStatusService.instance.availability.addListener(_networkChanged);
+    unawaited(flush());
+  }
+
+  void _networkChanged() {
+    if (NetworkStatusService.instance.isOnline) unawaited(flush());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(flush());
+  }
+
+  Future<int> pendingEventCount() async =>
+      (await SharedPreferences.getInstance()).getStringList(_queueKey)?.length ??
+      0;
 
   String _errorMessage(http.Response response, String fallback) {
     try {
@@ -50,14 +79,30 @@ class RecommendationService {
   }
 
   Future<RecommendationOptions> options() async {
-    final response = await http
-        .get(Uri.parse('${ApiConfig.apiBase}/recommendation-options'))
-        .timeout(const Duration(seconds: 12));
-    if (response.statusCode != 200) {
-      throw Exception(_errorMessage(response, 'Could not load locations'));
+    final key = AppCache.instance.publicKey('recommendation-options:v1');
+    final cached = await AppCache.instance.read(key);
+    if (cached != null && !cached.isExpired) {
+      return RecommendationOptions.fromMap(
+          Map<String, dynamic>.from(cached.value));
     }
-    return RecommendationOptions.fromMap(
-        Map<String, dynamic>.from(jsonDecode(response.body)));
+    try {
+      final response = await http
+          .get(Uri.parse('${ApiConfig.apiBase}/recommendation-options'))
+          .timeout(const Duration(seconds: 12));
+      if (response.statusCode != 200) {
+        throw Exception(_errorMessage(response, 'Could not load locations'));
+      }
+      final value = Map<String, dynamic>.from(jsonDecode(response.body));
+      await AppCache.instance.write(key, value,
+          freshFor: const Duration(days: 1), keepFor: const Duration(days: 90));
+      return RecommendationOptions.fromMap(value);
+    } catch (_) {
+      if (cached != null) {
+        return RecommendationOptions.fromMap(
+            Map<String, dynamic>.from(cached.value));
+      }
+      rethrow;
+    }
   }
 
   Future<void> saveProfile({
@@ -72,47 +117,92 @@ class RecommendationService {
   }) async {
     final token = await _token();
     if (token == null) throw Exception('Sign in required');
-    final response = await http
-        .put(
-          Uri.parse('${ApiConfig.apiBase}/recommendation-profile'),
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          },
-          body: jsonEncode({
-            'city_id': cityId,
-            'area_ids': areaIds.toList(),
-            'min_bedrooms': minBedrooms,
-            'max_bedrooms': maxBedrooms,
-            'min_monthly_price': minMonthlyPrice,
-            'max_monthly_price': maxMonthlyPrice,
-            'amenity_ids': amenityIds.toList(),
-            'start_new_search': startNewSearch,
-          }),
-        )
-        .timeout(const Duration(seconds: 15));
-    if (response.statusCode != 200) {
+    final payload = <String, dynamic>{
+      'city_id': cityId,
+      'area_ids': areaIds.toList(),
+      'min_bedrooms': minBedrooms,
+      'max_bedrooms': maxBedrooms,
+      'min_monthly_price': minMonthlyPrice,
+      'max_monthly_price': maxMonthlyPrice,
+      'amenity_ids': amenityIds.toList(),
+      'start_new_search': startNewSearch,
+    };
+    http.Response? response;
+    try {
+      response = await http
+          .put(
+            Uri.parse('${ApiConfig.apiBase}/recommendation-profile'),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            },
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 15));
+    } catch (_) {
+      await OfflineSyncService.instance.queueRecommendationProfile(payload);
+    }
+    if (response != null && response.statusCode != 200) {
       throw Exception(
           _errorMessage(response, 'Could not save your rental preferences'));
     }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('recommendation_profile_complete', true);
-    await House.invalidatePropertyData();
+    final key = await AppCache.instance.privateKey('recommendation-profile:v1');
+    await AppCache.instance.write(
+      key,
+      {
+        'city_id': cityId,
+        'areas': areaIds.map((id) => {'id': id}).toList(),
+        'min_bedrooms': minBedrooms,
+        'max_bedrooms': maxBedrooms,
+        'min_monthly_price': minMonthlyPrice,
+        'max_monthly_price': maxMonthlyPrice,
+        'amenities': amenityIds.map((id) => {'id': id}).toList(),
+      },
+      freshFor: const Duration(days: 1),
+      keepFor: const Duration(days: 90),
+    );
+    if (response != null) {
+      await House.invalidatePropertyData();
+    } else {
+      AppCache.instance.announce('recommendation_profile', key);
+    }
   }
 
   Future<Map<String, dynamic>?> profile() async {
     final token = await _token();
     if (token == null) return null;
-    final response = await http.get(
-      Uri.parse('${ApiConfig.apiBase}/recommendation-profile'),
-      headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
-    ).timeout(const Duration(seconds: 10));
-    if (response.statusCode != 200) return null;
-    final body = Map<String, dynamic>.from(jsonDecode(response.body));
-    return body['profile'] is Map
-        ? Map<String, dynamic>.from(body['profile'])
-        : null;
+    final key = await AppCache.instance.privateKey('recommendation-profile:v1');
+    final cached = await AppCache.instance.read(key);
+    if (cached != null && !cached.isExpired) {
+      return Map<String, dynamic>.from(cached.value);
+    }
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.apiBase}/recommendation-profile'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json'
+        },
+      ).timeout(const Duration(seconds: 10));
+      if (response.statusCode != 200) return null;
+      final body = Map<String, dynamic>.from(jsonDecode(response.body));
+      final profile = body['profile'] is Map
+          ? Map<String, dynamic>.from(body['profile'])
+          : null;
+      if (profile != null) {
+        await AppCache.instance.write(key, profile,
+            freshFor: const Duration(hours: 6),
+            keepFor: const Duration(days: 90));
+      }
+      return profile;
+    } catch (_) {
+      return cached?.value is Map
+          ? Map<String, dynamic>.from(cached!.value)
+          : null;
+    }
   }
 
   Future<Map<String, dynamic>> history() async {
@@ -176,15 +266,22 @@ class RecommendationService {
     }
   }
 
-  Future<void> flush() async {
+  Future<void> clearQueuedEvents() async {
     _flushTimer?.cancel();
-    final token = await _token();
-    if (token == null) return;
-    final prefs = await SharedPreferences.getInstance();
-    final encoded = prefs.getStringList(_queueKey) ?? const [];
-    if (encoded.isEmpty) return;
-    final batch = encoded.take(100).map(jsonDecode).toList();
+    await (await SharedPreferences.getInstance()).remove(_queueKey);
+  }
+
+  Future<void> flush() async {
+    if (_flushing) return;
+    _flushing = true;
+    _flushTimer?.cancel();
     try {
+      final token = await _token();
+      if (token == null) return;
+      final prefs = await SharedPreferences.getInstance();
+      final encoded = prefs.getStringList(_queueKey) ?? const [];
+      if (encoded.isEmpty) return;
+      final batch = encoded.take(100).map(jsonDecode).toList();
       final response = await http
           .post(
             Uri.parse('${ApiConfig.apiBase}/recommendation-events/batch'),
@@ -199,7 +296,18 @@ class RecommendationService {
       if (response.statusCode == 202) {
         await prefs.setStringList(
             _queueKey, encoded.skip(batch.length).toList());
+        if (encoded.length > batch.length) {
+          _flushTimer = Timer(const Duration(seconds: 2), flush);
+        }
+      } else {
+        _flushTimer = Timer(const Duration(seconds: 30), flush);
       }
-    } catch (_) {}
+    } catch (_) {
+      // Behavioural signals are valuable but never block the UI. They remain
+      // durable and retry quietly when the network becomes available again.
+      _flushTimer = Timer(const Duration(seconds: 30), flush);
+    } finally {
+      _flushing = false;
+    }
   }
 }

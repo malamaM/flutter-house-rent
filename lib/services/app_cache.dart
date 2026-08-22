@@ -121,8 +121,32 @@ class AppCache {
     if (active != null) return active as Future<T>;
     final future = operation();
     _inFlight[key] = future;
-    future.whenComplete(() => _inFlight.remove(key));
+    // Do not use an unobserved `whenComplete` future here: when the request
+    // fails it creates a second unhandled error even if the caller catches the
+    // original one (which surfaced as repeated ClientSocketException reports).
+    future.then<void>(
+      (_) {
+        _inFlight.remove(key);
+      },
+      onError: (Object _, StackTrace __) {
+        _inFlight.remove(key);
+      },
+    );
     return future;
+  }
+
+  Future<List<dynamic>> valuesMatching(
+      bool Function(String key) predicate) async {
+    final db = await _db;
+    final rows = await db.query('api_cache', columns: ['cache_key']);
+    final values = <dynamic>[];
+    for (final row in rows) {
+      final key = row['cache_key'] as String;
+      if (!predicate(key)) continue;
+      final record = await read(key);
+      if (record != null) values.add(record.value);
+    }
+    return values;
   }
 
   void announce(String resource, String logicalKey) {
@@ -153,6 +177,12 @@ class AppCache {
   Future<void> clearPrivateData() =>
       removeMatching((key) => key.startsWith('user:'));
 
+  /// Clears downloaded API content while retaining the cached identity needed
+  /// for offline sign-in continuity. Pending mutations and listing drafts live
+  /// in separate stores and are never removed here.
+  Future<void> clearContentCache() => removeMatching(
+      (key) => !key.endsWith(':current_user') && !key.contains('current_user'));
+
   Future<void> mutateMatching(bool Function(String key) predicate,
       dynamic Function(dynamic value) mutate) async {
     final db = await _db;
@@ -175,6 +205,17 @@ class AppCache {
       approximateCharacters: (result.first['bytes'] as num).toInt(),
       inFlightRequests: _inFlight.length,
     );
+  }
+
+  /// Authentication continuity is retained separately from feed data, so a
+  /// cached user profile must not make the UI claim homes are available
+  /// offline on a first launch.
+  Future<bool> hasDownloadedContent() async {
+    final rows = await (await _db).query('api_cache', columns: ['cache_key']);
+    return rows.any((row) {
+      final key = row['cache_key'] as String;
+      return !key.endsWith(':current_user') && !key.contains('current_user');
+    });
   }
 
   Future<void> _evict(Database db) async {

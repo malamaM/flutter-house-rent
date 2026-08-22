@@ -1,6 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
+import 'package:house_rent/services/app_cache.dart';
+import 'package:house_rent/services/premium_haptics.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/glass_surface.dart';
 import 'package:share_plus/share_plus.dart';
@@ -22,24 +24,68 @@ class _DetailsAppBarState extends State<DetailsAppBar> {
   void initState() {
     super.initState();
     saved = widget.house.isSaved;
+    AppCache.instance.refreshes.addListener(_syncSavedState);
+  }
+
+  @override
+  void dispose() {
+    AppCache.instance.refreshes.removeListener(_syncSavedState);
+    super.dispose();
+  }
+
+  void _syncSavedState() {
+    final event = AppCache.instance.refreshes.value;
+    if (!mounted || event?.resource != 'saved_state' || loading) return;
+    final parts = event!.logicalKey.split(':');
+    if (parts.length != 3 || int.tryParse(parts[1]) != widget.house.id) return;
+    final isSaved = parts[2] == '1';
+    if (saved != isSaved) {
+      setState(() {
+        saved = isSaved;
+        widget.house.isSaved = isSaved;
+      });
+    }
   }
 
   Future<void> _save() async {
     if (loading) return;
-    setState(() => loading = true);
+    final previous = saved;
+    setState(() {
+      loading = true;
+      saved = !previous;
+      widget.house.isSaved = !previous;
+    });
+    if (!previous) PremiumHaptics.save();
     final result = await House.toggleSaveHouse(
       widget.house.id,
-      currentlySaved: saved,
+      currentlySaved: previous,
+      house: widget.house,
     );
     if (!mounted) return;
     setState(() {
-      saved = result;
-      widget.house.isSaved = result;
+      saved = result.isSaved;
+      widget.house.isSaved = result.isSaved;
       loading = false;
     });
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content:
-            Text(saved ? 'Added to saved homes' : 'Removed from saved homes')));
+    if (result.confirmed && result.isSaved != previous) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(result.isSaved
+            ? 'Saved to your shortlist'
+            : 'Removed from saved homes'),
+        duration: const Duration(milliseconds: 1500),
+        behavior: SnackBarBehavior.floating,
+      ));
+    } else if (result.queued) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(result.isSaved
+            ? 'Saved on this device · will sync when online'
+            : 'Removed on this device · will sync when online'),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
   }
 
   Future<void> _share() async {

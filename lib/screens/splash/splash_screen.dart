@@ -1,5 +1,8 @@
 import 'dart:async';
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:house_rent/models/house.dart';
 import 'package:house_rent/screens/home/app_shell.dart';
 import 'package:house_rent/screens/login/login.dart';
 import 'package:house_rent/services/app_data_service.dart';
@@ -39,10 +42,24 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _continue() async {
-    final userFuture =
-        SessionService.currentUser(forceRefresh: true, allowExpired: true);
-    await Future.delayed(const Duration(milliseconds: 950));
+    final launchedAt = DateTime.now();
+    // Use the locally cached identity first. It avoids making every launch
+    // wait on the network, while SessionService still refreshes stale session
+    // information safely in the background.
+    final userFuture = SessionService.currentUser(allowExpired: true);
     final user = await userFuture;
+    if (user != null) {
+      // The first home feed and its visible images are the work users would
+      // otherwise feel just after the splash disappears. Keep it here, where
+      // the animation stays fluid, but cap the wait for slow/offline networks.
+      await _warmFirstHome()
+          .timeout(const Duration(milliseconds: 3200), onTimeout: () {});
+    }
+    final elapsed = DateTime.now().difference(launchedAt);
+    const minimumSplash = Duration(milliseconds: 1900);
+    if (elapsed < minimumSplash) {
+      await Future.delayed(minimumSplash - elapsed);
+    }
     if (!mounted) return;
     await _progress.animateTo(1,
         duration: const Duration(milliseconds: 240),
@@ -59,6 +76,32 @@ class _SplashScreenState extends State<SplashScreen>
               child: child),
           transitionDuration: const Duration(milliseconds: 380),
         ));
+  }
+
+  Future<void> _warmFirstHome() async {
+    try {
+      final feed = await House.fetchHomeFeed();
+      if (!mounted) return;
+      final homes = <House>[
+        ...feed.recommended,
+        ...feed.deals,
+        ...feed.all,
+      ];
+      final seen = <int>{};
+      final visibleHomes = homes.where((home) => seen.add(home.id)).take(4);
+      await Future.wait(visibleHomes.map((home) async {
+        if (home.imageUrl.isEmpty) return;
+        try {
+          await precacheImage(
+                  CachedNetworkImageProvider(home.imageUrl), context)
+              .timeout(const Duration(milliseconds: 1400));
+        } catch (_) {
+          // Feed data is still warm; the card can load this image normally.
+        }
+      }));
+    } catch (_) {
+      // The Home screen retains its normal cache/error states when offline.
+    }
   }
 
   @override

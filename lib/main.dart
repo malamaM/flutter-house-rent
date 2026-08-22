@@ -7,6 +7,9 @@ import 'package:house_rent/theme/app_theme.dart';
 import 'package:house_rent/services/performance_monitor.dart';
 import 'package:house_rent/theme/theme_controller.dart';
 import 'package:house_rent/services/app_feedback.dart';
+import 'package:house_rent/services/offline_sync_service.dart';
+import 'package:house_rent/services/recommendation_service.dart';
+import 'package:house_rent/services/network_status_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,6 +18,9 @@ Future<void> main() async {
   // rendering the splash first keeps launch responsive and lets the saved
   // theme apply as soon as it is available.
   unawaited(ThemeController.instance.load());
+  unawaited(OfflineSyncService.instance.initialize());
+  NetworkStatusService.instance.initialize();
+  RecommendationService.instance.initialize();
   PerformanceMonitor.instance.initialize();
   FlutterError.onError = (details) {
     FlutterError.presentError(details);

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/models/house.dart';
@@ -21,7 +22,10 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class _DetailsPageRoute extends MaterialPageRoute<void> {
+/// Cupertino-backed so iOS can attach its interactive edge-swipe pop gesture.
+/// The custom transition remains intentionally subtle and is driven by the
+/// same route animation, so Android keeps the polished details transition.
+class _DetailsPageRoute extends CupertinoPageRoute<void> {
   _DetailsPageRoute({required House house, required bool isOwnerView})
       : super(
           builder: (_) => Details(house: house, isOwnerView: isOwnerView),
@@ -37,6 +41,12 @@ class _DetailsPageRoute extends MaterialPageRoute<void> {
   @override
   Widget buildTransitions(BuildContext context, Animation<double> animation,
       Animation<double> secondaryAnimation, Widget child) {
+    // Let Cupertino own the iOS transition. Its transition widget includes
+    // the native interactive left-edge swipe-to-pop controller.
+    if (Theme.of(context).platform == TargetPlatform.iOS) {
+      return super
+          .buildTransitions(context, animation, secondaryAnimation, child);
+    }
     final curved = CurvedAnimation(
       parent: animation,
       curve: Curves.easeOutQuart,
@@ -79,6 +89,16 @@ class _DetailsState extends State<Details> {
   int _reviewVersion = 0;
   late Future<Map<String, dynamic>> _ownerFuture;
   bool _ownerLoaded = false;
+
+  String get _offlineAge {
+    final cachedAt = widget.house.cachedAt;
+    if (cachedAt == null) return 'saved previously';
+    final age = DateTime.now().difference(cachedAt);
+    if (age.inMinutes < 2) return 'saved moments ago';
+    if (age.inHours < 1) return 'saved ${age.inMinutes} minutes ago';
+    if (age.inDays < 1) return 'saved ${age.inHours} hours ago';
+    return 'saved ${age.inDays} days ago';
+  }
 
   @override
   void initState() {
@@ -395,6 +415,29 @@ class _DetailsState extends State<Details> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   ContentIntro(house: widget.house),
+                  if (widget.house.isFromCache) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 20),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 9),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surfaceContainer,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(children: [
+                        Icon(Icons.offline_pin_outlined,
+                            size: 17,
+                            color: Theme.of(context).colorScheme.primary),
+                        const SizedBox(width: 8),
+                        Expanded(
+                            child: Text('Available offline · $_offlineAge',
+                                style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600))),
+                      ]),
+                    ),
+                  ],
                   const SizedBox(height: 24),
                   HouseInfo(house: widget.house),
                   const SizedBox(height: 28),

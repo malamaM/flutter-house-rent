@@ -1,10 +1,12 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/models/recommendation.dart';
 import 'package:house_rent/services/premium_haptics.dart';
 import 'package:house_rent/services/recommendation_service.dart';
+import 'package:house_rent/services/listing_draft_service.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/listing_form_components.dart';
 import 'package:house_rent/widgets/map_location_picker.dart';
@@ -19,6 +21,7 @@ class CreateListingScreen extends StatefulWidget {
 }
 
 class _CreateListingScreenState extends State<CreateListingScreen> {
+  static const _draftId = 'create';
   final pageController = PageController();
   final picker = ImagePicker();
   final formKeys = List.generate(4, (_) => GlobalKey<FormState>());
@@ -52,12 +55,111 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   late Future<RecommendationOptions> locationOptions;
   int? selectedCityId;
   int? selectedAreaId;
+  Timer? _draftDebounce;
+  bool _completed = false;
 
   @override
   void initState() {
     super.initState();
     locationOptions = _loadLocationOptions();
+    for (final controller in _controllers) {
+      controller.addListener(_scheduleDraft);
+    }
+    unawaited(_restoreDraft());
   }
+
+  List<TextEditingController> get _controllers => [
+        title,
+        description,
+        country,
+        province,
+        district,
+        city,
+        houseNumber,
+        rentalPrice,
+        bedrooms,
+        bathrooms,
+        size,
+        parking,
+      ];
+
+  void _scheduleDraft() {
+    _draftDebounce?.cancel();
+    _draftDebounce = Timer(const Duration(milliseconds: 700), _saveDraft);
+  }
+
+  Future<void> _restoreDraft() async {
+    final draft = await ListingDraftService.instance.load(_draftId);
+    if (draft == null || !mounted) return;
+    void text(TextEditingController controller, String key) {
+      controller.text = draft[key]?.toString() ?? controller.text;
+    }
+
+    text(title, 'title');
+    text(description, 'description');
+    text(country, 'country');
+    text(province, 'province');
+    text(district, 'district');
+    text(city, 'city');
+    text(houseNumber, 'house_number');
+    text(rentalPrice, 'price');
+    text(bedrooms, 'bedrooms');
+    text(bathrooms, 'bathrooms');
+    text(size, 'size');
+    text(parking, 'parking');
+    File? file(String key) {
+      final value = draft[key]?.toString();
+      return value != null && File(value).existsSync() ? File(value) : null;
+    }
+
+    List<File> files(String key) =>
+        (draft[key] is List ? draft[key] as List : const [])
+            .map((item) => File('$item'))
+            .where((item) => item.existsSync())
+            .toList();
+    setState(() {
+      propertyType = draft['type']?.toString() ?? propertyType;
+      gym = draft['gym'] == true;
+      pool = draft['pool'] == true;
+      garage = draft['garage'] == true;
+      selectedCityId = int.tryParse('${draft['city_id']}');
+      selectedAreaId = int.tryParse('${draft['area_id']}');
+      latitude = double.tryParse('${draft['latitude']}');
+      longitude = double.tryParse('${draft['longitude']}');
+      coverImage = file('cover');
+      reelVideo = file('reel_video');
+      galleryImages.addAll(files('gallery'));
+      videos.addAll(files('videos'));
+    });
+    _message('Your listing draft was restored.');
+  }
+
+  Future<void> _saveDraft() => ListingDraftService.instance.save(_draftId, {
+        'title': title.text,
+        'description': description.text,
+        'country': country.text,
+        'province': province.text,
+        'district': district.text,
+        'city': city.text,
+        'house_number': houseNumber.text,
+        'price': rentalPrice.text,
+        'bedrooms': bedrooms.text,
+        'bathrooms': bathrooms.text,
+        'size': size.text,
+        'parking': parking.text,
+        'type': propertyType,
+        'gym': gym,
+        'pool': pool,
+        'garage': garage,
+        'city_id': selectedCityId,
+        'area_id': selectedAreaId,
+        'latitude': latitude,
+        'longitude': longitude,
+        'cover': coverImage?.path,
+        'reel_video': reelVideo?.path,
+        'gallery': galleryImages.map((item) => item.path).toList(),
+        'videos': videos.map((item) => item.path).toList(),
+      });
 
   Future<RecommendationOptions> _loadLocationOptions() =>
       RecommendationService.instance
@@ -66,21 +168,10 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
 
   @override
   void dispose() {
+    _draftDebounce?.cancel();
+    if (!_completed) unawaited(_saveDraft());
     pageController.dispose();
-    for (final controller in [
-      title,
-      description,
-      country,
-      province,
-      district,
-      city,
-      houseNumber,
-      rentalPrice,
-      bedrooms,
-      bathrooms,
-      size,
-      parking,
-    ]) {
+    for (final controller in _controllers) {
       controller.dispose();
     }
     super.dispose();
@@ -117,7 +208,10 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         maxWidth: 1800,
       );
       if (image != null && mounted) {
-        setState(() => coverImage = File(image.path));
+        final retained = await ListingDraftService.instance
+            .retainMedia(_draftId, image.path);
+        if (mounted) setState(() => coverImage = retained);
+        unawaited(_saveDraft());
       }
     } catch (_) {
       _message(
@@ -132,12 +226,15 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         maxWidth: 1800,
       );
       if (images.isNotEmpty && mounted) {
+        final retained = await Future.wait(images.map((image) =>
+            ListingDraftService.instance.retainMedia(_draftId, image.path)));
         setState(() {
-          galleryImages.addAll(images.map((image) => File(image.path)));
+          galleryImages.addAll(retained);
           if (galleryImages.length > 12) {
             galleryImages.removeRange(12, galleryImages.length);
           }
         });
+        unawaited(_saveDraft());
       }
     } catch (_) {
       _message(
@@ -152,13 +249,16 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         maxDuration: featured ? const Duration(minutes: 2) : null,
       );
       if (video == null || !mounted) return;
+      final retained =
+          await ListingDraftService.instance.retainMedia(_draftId, video.path);
       setState(() {
         if (featured) {
-          reelVideo = File(video.path);
+          reelVideo = retained;
         } else if (videos.length < 4) {
-          videos.add(File(video.path));
+          videos.add(retained);
         }
       });
+      unawaited(_saveDraft());
     } catch (_) {
       _message(
           'Haven Zambia could not open your video library. Check permissions.');
@@ -180,10 +280,13 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         latitude = result.latitude;
         longitude = result.longitude;
       });
+      unawaited(_saveDraft());
     }
   }
 
   Future<void> submit() async {
+    // This must be local and immediate, not delayed by the media upload.
+    PremiumHaptics.action();
     setState(() {
       submitting = true;
       uploadProgress = 0;
@@ -226,10 +329,13 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     if (!mounted) return;
     setState(() => submitting = false);
     if (success) {
+      _completed = true;
+      await ListingDraftService.instance.clear(_draftId);
       PremiumHaptics.success();
       _message('Your listing is now live.');
       Navigator.pop(context, true);
     } else {
+      await _saveDraft();
       _message(
           'The listing could not be published. Check the details and try again.');
     }

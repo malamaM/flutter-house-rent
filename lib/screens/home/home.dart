@@ -28,6 +28,7 @@ class _HomeState extends State<Home> {
   String? selectedType;
   late Future<HomeFeedData> feed;
   bool _refreshing = false;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -38,8 +39,17 @@ class _HomeState extends State<Home> {
   }
 
   void _handleRecommendationRefresh() {
-    if (AppCache.instance.refreshes.value?.resource != 'houses' || !mounted) {
-      return;
+    if (!mounted) return;
+    final event = AppCache.instance.refreshes.value!;
+    final isActiveTabRefresh =
+        event.resource == 'tab-refresh' && event.logicalKey == '0';
+    if (event.resource != 'houses' && !isActiveTabRefresh) return;
+    if (isActiveTabRefresh && _scrollController.hasClients) {
+      unawaited(_scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 360),
+        curve: Curves.easeOutCubic,
+      ));
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -55,6 +65,7 @@ class _HomeState extends State<Home> {
   @override
   void dispose() {
     AppCache.instance.refreshes.removeListener(_handleRecommendationRefresh);
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -129,6 +140,7 @@ class _HomeState extends State<Home> {
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: SingleChildScrollView(
+          controller: _scrollController,
           key: const PageStorageKey('home-scroll'),
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.only(bottom: 112),
