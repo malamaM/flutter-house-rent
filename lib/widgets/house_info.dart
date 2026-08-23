@@ -58,20 +58,30 @@ class _Fact extends StatelessWidget {
           Icon(icon, color: Theme.of(context).colorScheme.primary, size: 22),
           const SizedBox(width: 9),
           Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(value,
-                    style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w800)),
-                Text(label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        fontSize: 10)),
-              ],
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(value,
+                      maxLines: 1,
+                      softWrap: false,
+                      style: const TextStyle(
+                          height: 1,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 4),
+                  Text(label,
+                      maxLines: 1,
+                      softWrap: false,
+                      style: TextStyle(
+                          height: 1,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontSize: 10)),
+                ],
+              ),
             ),
           ),
         ],

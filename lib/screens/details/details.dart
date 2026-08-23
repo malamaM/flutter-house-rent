@@ -4,9 +4,15 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/models/house.dart';
+import 'package:house_rent/navigation/haven_page_route.dart';
 import 'package:house_rent/services/app_data_service.dart';
+import 'package:house_rent/services/api_error.dart';
 import 'package:house_rent/services/recommendation_service.dart';
 import 'package:house_rent/services/session_recommendation.dart';
+import 'package:house_rent/services/marketplace_service.dart';
+import 'package:house_rent/services/network_status_service.dart';
+import 'package:house_rent/services/offline_sync_service.dart';
+import 'package:house_rent/screens/profile/marketplace_hub_screen.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/about.dart';
 import 'package:house_rent/widgets/content_intro.dart';
@@ -25,7 +31,7 @@ import 'package:url_launcher/url_launcher.dart';
 /// Cupertino-backed so iOS can attach its interactive edge-swipe pop gesture.
 /// The custom transition remains intentionally subtle and is driven by the
 /// same route animation, so Android keeps the polished details transition.
-class _DetailsPageRoute extends CupertinoPageRoute<void> {
+class _DetailsPageRoute extends HavenPageRoute<void> {
   _DetailsPageRoute({required House house, required bool isOwnerView})
       : super(
           builder: (_) => Details(house: house, isOwnerView: isOwnerView),
@@ -62,6 +68,227 @@ class _DetailsPageRoute extends CupertinoPageRoute<void> {
         child: child,
       ),
     );
+  }
+}
+
+class _ViewingSchedule {
+  final DateTime requestedAt;
+  final String? note;
+
+  const _ViewingSchedule(this.requestedAt, this.note);
+}
+
+class _ViewingSchedulerSheet extends StatefulWidget {
+  const _ViewingSchedulerSheet();
+
+  @override
+  State<_ViewingSchedulerSheet> createState() => _ViewingSchedulerSheetState();
+}
+
+class _ViewingSchedulerSheetState extends State<_ViewingSchedulerSheet> {
+  late DateTime _day;
+  late DateTime _time;
+  final _note = TextEditingController();
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final tomorrow = DateTime.now().add(const Duration(days: 1));
+    _day = DateTime(tomorrow.year, tomorrow.month, tomorrow.day);
+    _time = DateTime(2020, 1, 1, 10);
+  }
+
+  DateTime get _selection => DateTime(
+        _day.year,
+        _day.month,
+        _day.day,
+        _time.hour,
+        _time.minute,
+      );
+
+  void _confirm() {
+    if (!_selection.isAfter(DateTime.now())) {
+      setState(() => _error = 'Choose a time that is still ahead.');
+      return;
+    }
+    final note = _note.text.trim();
+    Navigator.pop(
+      context,
+      _ViewingSchedule(_selection, note.isEmpty ? null : note),
+    );
+  }
+
+  @override
+  void dispose() {
+    _note.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final now = DateTime.now();
+    final firstDay = DateTime(now.year, now.month, now.day);
+    return FractionallySizedBox(
+      heightFactor: .92,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 4, 14, 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Schedule a viewing',
+                          style: Theme.of(context).textTheme.headlineMedium),
+                      const SizedBox(height: 3),
+                      Text('Choose a day and preferred arrival time.',
+                          style: Theme.of(context).textTheme.bodyMedium),
+                    ],
+                  ),
+                ),
+                CupertinoButton(
+                  padding: const EdgeInsets.all(9),
+                  onPressed: () => Navigator.pop(context),
+                  child: const Icon(CupertinoIcons.xmark_circle_fill),
+                ),
+              ],
+            ),
+          ),
+          Divider(height: 1, color: colors.outlineVariant),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: colors.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: colors.outlineVariant, width: .7),
+                  ),
+                  child: CalendarDatePicker(
+                    initialDate: _day,
+                    firstDate: firstDay,
+                    lastDate: firstDay.add(const Duration(days: 60)),
+                    onDateChanged: (value) => setState(() {
+                      _day = value;
+                      _error = null;
+                    }),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text('Preferred time',
+                    style: Theme.of(context).textTheme.labelLarge),
+                const SizedBox(height: 7),
+                Container(
+                  height: 132,
+                  decoration: BoxDecoration(
+                    color: colors.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: colors.outlineVariant, width: .7),
+                  ),
+                  child: CupertinoDatePicker(
+                    mode: CupertinoDatePickerMode.time,
+                    initialDateTime: _time,
+                    minuteInterval: 15,
+                    use24hFormat: MediaQuery.alwaysUse24HourFormatOf(context),
+                    onDateTimeChanged: (value) => setState(() {
+                      _time = value;
+                      _error = null;
+                    }),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                TextField(
+                  controller: _note,
+                  maxLength: 500,
+                  maxLines: 2,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: const InputDecoration(
+                    labelText: 'Note for the lister (optional)',
+                    hintText: 'For example, who will attend with you',
+                    prefixIcon: Icon(CupertinoIcons.text_bubble),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SafeArea(
+            top: false,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+              decoration: BoxDecoration(
+                color: colors.surface,
+                border: Border(top: BorderSide(color: colors.outlineVariant)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Icon(CupertinoIcons.calendar,
+                          size: 18, color: colors.primary),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Text(_selectionLabel(_selection),
+                            style: Theme.of(context).textTheme.titleMedium),
+                      ),
+                    ],
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 7),
+                    Text(_error!,
+                        style: TextStyle(
+                            color: colors.error,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600)),
+                  ],
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: _confirm,
+                    icon: const Icon(CupertinoIcons.paperplane_fill, size: 18),
+                    label: const Text('Send viewing request'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _selectionLabel(DateTime value) {
+    const weekdays = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday'
+    ];
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December'
+    ];
+    final hour = value.hour % 12 == 0 ? 12 : value.hour % 12;
+    final minute = value.minute.toString().padLeft(2, '0');
+    final period = value.hour >= 12 ? 'PM' : 'AM';
+    return '${weekdays[value.weekday - 1]}, ${value.day} ${months[value.month - 1]} · $hour:$minute $period';
   }
 }
 
@@ -105,7 +332,9 @@ class _DetailsState extends State<Details> {
     super.initState();
     // Owner details are only needed when the contact sheet opens. Deferring
     // this request keeps the route's first frames free for the transition.
-    _ownerFuture = Future.value(const <String, dynamic>{});
+    _ownerFuture = Future.value(widget.house.ownerContact);
+    unawaited(PropertyDetailsService.cacheOwnerContact(
+        widget.house.id, widget.house.ownerContact));
     if (!widget.isOwnerView) {
       House.recordView(widget.house.id);
       SessionRecommendation.instance.observe(widget.house, 1.1);
@@ -127,11 +356,15 @@ class _DetailsState extends State<Details> {
       _notice('This lister’s WhatsApp number is not valid yet.');
       return;
     }
-    final uri = Uri.https('wa.me', '/$digits', {
-      'text':
-          'Hi, I found “${widget.house.name}” on Haven Zambia and would like to know more.',
-    });
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+    final text =
+        'Hi, I found “${widget.house.name}” on Haven Zambia and would like to know more.';
+    final appUri = Uri(
+        scheme: 'whatsapp',
+        host: 'send',
+        queryParameters: {'phone': digits, 'text': text});
+    if (await launchUrl(appUri, mode: LaunchMode.externalApplication)) return;
+    final webUri = Uri.https('wa.me', '/$digits', {'text': text});
+    if (!await launchUrl(webUri, mode: LaunchMode.externalApplication)) {
       _notice('Could not open WhatsApp on this device.');
     }
   }
@@ -139,7 +372,8 @@ class _DetailsState extends State<Details> {
   void _ensureOwnerLoaded() {
     if (_ownerLoaded) return;
     _ownerLoaded = true;
-    _ownerFuture = PropertyDetailsService.owner(widget.house.id);
+    _ownerFuture = PropertyDetailsService.owner(widget.house.id)
+        .onError((_, __) => widget.house.ownerContact);
   }
 
   Future<void> _callOwner(String number) async {
@@ -157,29 +391,34 @@ class _DetailsState extends State<Details> {
       return;
     }
     try {
-      final response = await http.post(
-        Uri.parse('${ApiConfig.apiBase}/users/${widget.house.ownerId}/review'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: json.encode({
-          'house_id': widget.house.id,
-          'rating': rating,
-          'comment': comment,
-        }),
-      );
-      final data = json.decode(response.body);
+      final response = await http
+          .post(
+            Uri.parse(
+                '${ApiConfig.apiBase}/users/${widget.house.ownerId}/review'),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: json.encode({
+              'house_id': widget.house.id,
+              'rating': rating,
+              'comment': comment,
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
       if (response.statusCode == 201 || response.statusCode == 202) {
+        final data = json.decode(response.body);
         await ListerReviewsService.invalidate(widget.house.ownerId!);
         if (mounted) setState(() => _reviewVersion++);
         _notice(data['message'] ?? 'Thanks—your review was received.');
       } else {
-        _notice(data['error'] ?? 'Could not submit your review.');
+        throw HavenApiException.fromResponse(response,
+            operation: 'submit your review');
       }
-    } catch (_) {
-      _notice('Could not submit your review. Try again later.');
+    } catch (error) {
+      _notice(ApiErrorResolver.message(error,
+          fallback: 'Haven could not submit your review.'));
     }
   }
 
@@ -190,7 +429,21 @@ class _DetailsState extends State<Details> {
     }
   }
 
-  void _showReview() {
+  Future<void> _showReview() async {
+    if (widget.house.ownerId == null) return;
+    try {
+      final eligibility = await MarketplaceService.instance
+          .reviewEligibility(widget.house.ownerId!, widget.house.id);
+      if (!eligibility.eligible) {
+        _notice(eligibility.reason ??
+            'Complete a genuine interaction before leaving a review.');
+        return;
+      }
+    } on MarketplaceException catch (error) {
+      _notice(error.message);
+      return;
+    }
+    if (!mounted) return;
     var rating = 5;
     final comment = TextEditingController();
     showModalBottomSheet(
@@ -276,6 +529,196 @@ class _DetailsState extends State<Details> {
     );
   }
 
+  Future<void> _messageOwner() async {
+    if (!NetworkStatusService.instance.isOnline) {
+      await _composeOfflineMessage();
+      return;
+    }
+    try {
+      final conversationId =
+          await MarketplaceService.instance.startConversation(widget.house.id);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      Navigator.push(
+          context,
+          HavenPageRoute(
+              builder: (_) => ConversationScreen(
+                    conversationId: conversationId,
+                    title: widget.house.name,
+                  )));
+    } on MarketplaceException catch (error) {
+      if (!await NetworkStatusService.instance.checkNow()) {
+        await _composeOfflineMessage();
+      } else {
+        _notice(error.message);
+      }
+    }
+  }
+
+  Future<void> _composeOfflineMessage() async {
+    Navigator.of(context).pop();
+    await Future<void>.delayed(const Duration(milliseconds: 180));
+    if (!mounted) return;
+    final controller = TextEditingController();
+    final message = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.fromLTRB(
+            20, 18, 20, 18 + MediaQuery.viewInsetsOf(sheetContext).bottom),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Write an offline message',
+                style: Theme.of(sheetContext).textTheme.headlineSmall),
+            const SizedBox(height: 6),
+            Text(
+              'Haven will send it automatically when the server is reachable.',
+              style: Theme.of(sheetContext).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              minLines: 3,
+              maxLines: 6,
+              maxLength: 2000,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: InputDecoration(
+                labelText: 'Message about ${widget.house.name}',
+                hintText: 'Hi, is this home still available?',
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  final value = controller.text.trim();
+                  if (value.isEmpty) return;
+                  Navigator.pop(sheetContext, value);
+                },
+                icon: const Icon(Icons.cloud_upload_outlined),
+                label: const Text('Save and send when online'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    if (message == null || !mounted) return;
+    await OfflineSyncService.instance
+        .queueContactMessage(widget.house.id, message);
+    _notice(
+        'Message saved on this device · it will send when Haven reconnects.');
+  }
+
+  Future<void> _requestViewing() async {
+    final schedule = await showModalBottomSheet<_ViewingSchedule>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => const _ViewingSchedulerSheet(),
+    );
+    if (schedule == null || !mounted) return;
+    try {
+      final message = await MarketplaceService.instance.requestViewing(
+          widget.house.id, schedule.requestedAt,
+          note: schedule.note);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      _notice(message);
+    } on MarketplaceException catch (error) {
+      _notice(error.message);
+    }
+  }
+
+  Future<void> _reportListing() async {
+    String reason = 'scam';
+    final details = TextEditingController();
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, update) => AlertDialog(
+          title: const Text('Report this listing'),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            DropdownButtonFormField<String>(
+              initialValue: reason,
+              items: const [
+                DropdownMenuItem(value: 'scam', child: Text('Possible scam')),
+                DropdownMenuItem(
+                    value: 'misleading', child: Text('Misleading information')),
+                DropdownMenuItem(
+                    value: 'unavailable', child: Text('No longer available')),
+                DropdownMenuItem(
+                    value: 'spam', child: Text('Spam or duplicate')),
+                DropdownMenuItem(value: 'other', child: Text('Something else')),
+              ],
+              onChanged: (value) => update(() => reason = value ?? reason),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+                controller: details,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                    labelText: 'Tell us more (optional)')),
+          ]),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancel')),
+            FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Send report')),
+          ],
+        ),
+      ),
+    );
+    if (submitted != true) return;
+    try {
+      final message = await MarketplaceService.instance
+          .reportListing(widget.house.id, reason, details: details.text);
+      _notice(message);
+    } on MarketplaceException catch (error) {
+      _notice(error.message);
+    }
+  }
+
+  Future<void> _blockLister() async {
+    if (widget.house.ownerId == null) return;
+    final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+              title: const Text('Block this lister?'),
+              content: const Text(
+                  'They will no longer be able to message you. You can contact support if you need to reverse this later.'),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(dialogContext, false),
+                    child: const Text('Cancel')),
+                FilledButton(
+                    onPressed: () => Navigator.pop(dialogContext, true),
+                    child: const Text('Block'))
+              ],
+            ));
+    if (confirmed != true) return;
+    try {
+      await MarketplaceService.instance.blockUser(widget.house.ownerId!);
+      _notice('Lister blocked.');
+    } on MarketplaceException catch (error) {
+      _notice(error.message);
+    }
+  }
+
+  String _responseTime(int minutes) {
+    if (minutes < 60) return 'within ${minutes.clamp(1, 59)} min';
+    if (minutes < 1440) return 'within ${(minutes / 60).round()} hr';
+    return 'within ${(minutes / 1440).round()} day';
+  }
+
   void _showContact() {
     _ensureOwnerLoaded();
     SessionRecommendation.instance.observe(widget.house, 4.5);
@@ -340,6 +783,31 @@ class _DetailsState extends State<Details> {
                       Text(
                           'Mention “${widget.house.name}” when you get in touch.',
                           style: Theme.of(context).textTheme.bodyMedium),
+                      if (!NetworkStatusService.instance.isOnline) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: colors.primaryContainer
+                                .withValues(alpha: dark ? .24 : .5),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Row(children: [
+                            Icon(Icons.cloud_off_outlined,
+                                size: 19, color: colors.primary),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                phone.isEmpty && whatsapp.isEmpty
+                                    ? 'Offline · contact numbers were not downloaded on this device yet. You can still save a Haven message.'
+                                    : 'Offline · showing saved contact details. Calls work now and Haven messages will send after reconnection.',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ),
+                          ]),
+                        ),
+                      ],
                       const SizedBox(height: 14),
                       _ContactRow(
                           icon: Icons.phone_outlined,
@@ -361,6 +829,24 @@ class _DetailsState extends State<Details> {
                             icon: Icons.business_outlined,
                             label: 'Company',
                             value: user['company']),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _messageOwner,
+                          icon: const Icon(Icons.forum_outlined),
+                          label: const Text('Message in Haven'),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _requestViewing,
+                          icon: const Icon(Icons.calendar_month_outlined),
+                          label: const Text('Request a viewing'),
+                        ),
+                      ),
                       if (phone.isNotEmpty || whatsapp.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Row(children: [
@@ -465,10 +951,14 @@ class _DetailsState extends State<Details> {
                           children: [
                             CircleAvatar(
                               radius: 24,
-                              backgroundColor: AppColors.primaryLight,
+                              backgroundColor: Theme.of(context)
+                                  .colorScheme
+                                  .primaryContainer,
                               child: Text(ownerName[0].toUpperCase(),
-                                  style: const TextStyle(
-                                      color: AppColors.primary,
+                                  style: TextStyle(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onPrimaryContainer,
                                       fontWeight: FontWeight.w800)),
                             ),
                             const SizedBox(width: 13),
@@ -496,9 +986,33 @@ class _DetailsState extends State<Details> {
                                             .textTheme
                                             .bodyMedium),
                                   ],
+                                  if (widget.house.responseRate > 0) ...[
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      '${widget.house.responseRate.round()}% response rate${widget.house.typicalResponseMinutes == null ? '' : ' · usually replies ${_responseTime(widget.house.typicalResponseMinutes!)}'}',
+                                      style:
+                                          Theme.of(context).textTheme.bodySmall,
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
+                            if (!widget.isOwnerView)
+                              PopupMenuButton<String>(
+                                tooltip: 'Safety options',
+                                onSelected: (value) {
+                                  if (value == 'report') _reportListing();
+                                  if (value == 'block') _blockLister();
+                                },
+                                itemBuilder: (_) => const [
+                                  PopupMenuItem(
+                                      value: 'report',
+                                      child: Text('Report listing')),
+                                  PopupMenuItem(
+                                      value: 'block',
+                                      child: Text('Block lister')),
+                                ],
+                              ),
                           ],
                         ),
                         if (!widget.isOwnerView) ...[

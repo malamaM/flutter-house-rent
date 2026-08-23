@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:house_rent/theme/app_colors.dart';
 
 class DemandBadge extends StatelessWidget {
   final String? demandLabel;
@@ -28,8 +27,11 @@ class DemandBadge extends StatelessWidget {
     if (text == null) return const SizedBox.shrink();
 
     final hot = demandLabel == 'hot';
-    final foreground = hot ? const Color(0xFF8A3C0C) : AppColors.primaryDark;
-    final background = hot ? const Color(0xFFFFE7CC) : AppColors.primaryLight;
+    final colors = Theme.of(context).colorScheme;
+    final foreground =
+        hot ? colors.onSecondaryContainer : colors.onPrimaryContainer;
+    final background =
+        hot ? colors.secondaryContainer : colors.primaryContainer;
 
     return Semantics(
       label: '$text based on recent interest',

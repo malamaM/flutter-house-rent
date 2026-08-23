@@ -2,11 +2,15 @@ import 'dart:io';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:house_rent/navigation/haven_page_route.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/models/recommendation.dart';
 import 'package:house_rent/services/premium_haptics.dart';
 import 'package:house_rent/services/recommendation_service.dart';
 import 'package:house_rent/services/listing_draft_service.dart';
+import 'package:house_rent/services/media_upload_policy.dart';
+import 'package:house_rent/services/video_preparation_service.dart';
+import 'package:house_rent/services/app_feedback.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/listing_form_components.dart';
 import 'package:house_rent/widgets/map_location_picker.dart';
@@ -46,6 +50,8 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   bool garage = false;
   bool submitting = false;
   double uploadProgress = 0;
+  bool preparingVideo = false;
+  double videoPreparationProgress = 0;
   File? coverImage;
   File? reelVideo;
   final List<File> galleryImages = [];
@@ -213,9 +219,10 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         if (mounted) setState(() => coverImage = retained);
         unawaited(_saveDraft());
       }
-    } catch (_) {
-      _message(
-          'Haven Zambia could not open your photo library. Check photo permissions.');
+    } catch (error) {
+      _message(AppFeedback.messageFor(error,
+          fallback:
+              'Haven could not open your photo library. Check photo permissions.'));
     }
   }
 
@@ -236,21 +243,46 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         });
         unawaited(_saveDraft());
       }
-    } catch (_) {
-      _message(
-          'Haven Zambia could not open your photo library. Check photo permissions.');
+    } catch (error) {
+      _message(AppFeedback.messageFor(error,
+          fallback:
+              'Haven could not open your photo library. Check photo permissions.'));
     }
   }
 
   Future<void> pickVideo({required bool featured}) async {
+    if (preparingVideo || submitting) return;
+    if (!featured && videos.length >= MediaUploadPolicy.maxRegularVideos) {
+      _message('A listing can have up to 4 regular videos.');
+      return;
+    }
+    PreparedVideo? prepared;
     try {
       final video = await picker.pickVideo(
         source: ImageSource.gallery,
         maxDuration: featured ? const Duration(minutes: 2) : null,
       );
       if (video == null || !mounted) return;
-      final retained =
-          await ListingDraftService.instance.retainMedia(_draftId, video.path);
+      setState(() {
+        preparingVideo = true;
+        videoPreparationProgress = 0;
+      });
+      prepared = await VideoPreparationService.instance.prepare(
+        video.path,
+        onProgress: (value) {
+          if (mounted) setState(() => videoPreparationProgress = value);
+        },
+      );
+      await MediaUploadPolicy.validateFile(
+        prepared.path,
+        maxBytes: featured
+            ? MediaUploadPolicy.maxReelVideoBytes
+            : MediaUploadPolicy.maxVideoBytes,
+        label: featured ? 'Featured reel video' : 'Video',
+      );
+      final retained = await ListingDraftService.instance
+          .retainMedia(_draftId, prepared.path);
+      if (!mounted) return;
       setState(() {
         if (featured) {
           reelVideo = retained;
@@ -259,16 +291,27 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         }
       });
       unawaited(_saveDraft());
-    } catch (_) {
-      _message(
-          'Haven Zambia could not open your video library. Check permissions.');
+    } on MediaUploadException catch (error) {
+      _message(error.message);
+    } catch (error) {
+      _message(AppFeedback.messageFor(error,
+          fallback:
+              'Haven could not open your video library. Check media permissions.'));
+    } finally {
+      await prepared?.deleteTemporaryCopy();
+      if (mounted) {
+        setState(() {
+          preparingVideo = false;
+          videoPreparationProgress = 0;
+        });
+      }
     }
   }
 
   Future<void> selectLocation() async {
     final result = await Navigator.push<LatLng>(
       context,
-      MaterialPageRoute(
+      HavenPageRoute(
         builder: (_) => MapLocationPicker(
           initialLocation:
               latitude == null ? null : LatLng(latitude!, longitude!),
@@ -285,6 +328,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   }
 
   Future<void> submit() async {
+    if (preparingVideo || submitting) return;
     // This must be local and immediate, not delayed by the media upload.
     PremiumHaptics.action();
     setState(() {
@@ -316,28 +360,28 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       'latitude': latitude?.toString() ?? '',
       'longitude': longitude?.toString() ?? '',
     };
-    final success = await House.createHouse(
-      payload,
-      coverImage!.path,
-      galleryImages.map((image) => image.path).toList(),
-      videoPaths: videos.map((video) => video.path).toList(),
-      reelVideoPath: reelVideo?.path,
-      onProgress: (value) {
-        if (mounted) setState(() => uploadProgress = value);
-      },
-    );
-    if (!mounted) return;
-    setState(() => submitting = false);
-    if (success) {
+    try {
+      await House.createHouse(
+        payload,
+        coverImage!.path,
+        galleryImages.map((image) => image.path).toList(),
+        videoPaths: videos.map((video) => video.path).toList(),
+        reelVideoPath: reelVideo?.path,
+        onProgress: (value) {
+          if (mounted) setState(() => uploadProgress = value);
+        },
+      );
+      if (!mounted) return;
       _completed = true;
       await ListingDraftService.instance.clear(_draftId);
       PremiumHaptics.success();
       _message('Your listing is now live.');
       Navigator.pop(context, true);
-    } else {
+    } on MediaUploadException catch (error) {
       await _saveDraft();
-      _message(
-          'The listing could not be published. Check the details and try again.');
+      _message(error.message);
+    } finally {
+      if (mounted) setState(() => submitting = false);
     }
   }
 
@@ -541,10 +585,10 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                      color: AppColors.primaryLight,
+                      color: Theme.of(context).colorScheme.primaryContainer,
                       borderRadius: BorderRadius.circular(14)),
-                  child: const Icon(Icons.location_on_outlined,
-                      color: AppColors.primary),
+                  child: Icon(Icons.location_on_outlined,
+                      color: Theme.of(context).colorScheme.primary),
                 ),
                 const SizedBox(width: 13),
                 Expanded(
@@ -583,9 +627,11 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
               child: Row(children: [
                 const Icon(Icons.cloud_off_outlined),
                 const SizedBox(width: 12),
-                const Expanded(
-                    child: Text(
-                        'Could not load cities and areas. Check your connection.')),
+                Expanded(
+                    child: Text(snapshot.hasError
+                        ? AppFeedback.messageFor(snapshot.error!,
+                            fallback: 'Haven could not load cities and areas.')
+                        : 'No active cities or areas are currently available.')),
                 TextButton(
                     onPressed: () => setState(
                         () => locationOptions = _loadLocationOptions()),
@@ -605,7 +651,8 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
               .firstOrNull;
           return Column(children: [
             DropdownButtonFormField<int>(
-              value: selectedCityId,
+              key: ValueKey('city:$selectedCityId'),
+              initialValue: selectedCityId,
               isExpanded: true,
               decoration: const InputDecoration(labelText: 'City or town'),
               hint: const Text('Choose a city'),
@@ -627,7 +674,8 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
             ),
             const SizedBox(height: 14),
             DropdownButtonFormField<int>(
-              value: selectedAreaId,
+              key: ValueKey('area:$selectedCityId:$selectedAreaId'),
+              initialValue: selectedAreaId,
               isExpanded: true,
               decoration:
                   const InputDecoration(labelText: 'Area or neighbourhood'),
@@ -689,8 +737,8 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
             ...videos.map((video) => ListTile(
                   dense: true,
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.play_circle_outline_rounded,
-                      color: AppColors.primary),
+                  leading: Icon(Icons.play_circle_outline_rounded,
+                      color: Theme.of(context).colorScheme.primary),
                   title: Text(video.path.split('/').last,
                       maxLines: 1, overflow: TextOverflow.ellipsis),
                   trailing: IconButton(
@@ -698,6 +746,8 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                       onPressed: () => setState(() => videos.remove(video))),
                 )),
           ],
+          if (preparingVideo)
+            MediaPreparationIndicator(progress: videoPreparationProgress),
         ]),
       );
 
@@ -760,19 +810,21 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
           Container(
             padding: const EdgeInsets.all(15),
             decoration: BoxDecoration(
-                color: AppColors.primaryLight,
+                color: Theme.of(context).colorScheme.primaryContainer,
                 borderRadius: BorderRadius.circular(16)),
-            child: const Row(
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(Icons.verified_user_outlined,
-                    color: AppColors.primary, size: 21),
-                SizedBox(width: 10),
+                    color: Theme.of(context).colorScheme.primary, size: 21),
+                const SizedBox(width: 10),
                 Expanded(
                     child: Text(
                         'By publishing, you confirm that the property details and photos are accurate.',
                         style: TextStyle(
-                            color: AppColors.primaryDark,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onPrimaryContainer,
                             fontSize: 12,
                             height: 1.4))),
               ],
@@ -795,14 +847,14 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
           if (step > 0) ...[
             Expanded(
                 child: OutlinedButton(
-                    onPressed: submitting ? null : previous,
+                    onPressed: submitting || preparingVideo ? null : previous,
                     child: const Text('Back'))),
             const SizedBox(width: 12),
           ],
           Expanded(
             flex: step > 0 ? 1 : 2,
             child: ElevatedButton(
-              onPressed: submitting ? null : next,
+              onPressed: submitting || preparingVideo ? null : next,
               child: submitting
                   ? Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                       const SizedBox(
@@ -811,7 +863,8 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                           child: CircularProgressIndicator(
                               color: Colors.white, strokeWidth: 2)),
                       const SizedBox(width: 10),
-                      Text('Uploading ${(uploadProgress * 100).round()}%'),
+                      Text(
+                          'Uploading media ${(uploadProgress * 100).round()}%'),
                     ])
                   : Text(step == 3 ? 'Publish listing' : 'Continue'),
             ),
@@ -840,7 +893,7 @@ class _VideoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(children: [
-        Icon(icon, color: AppColors.primary),
+        Icon(icon, color: Theme.of(context).colorScheme.primary),
         const SizedBox(width: 11),
         Expanded(
             child:
@@ -877,8 +930,9 @@ class _Progress extends StatelessWidget {
                     height: 4,
                     margin: EdgeInsets.only(right: index == 3 ? 0 : 7),
                     decoration: BoxDecoration(
-                      color:
-                          index <= step ? AppColors.primary : AppColors.divider,
+                      color: index <= step
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.outlineVariant,
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -921,7 +975,8 @@ class _PhotoPicker extends StatelessWidget {
             ? Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(icon, color: AppColors.primary, size: 38),
+                  Icon(icon,
+                      color: Theme.of(context).colorScheme.primary, size: 38),
                   const SizedBox(height: 12),
                   Text(title,
                       style: const TextStyle(
@@ -929,9 +984,9 @@ class _PhotoPicker extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
                   const SizedBox(height: 12),
-                  const Text('Choose photo',
+                  Text('Choose photo',
                       style: TextStyle(
-                          color: AppColors.primary,
+                          color: Theme.of(context).colorScheme.primary,
                           fontWeight: FontWeight.w700)),
                 ],
               )

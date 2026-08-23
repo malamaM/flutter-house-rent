@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:house_rent/navigation/haven_page_route.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/services/app_cache.dart';
+import 'package:house_rent/services/app_feedback.dart';
 import 'package:house_rent/services/current_location_service.dart';
 import 'package:house_rent/services/recommendation_service.dart';
 import 'package:house_rent/services/cached_map_tile_provider.dart';
@@ -40,6 +42,7 @@ class _ExploreState extends State<Explore> {
   bool _centeredOnUser = false;
   List<_AreaOption> _areaOptions = const [];
   Set<int> _preferredAreaIds = const {};
+  Object? _resultsError;
 
   @override
   void initState() {
@@ -187,7 +190,12 @@ class _ExploreState extends State<Explore> {
     if (_loadingMore && !reset) return;
     final generation = reset ? ++_requestGeneration : _requestGeneration;
     final requestedPage = reset ? 1 : _page + 1;
-    if (showLoading && mounted) setState(() => loading = true);
+    if (showLoading && mounted) {
+      setState(() {
+        loading = true;
+        _resultsError = null;
+      });
+    }
     if (!reset && mounted) setState(() => _loadingMore = true);
     try {
       final result = await House.fetchHouses(filters: {
@@ -205,6 +213,7 @@ class _ExploreState extends State<Explore> {
         _hasMore = result.length == 20;
         loading = false;
         _loadingMore = false;
+        _resultsError = null;
       });
       if (panToResults && located.isNotEmpty) {
         _panToResults(located);
@@ -215,11 +224,12 @@ class _ExploreState extends State<Explore> {
         mapController.move(
             LatLng(located.first.latitude!, located.first.longitude!), 12.5);
       }
-    } catch (_) {
+    } catch (error) {
       if (mounted && generation == _requestGeneration) {
         setState(() {
           loading = false;
           _loadingMore = false;
+          _resultsError = error;
         });
       }
     }
@@ -268,7 +278,7 @@ class _ExploreState extends State<Explore> {
   Future<void> _openFilters() async {
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => FilterScreen(initialFilters: filters)),
+      HavenPageRoute(builder: (_) => FilterScreen(initialFilters: filters)),
     );
     if (result is Map<String, String>) {
       _searchController.text = result['keyword'] ?? '';
@@ -511,7 +521,12 @@ class _ExploreState extends State<Explore> {
             houses: houses,
             loading: loading,
             loadingMore: _loadingMore,
+            errorMessage: _resultsError == null
+                ? null
+                : AppFeedback.messageFor(_resultsError!,
+                    fallback: 'Haven could not load homes for this map area.'),
             hasFilters: filters.isNotEmpty,
+            onRetry: () => _fetch(panToResults: true),
             onLoadMore: _loadMore,
             onOpen: (house) => Navigator.push(context, Details.route(house)),
           ),
@@ -673,8 +688,10 @@ class _ResultsSheet extends StatelessWidget {
   final List<House> houses;
   final bool loading;
   final bool loadingMore;
+  final String? errorMessage;
   final bool hasFilters;
   final VoidCallback onLoadMore;
+  final VoidCallback onRetry;
   final ValueChanged<House> onOpen;
 
   const _ResultsSheet({
@@ -682,8 +699,10 @@ class _ResultsSheet extends StatelessWidget {
     required this.houses,
     required this.loading,
     required this.loadingMore,
+    required this.errorMessage,
     required this.hasFilters,
     required this.onLoadMore,
+    required this.onRetry,
     required this.onOpen,
   });
 
@@ -745,11 +764,46 @@ class _ResultsSheet extends StatelessWidget {
                     const SliverFillRemaining(
                       child: Center(child: CircularProgressIndicator()),
                     )
+                  else if (errorMessage != null && houses.isEmpty)
+                    SliverFillRemaining(
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child:
+                              Column(mainAxisSize: MainAxisSize.min, children: [
+                            const Icon(Icons.cloud_off_outlined, size: 32),
+                            const SizedBox(height: 10),
+                            Text(errorMessage!, textAlign: TextAlign.center),
+                            const SizedBox(height: 10),
+                            TextButton(
+                                onPressed: onRetry,
+                                child: const Text('Try again')),
+                          ]),
+                        ),
+                      ),
+                    )
                   else if (houses.isEmpty)
                     const SliverFillRemaining(
                       child: Center(child: Text('No homes found in this area')),
                     )
-                  else
+                  else ...[
+                    if (errorMessage != null)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                          child: Material(
+                            color: Theme.of(context).colorScheme.errorContainer,
+                            borderRadius: BorderRadius.circular(12),
+                            child: ListTile(
+                              dense: true,
+                              title: Text(errorMessage!),
+                              trailing: TextButton(
+                                  onPressed: onRetry,
+                                  child: const Text('Retry')),
+                            ),
+                          ),
+                        ),
+                      ),
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                       sliver: SliverList(
@@ -777,6 +831,7 @@ class _ResultsSheet extends StatelessWidget {
                         ),
                       ),
                     ),
+                  ],
                 ],
               ),
             ),

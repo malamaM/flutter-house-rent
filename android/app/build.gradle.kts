@@ -12,12 +12,12 @@ android {
     ndkVersion = "27.0.12077973"
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
     defaultConfig {
@@ -42,4 +42,14 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Media3 Transformer delegates encode/decode work to Android MediaCodec,
+    // preferring the device's hardware codecs while keeping a stable API.
+    // Keep all Media3 modules aligned with the version used by this app.
+    val media3Version = "1.7.1"
+    implementation("androidx.media3:media3-transformer:$media3Version")
+    implementation("androidx.media3:media3-effect:$media3Version")
+    implementation("androidx.media3:media3-common:$media3Version")
 }

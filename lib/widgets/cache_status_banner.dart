@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
-import 'package:house_rent/theme/app_colors.dart';
 
 class CacheStatusBanner extends StatelessWidget {
   final String? resource;
@@ -23,19 +22,19 @@ class CacheStatusBanner extends StatelessWidget {
           margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
           decoration: BoxDecoration(
-            color: AppColors.primaryLight,
+            color: Theme.of(context).colorScheme.primaryContainer,
             borderRadius: BorderRadius.circular(14),
           ),
           child: Row(
             children: [
-              const Icon(Icons.cloud_off_outlined,
-                  color: AppColors.primary, size: 19),
+              Icon(Icons.cloud_off_outlined,
+                  color: Theme.of(context).colorScheme.primary, size: 19),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   'Connection unavailable. Showing saved results${_age(state.updatedAt)}.',
-                  style: const TextStyle(
-                    color: AppColors.primaryDark,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),

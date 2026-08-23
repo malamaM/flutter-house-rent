@@ -7,6 +7,7 @@ import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/models/recommendation.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/services/app_cache.dart';
+import 'package:house_rent/services/api_error.dart';
 import 'package:house_rent/services/offline_sync_service.dart';
 import 'package:house_rent/services/network_status_service.dart';
 import 'package:http/http.dart' as http;
@@ -40,24 +41,14 @@ class RecommendationService with WidgetsBindingObserver {
   }
 
   Future<int> pendingEventCount() async =>
-      (await SharedPreferences.getInstance()).getStringList(_queueKey)?.length ??
+      (await SharedPreferences.getInstance())
+          .getStringList(_queueKey)
+          ?.length ??
       0;
 
-  String _errorMessage(http.Response response, String fallback) {
-    try {
-      final body = jsonDecode(response.body);
-      if (body is Map && body['message'] is String) {
-        return body['message'] as String;
-      }
-      if (body is Map && body['errors'] is Map) {
-        final errors = body['errors'] as Map;
-        final first = errors.values.isEmpty ? null : errors.values.first;
-        if (first is List && first.isNotEmpty) return '${first.first}';
-      }
-    } catch (_) {
-      // A non-JSON error page should never leak into the user-facing message.
-    }
-    return fallback;
+  String _errorMessage(http.Response response, String operation) {
+    return ApiErrorResolver.responseDetail(response.body) ??
+        ApiErrorResolver.statusMessage(response.statusCode, operation);
   }
 
   Future<String?> _token() async =>
@@ -90,7 +81,7 @@ class RecommendationService with WidgetsBindingObserver {
           .get(Uri.parse('${ApiConfig.apiBase}/recommendation-options'))
           .timeout(const Duration(seconds: 12));
       if (response.statusCode != 200) {
-        throw Exception(_errorMessage(response, 'Could not load locations'));
+        throw Exception(_errorMessage(response, 'load locations'));
       }
       final value = Map<String, dynamic>.from(jsonDecode(response.body));
       await AppCache.instance.write(key, value,
@@ -144,8 +135,7 @@ class RecommendationService with WidgetsBindingObserver {
       await OfflineSyncService.instance.queueRecommendationProfile(payload);
     }
     if (response != null && response.statusCode != 200) {
-      throw Exception(
-          _errorMessage(response, 'Could not save your rental preferences'));
+      throw Exception(_errorMessage(response, 'save your rental preferences'));
     }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('recommendation_profile_complete', true);
@@ -213,7 +203,8 @@ class RecommendationService with WidgetsBindingObserver {
       headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
     ).timeout(const Duration(seconds: 10));
     if (response.statusCode != 200) {
-      throw Exception('Could not load recommendation history');
+      throw HavenApiException.fromResponse(response,
+          operation: 'load your recommendation history');
     }
     return Map<String, dynamic>.from(jsonDecode(response.body));
   }
@@ -226,7 +217,8 @@ class RecommendationService with WidgetsBindingObserver {
       headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
     ).timeout(const Duration(seconds: 10));
     if (response.statusCode != 200) {
-      throw Exception('Could not reset recommendation history');
+      throw HavenApiException.fromResponse(response,
+          operation: 'reset your recommendation history');
     }
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_queueKey);

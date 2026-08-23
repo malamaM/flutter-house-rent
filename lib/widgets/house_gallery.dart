@@ -1,7 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:house_rent/config/api_config.dart';
+import 'package:house_rent/navigation/haven_page_route.dart';
 import 'package:house_rent/services/app_data_service.dart';
-import 'package:house_rent/theme/app_colors.dart';
 
 class HouseGallery extends StatefulWidget {
   final int houseId;
@@ -32,7 +33,7 @@ class _HouseGalleryState extends State<HouseGallery> {
             child: Container(
               height: 112,
               decoration: BoxDecoration(
-                color: AppColors.surfaceContainer,
+                color: Theme.of(context).colorScheme.surfaceContainer,
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
@@ -71,7 +72,7 @@ class _HouseGalleryState extends State<HouseGallery> {
                 itemBuilder: (context, index) => GestureDetector(
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(
+                    HavenPageRoute(
                       builder: (_) => FullScreenGallery(
                         images: items,
                         initialIndex: index,
@@ -81,16 +82,22 @@ class _HouseGalleryState extends State<HouseGallery> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(14),
                     child: CachedNetworkImage(
-                      imageUrl: items[index].thumbnailUrl,
+                      imageUrl: ApiConfig.optimizedImageUrl(
+                        items[index].thumbnailUrl,
+                        width: 520,
+                        height: 400,
+                        quality: 74,
+                      ),
                       memCacheWidth: 520,
                       width: 148,
                       height: 112,
                       fit: BoxFit.cover,
-                      placeholder: (_, __) =>
-                          Container(color: AppColors.surfaceContainer),
+                      placeholder: (_, __) => Container(
+                          color:
+                              Theme.of(context).colorScheme.surfaceContainer),
                       errorWidget: (_, __, ___) => Container(
                         width: 148,
-                        color: AppColors.surfaceContainer,
+                        color: Theme.of(context).colorScheme.surfaceContainer,
                         child: const Icon(Icons.broken_image_outlined),
                       ),
                     ),
@@ -157,7 +164,12 @@ class _FullScreenGalleryState extends State<FullScreenGallery> {
               maxScale: 4,
               child: Center(
                 child: CachedNetworkImage(
-                  imageUrl: widget.images[page].url,
+                  imageUrl: ApiConfig.optimizedImageUrl(
+                    widget.images[page].url,
+                    width: 1600,
+                    quality: 84,
+                    fit: 'contain',
+                  ),
                   memCacheWidth: 1440,
                   fit: BoxFit.contain,
                   placeholder: (_, __) => const CircularProgressIndicator(),

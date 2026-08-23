@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/screens/details/details.dart';
 import 'package:house_rent/services/app_data_service.dart';
@@ -18,7 +21,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
 
 class ReelsScreen extends StatefulWidget {
-  const ReelsScreen({Key? key}) : super(key: key);
+  const ReelsScreen({
+    Key? key,
+    this.onInteraction,
+    this.onBackdropLuminance,
+  }) : super(key: key);
+
+  final VoidCallback? onInteraction;
+  final ValueChanged<double>? onBackdropLuminance;
 
   @override
   State<ReelsScreen> createState() => _ReelsScreenState();
@@ -36,6 +46,8 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
   bool _tabActive = false;
   DateTime _shownAt = DateTime.now();
   int _loadGeneration = 0;
+  int _backdropGeneration = 0;
+  final Map<String, double> _backdropLuminanceCache = {};
 
   @override
   void initState() {
@@ -69,7 +81,7 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final active = TickerMode.of(context);
+    final active = TickerMode.valuesOf(context).enabled;
     if (_tabActive == active) return;
     _tabActive = active;
     if (active && !muted) {
@@ -226,6 +238,92 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
     if (value >= houses.length - 8) _loadMore();
   }
 
+  Future<void> _adaptNavigationTo(String sourceUrl) async {
+    if (sourceUrl.isEmpty || widget.onBackdropLuminance == null) return;
+    final generation = ++_backdropGeneration;
+    final cached = _backdropLuminanceCache[sourceUrl];
+    if (cached != null) {
+      widget.onBackdropLuminance?.call(cached);
+      return;
+    }
+
+    try {
+      final sampleUrl = ApiConfig.optimizedImageUrl(
+        sourceUrl,
+        width: 64,
+        height: 112,
+        quality: 45,
+      );
+      final provider = ResizeImage(
+        CachedNetworkImageProvider(sampleUrl),
+        width: 64,
+        height: 112,
+        policy: ResizeImagePolicy.fit,
+      );
+      final image = await _resolveImage(provider);
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      if (bytes == null || !mounted || generation != _backdropGeneration) {
+        return;
+      }
+
+      // Sample the lower portion because that is what actually sits behind the
+      // navigation material. Variance slightly strengthens the bar for busy
+      // imagery where raw average brightness alone is misleading.
+      final startY = (image.height * .62).floor();
+      var count = 0;
+      var sum = 0.0;
+      var squaredSum = 0.0;
+      for (var y = startY; y < image.height; y++) {
+        for (var x = 0; x < image.width; x++) {
+          final offset = (y * image.width + x) * 4;
+          final red = bytes.getUint8(offset) / 255;
+          final green = bytes.getUint8(offset + 1) / 255;
+          final blue = bytes.getUint8(offset + 2) / 255;
+          final luminance = (.2126 * red) + (.7152 * green) + (.0722 * blue);
+          sum += luminance;
+          squaredSum += luminance * luminance;
+          count++;
+        }
+      }
+      if (count == 0) return;
+      final mean = sum / count;
+      final variance = math.max(0, (squaredSum / count) - (mean * mean));
+      final exposure = (mean + math.sqrt(variance) * .32).clamp(0.0, 1.0);
+      _backdropLuminanceCache[sourceUrl] = exposure;
+      if (mounted && generation == _backdropGeneration) {
+        widget.onBackdropLuminance?.call(exposure);
+      }
+    } catch (_) {
+      // Keep the previous material strength when a poster is unavailable or
+      // the device is offline. This is a visual enhancement, never a blocker.
+    }
+  }
+
+  Future<ui.Image> _resolveImage(ImageProvider provider) async {
+    final completer = Completer<ui.Image>();
+    final stream = provider.resolve(const ImageConfiguration(
+      size: Size(64, 112),
+      devicePixelRatio: 1,
+    ));
+    late ImageStreamListener listener;
+    listener = ImageStreamListener(
+      (info, _) {
+        stream.removeListener(listener);
+        if (!completer.isCompleted) completer.complete(info.image);
+      },
+      onError: (Object error, StackTrace? stackTrace) {
+        stream.removeListener(listener);
+        if (!completer.isCompleted) completer.completeError(error, stackTrace);
+      },
+    );
+    stream.addListener(listener);
+    try {
+      return await completer.future.timeout(const Duration(seconds: 8));
+    } finally {
+      stream.removeListener(listener);
+    }
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && !muted) {
@@ -246,68 +344,75 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      extendBody: true,
-      body: loading
-          ? const Center(child: CircularProgressIndicator(color: Colors.white))
-          : houses.isEmpty
-              ? const Center(
-                  child: ScreenState(
-                      icon: Icons.slideshow_rounded,
-                      title: 'Fresh tours coming soon',
-                      message: 'New rental stories will appear here.'))
-              : Stack(children: [
-                  PageView.builder(
-                    controller: _pageController,
-                    key: const PageStorageKey('tours-pages'),
-                    scrollDirection: Axis.vertical,
-                    allowImplicitScrolling: true,
-                    itemCount: houses.length,
-                    findChildIndexCallback: (key) {
-                      if (key is! ValueKey<int>) return null;
-                      final index =
-                          houses.indexWhere((house) => house.id == key.value);
-                      return index < 0 ? null : index;
-                    },
-                    onPageChanged: _changedPage,
-                    itemBuilder: (context, index) => RepaintBoundary(
-                      key: ValueKey<int>(houses[index].id),
-                      child: _ReelCard(
-                        house: houses[index],
-                        active: index == activeIndex,
-                        muted: muted,
-                        onSignal: (event, weight) =>
-                            _learn(houses[index], event, weight),
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (_) => widget.onInteraction?.call(),
+      onPointerMove: (_) => widget.onInteraction?.call(),
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        extendBody: true,
+        body: loading
+            ? const Center(
+                child: CircularProgressIndicator(color: Colors.white))
+            : houses.isEmpty
+                ? const Center(
+                    child: ScreenState(
+                        icon: Icons.slideshow_rounded,
+                        title: 'Fresh tours coming soon',
+                        message: 'New rental stories will appear here.'))
+                : Stack(children: [
+                    PageView.builder(
+                      controller: _pageController,
+                      key: const PageStorageKey('tours-pages'),
+                      scrollDirection: Axis.vertical,
+                      allowImplicitScrolling: true,
+                      itemCount: houses.length,
+                      findChildIndexCallback: (key) {
+                        if (key is! ValueKey<int>) return null;
+                        final index =
+                            houses.indexWhere((house) => house.id == key.value);
+                        return index < 0 ? null : index;
+                      },
+                      onPageChanged: _changedPage,
+                      itemBuilder: (context, index) => RepaintBoundary(
+                        key: ValueKey<int>(houses[index].id),
+                        child: _ReelCard(
+                          house: houses[index],
+                          active: index == activeIndex,
+                          muted: muted,
+                          onSignal: (event, weight) =>
+                              _learn(houses[index], event, weight),
+                          onBackdropChanged: _adaptNavigationTo,
+                        ),
                       ),
                     ),
-                  ),
-                  SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 12, 16, 0),
-                      child: Row(children: [
-                        const Expanded(
-                            child: Text('Haven Tours',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 21,
-                                    fontWeight: FontWeight.w800))),
-                        Material(
-                          color: Colors.black45,
-                          shape: const CircleBorder(),
-                          child: IconButton(
-                              onPressed: _toggleAudio,
-                              tooltip: muted ? 'Play music' : 'Mute music',
-                              icon: Icon(
-                                  muted
-                                      ? Icons.volume_off_rounded
-                                      : Icons.graphic_eq_rounded,
-                                  color: Colors.white)),
-                        ),
-                      ]),
+                    SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 12, 16, 0),
+                        child: Row(children: [
+                          const Expanded(
+                              child: Text('Haven Tours',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 21,
+                                      fontWeight: FontWeight.w800))),
+                          Material(
+                            color: Colors.black45,
+                            shape: const CircleBorder(),
+                            child: IconButton(
+                                onPressed: _toggleAudio,
+                                tooltip: muted ? 'Play music' : 'Mute music',
+                                icon: Icon(
+                                    muted
+                                        ? Icons.volume_off_rounded
+                                        : Icons.graphic_eq_rounded,
+                                    color: Colors.white)),
+                          ),
+                        ]),
+                      ),
                     ),
-                  ),
-                ]),
+                  ]),
+      ),
     );
   }
 }
@@ -317,11 +422,13 @@ class _ReelCard extends StatefulWidget {
   final bool active;
   final bool muted;
   final void Function(String event, double weight) onSignal;
+  final ValueChanged<String> onBackdropChanged;
   const _ReelCard({
     required this.house,
     required this.active,
     required this.muted,
     required this.onSignal,
+    required this.onBackdropChanged,
   });
 
   @override
@@ -343,6 +450,8 @@ class _ReelCardState extends State<_ReelCard> {
     AppCache.instance.refreshes.addListener(_syncSavedState);
     assets = _loadAssets();
     _schedule();
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _announceCurrentBackdrop());
   }
 
   void _syncSavedState() {
@@ -383,8 +492,27 @@ class _ReelCardState extends State<_ReelCard> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.active != widget.active) {
       _schedule();
-      if (widget.active) _precacheNextImage();
+      if (widget.active) {
+        _precacheNextImage();
+        _announceCurrentBackdrop();
+      }
     }
+  }
+
+  Future<void> _announceCurrentBackdrop() async {
+    final list = await assets;
+    if (!mounted || !widget.active || list.isEmpty) return;
+    final index = photoIndex.clamp(0, list.length - 1);
+    _announceBackdrop(list[index]);
+  }
+
+  void _announceBackdrop(_TourAsset asset) {
+    final source = asset.isVideo
+        ? (asset.posterUrl?.isNotEmpty == true
+            ? asset.posterUrl!
+            : widget.house.imageUrl)
+        : asset.url;
+    if (source.isNotEmpty) widget.onBackdropChanged(source);
   }
 
   Future<void> _precacheNextImage() async {
@@ -446,6 +574,9 @@ class _ReelCardState extends State<_ReelCard> {
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
       ));
+    } else if (result.errorMessage != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(result.errorMessage!)));
     }
   }
 
@@ -518,6 +649,7 @@ class _ReelCardState extends State<_ReelCard> {
               autoAdvancePausedUntil =
                   DateTime.now().add(const Duration(seconds: 12));
               setState(() => photoIndex = value);
+              _announceBackdrop(items[value]);
               _precacheNextImage();
               widget.onSignal('media_swipe', .35);
             },
@@ -533,7 +665,12 @@ class _ReelCardState extends State<_ReelCard> {
                     posterUrl: item.posterUrl);
               }
               return CachedNetworkImage(
-                  imageUrl: item.url,
+                  imageUrl: ApiConfig.optimizedImageUrl(
+                    item.url,
+                    width: 1080,
+                    height: 1920,
+                    quality: 80,
+                  ),
                   memCacheWidth: 1080,
                   fit: BoxFit.cover,
                   placeholder: (_, __) =>
@@ -753,7 +890,12 @@ class _TourVideoState extends State<_TourVideo> {
       return Stack(fit: StackFit.expand, children: [
         if (widget.posterUrl != null && widget.posterUrl!.isNotEmpty)
           CachedNetworkImage(
-              imageUrl: widget.posterUrl!,
+              imageUrl: ApiConfig.optimizedImageUrl(
+                widget.posterUrl!,
+                width: 1080,
+                height: 1920,
+                quality: 78,
+              ),
               fit: BoxFit.cover,
               memCacheWidth: 1080),
         const ColoredBox(color: Color(0x4418211C)),

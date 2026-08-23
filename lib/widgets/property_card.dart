@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
+import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/demand_badge.dart';
 import 'package:house_rent/widgets/lister_trust_badges.dart';
@@ -19,6 +20,13 @@ String formatPropertyPrice(House house) {
     (_) => ',',
   );
   return 'K$formatted / month';
+}
+
+double propertyCardCarouselHeight(BuildContext context) {
+  final scaledBody = MediaQuery.textScalerOf(context).scale(14);
+  final scale = scaledBody / 14;
+  final accessibilityGrowth = (scale - 1).clamp(0.0, 1.0).toDouble();
+  return 355 + (accessibilityGrowth * 40);
 }
 
 class PropertyCard extends StatefulWidget {
@@ -107,6 +115,9 @@ class _PropertyCardState extends State<PropertyCard> {
       _showSavedBanner(result.isSaved);
     } else if (result.queued) {
       _showQueuedBanner(result.isSaved);
+    } else if (result.errorMessage != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(result.errorMessage!)));
     }
   }
 
@@ -142,12 +153,19 @@ class _PropertyCardState extends State<PropertyCard> {
         fit: StackFit.expand,
         children: [
           CachedNetworkImage(
-            imageUrl: widget.house.thumbnailUrl,
+            imageUrl: ApiConfig.optimizedImageUrl(
+              widget.house.thumbnailUrl,
+              width: pixelWidth.clamp(320, 1200),
+              height: (height * MediaQuery.devicePixelRatioOf(context))
+                  .round()
+                  .clamp(180, 1000),
+              quality: 76,
+            ),
             memCacheWidth: pixelWidth.clamp(320, 1200),
             fit: BoxFit.cover,
             fadeInDuration: const Duration(milliseconds: 180),
             placeholder: (_, __) => Container(
-              color: AppColors.surfaceContainer,
+              color: Theme.of(context).colorScheme.surfaceContainer,
               alignment: Alignment.center,
               child: const SizedBox(
                 width: 20,
@@ -228,13 +246,16 @@ class _PropertyCardState extends State<PropertyCard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(
-                height: 176,
-                width: double.infinity,
-                child: _image(
-                  width: 278,
+              Flexible(
+                child: SizedBox(
                   height: 176,
-                  radius: const BorderRadius.vertical(top: Radius.circular(21)),
+                  width: double.infinity,
+                  child: _image(
+                    width: 278,
+                    height: 176,
+                    radius:
+                        const BorderRadius.vertical(top: Radius.circular(21)),
+                  ),
                 ),
               ),
               Padding(
@@ -255,86 +276,97 @@ class _PropertyCardState extends State<PropertyCard> {
       child: InkWell(
         onTap: widget.onTap,
         borderRadius: BorderRadius.circular(18),
-        child: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            border: Border.all(color: _cardBorder(context), width: .8),
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: AppColors.premiumShadow,
-          ),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 172,
-                height: 156,
-                child: _image(
-                  width: 172,
-                  height: 156,
-                  radius: BorderRadius.circular(14),
-                ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final availableWidth =
+                constraints.maxWidth.isFinite ? constraints.maxWidth : 380.0;
+            final narrow = availableWidth < 340;
+            final imageWidth = narrow
+                ? (availableWidth * .44).clamp(118.0, 150.0).toDouble()
+                : 172.0;
+            return Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                border: Border.all(color: _cardBorder(context), width: .8),
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: AppColors.premiumShadow,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _PropertyCopy(house: widget.house, compact: true),
-                    if (widget.onSecondaryAction != null) ...[
-                      const SizedBox(height: 8),
-                      Material(
-                        color: Theme.of(context).colorScheme.primary,
-                        borderRadius: BorderRadius.circular(10),
-                        child: InkWell(
-                          onTap: widget.onSecondaryAction,
-                          borderRadius: BorderRadius.circular(10),
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 7),
-                            decoration: BoxDecoration(
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: imageWidth,
+                    height: 156,
+                    child: _image(
+                      width: imageWidth,
+                      height: 156,
+                      radius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  SizedBox(width: narrow ? 10 : 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _PropertyCopy(house: widget.house, compact: true),
+                        if (widget.onSecondaryAction != null) ...[
+                          const SizedBox(height: 8),
+                          Material(
+                            color: Theme.of(context).colorScheme.primary,
+                            borderRadius: BorderRadius.circular(10),
+                            child: InkWell(
+                              onTap: widget.onSecondaryAction,
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onPrimary
-                                    .withValues(alpha: .2),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.edit_outlined,
-                                    size: 15,
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 7),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
                                     color: Theme.of(context)
                                         .colorScheme
-                                        .onPrimary),
-                                const SizedBox(width: 6),
-                                Flexible(
-                                  child: Text(
-                                    widget.secondaryLabel ?? 'Manage listing',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onPrimary,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w800,
-                                    ),
+                                        .onPrimary
+                                        .withValues(alpha: .2),
                                   ),
                                 ),
-                              ],
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.edit_outlined,
+                                        size: 15,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onPrimary),
+                                    const SizedBox(width: 6),
+                                    Flexible(
+                                      child: Text(
+                                        widget.secondaryLabel ??
+                                            'Manage listing',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onPrimary,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
@@ -391,17 +423,16 @@ class _PropertyCopy extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 10),
-        Row(
+        Wrap(
+          spacing: 12,
+          runSpacing: 6,
           children: [
             _MiniFact(icon: Icons.bed_outlined, value: '${house.bedrooms}'),
-            const SizedBox(width: 12),
             _MiniFact(
                 icon: Icons.bathtub_outlined, value: '${house.bathrooms}'),
-            if (!compact) ...[
-              const SizedBox(width: 12),
+            if (!compact)
               _MiniFact(
                   icon: Icons.square_foot_outlined, value: '${house.size} m²'),
-            ],
           ],
         ),
         const SizedBox(height: 11),
@@ -429,6 +460,7 @@ class _MiniFact extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon,
             size: 15, color: Theme.of(context).colorScheme.onSurfaceVariant),

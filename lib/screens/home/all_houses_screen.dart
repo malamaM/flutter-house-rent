@@ -4,6 +4,7 @@ import 'package:house_rent/screens/details/details.dart';
 import 'package:house_rent/widgets/property_card.dart';
 import 'package:house_rent/widgets/screen_state.dart';
 import 'package:house_rent/services/session_recommendation.dart';
+import 'package:house_rent/services/app_feedback.dart';
 
 class AllHousesScreen extends StatefulWidget {
   final String title;
@@ -67,8 +68,8 @@ class _AllHousesScreenState extends State<AllHousesScreen> {
             return ScreenState(
               icon: Icons.cloud_off_outlined,
               title: 'We could not load these homes',
-              message:
-                  'Check that the property service is available, then try again.',
+              message: AppFeedback.messageFor(snapshot.error!,
+                  fallback: 'Haven could not load this collection of homes.'),
               actionLabel: 'Try again',
               onAction: () => setState(() {
                 _reload(forceRefresh: true);

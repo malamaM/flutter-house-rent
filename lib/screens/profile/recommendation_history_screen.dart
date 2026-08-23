@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:house_rent/navigation/haven_page_route.dart';
 import 'package:house_rent/screens/onboarding/rental_preferences_screen.dart';
 import 'package:house_rent/services/app_feedback.dart';
 import 'package:house_rent/services/recommendation_service.dart';
 import 'package:house_rent/services/session_recommendation.dart';
+import 'package:house_rent/widgets/haven_navigation_bar.dart';
 
 String _budgetLabel(Map<String, dynamic> profile) {
   final minimum = int.tryParse('${profile['min_monthly_price']}') ?? 0;
@@ -57,8 +59,7 @@ class _RecommendationHistoryScreenState
     }
     final changed = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(
-        fullscreenDialog: true,
+      HavenPageRoute(
         builder: (_) => RentalPreferencesScreen(
           allowCancel: true,
           editExisting: !newSearch,
@@ -101,7 +102,7 @@ class _RecommendationHistoryScreenState
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Your home search')),
+        appBar: const HavenNavigationBar(title: 'Your home search'),
         body: FutureBuilder<Map<String, dynamic>>(
           future: data,
           builder: (context, snapshot) {

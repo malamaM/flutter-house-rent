@@ -46,4 +46,36 @@ class ApiConfig {
     }
     return '$storageBase/${value.replaceFirst(RegExp(r'^/+'), '')}';
   }
+
+  /// Requests a server-cached image sized for the exact UI surface instead of
+  /// downloading the original camera file. External images are left untouched.
+  static String optimizedImageUrl(
+    Object? path, {
+    required int width,
+    int? height,
+    int quality = 78,
+    String fit = 'cover',
+    String format = 'webp',
+  }) {
+    final resolved = storageUrl(path);
+    final uri = Uri.tryParse(resolved);
+    final storageOrigin = Uri.tryParse(origin);
+    if (uri == null ||
+        storageOrigin == null ||
+        uri.scheme != storageOrigin.scheme ||
+        uri.host != storageOrigin.host ||
+        uri.port != storageOrigin.port ||
+        !uri.path.startsWith('/storage/')) {
+      return resolved;
+    }
+    final sourcePath = uri.path.substring('/storage/'.length);
+    return Uri.parse('$apiBase/assets/image').replace(queryParameters: {
+      'path': sourcePath,
+      'w': width.clamp(64, 2400).toString(),
+      if (height != null) 'h': height.clamp(64, 2400).toString(),
+      'fit': fit,
+      'format': format,
+      'q': quality.clamp(45, 90).toString(),
+    }).toString();
+  }
 }

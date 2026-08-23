@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/services/app_cache.dart';
+import 'package:house_rent/services/app_feedback.dart';
 import 'package:house_rent/screens/details/details.dart';
 import 'package:house_rent/widgets/property_card.dart';
 import 'package:house_rent/widgets/screen_state.dart';
@@ -87,9 +88,10 @@ class _SavedHousesScreenState extends State<SavedHousesScreen> {
               if (snapshot.hasError) {
                 return ScreenState(
                   icon: Icons.cloud_off_rounded,
-                  title: 'Saved homes are unavailable offline',
-                  message:
-                      'Connect once to prepare your shortlist for offline use.',
+                  title: 'Saved homes could not be loaded',
+                  message: AppFeedback.messageFor(snapshot.error!,
+                      fallback:
+                          'Connect once to prepare your shortlist for offline use.'),
                   actionLabel: 'Try again',
                   onAction: () => setState(() {
                     _reload(forceRefresh: true);

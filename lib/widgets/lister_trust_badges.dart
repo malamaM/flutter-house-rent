@@ -93,15 +93,21 @@ class _TrustBadge extends StatelessWidget {
             horizontal: compact ? 8 : 10, vertical: compact ? 5 : 7),
         decoration: BoxDecoration(
             color: background, borderRadius: BorderRadius.circular(20)),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, color: color, size: compact ? 14 : 16),
-          const SizedBox(width: 5),
-          Text(label,
-              style: TextStyle(
-                  color: color,
-                  fontSize: compact ? 10 : 11,
-                  fontWeight: FontWeight.w800)),
-        ]),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, color: color, size: compact ? 14 : 16),
+            const SizedBox(width: 5),
+            Text(label,
+                maxLines: 1,
+                softWrap: false,
+                style: TextStyle(
+                    color: color,
+                    fontSize: compact ? 10 : 11,
+                    fontWeight: FontWeight.w800)),
+          ]),
+        ),
       ),
     );
   }

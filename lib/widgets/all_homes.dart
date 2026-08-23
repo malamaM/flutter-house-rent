@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
+import 'package:house_rent/navigation/haven_page_route.dart';
 import 'package:house_rent/screens/details/details.dart';
 import 'package:house_rent/screens/home/all_houses_screen.dart';
-import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/property_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:house_rent/services/session_recommendation.dart';
+import 'package:house_rent/services/app_feedback.dart';
 
 class AllHomes extends StatefulWidget {
   final Map<String, String> filters;
@@ -27,6 +28,7 @@ class _AllHomesState extends State<AllHomes> {
   bool loadingMore = false;
   bool hasMore = true;
   bool loadFailed = false;
+  Object? loadError;
 
   Map<String, String> get baseFilters => {...widget.filters, 'sort': sort};
 
@@ -66,6 +68,7 @@ class _AllHomesState extends State<AllHomes> {
         hasMore = homes.length == pageSize;
         loadingInitial = false;
         loadFailed = false;
+        loadError = null;
       });
     }
   }
@@ -107,12 +110,13 @@ class _AllHomesState extends State<AllHomes> {
         loadingMore = false;
         loadFailed = false;
       });
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       setState(() {
         loadingInitial = false;
         loadingMore = false;
         loadFailed = true;
+        loadError = error;
       });
     }
   }
@@ -130,8 +134,14 @@ class _AllHomesState extends State<AllHomes> {
         hasMore = result.length == pageSize;
         loadingMore = false;
       });
-    } catch (_) {
-      if (mounted) setState(() => loadingMore = false);
+    } catch (error) {
+      if (mounted) {
+        setState(() => loadingMore = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(AppFeedback.messageFor(error,
+              fallback: 'Haven could not load more homes.')),
+        ));
+      }
     }
   }
 
@@ -144,6 +154,7 @@ class _AllHomesState extends State<AllHomes> {
       hasMore = true;
       loadingInitial = true;
       loadFailed = false;
+      loadError = null;
     });
     SharedPreferences.getInstance()
         .then((prefs) => prefs.setString('all_homes_sort', value));
@@ -158,67 +169,73 @@ class _AllHomesState extends State<AllHomes> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Expanded(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Text('All homes',
-                    style: Theme.of(context).textTheme.headlineMedium),
-                if (homes.isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryLight,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text('${homes.length} loaded',
-                        style: const TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700)),
-                  ),
-                ],
-              ]),
-              const SizedBox(height: 3),
-              Text('Explore every available rental',
-                  style: Theme.of(context).textTheme.bodyMedium),
-            ]),
-          ),
-          PopupMenuButton<String>(
-            initialValue: sort,
-            onSelected: _setSort,
-            tooltip: 'Sort homes',
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'relevance', child: Text('Best match')),
-              PopupMenuItem(value: 'newest', child: Text('Newest first')),
-              PopupMenuItem(value: 'price_low', child: Text('Lowest price')),
-              PopupMenuItem(value: 'price_high', child: Text('Highest price')),
-            ],
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerLow,
-                border: Border.all(
-                    color: Theme.of(context).colorScheme.outlineVariant),
-                borderRadius: BorderRadius.circular(12),
+        Wrap(
+          spacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text('All homes',
+                style: Theme.of(context).textTheme.headlineMedium),
+            if (homes.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text('${homes.length} loaded',
+                    maxLines: 1,
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700)),
               ),
-              child: const Icon(Icons.sort_rounded,
-                  size: 19, color: AppColors.primary),
-            ),
+          ],
+        ),
+        const SizedBox(height: 3),
+        Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+          Expanded(
+            child: Text('Explore every available rental',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodyMedium),
           ),
+          const SizedBox(width: 8),
+          PopupMenuButton<String>(
+              initialValue: sort,
+              onSelected: _setSort,
+              tooltip: 'Sort homes',
+              itemBuilder: (_) => const [
+                    PopupMenuItem(
+                        value: 'relevance', child: Text('Best match')),
+                    PopupMenuItem(value: 'newest', child: Text('Newest first')),
+                    PopupMenuItem(
+                        value: 'price_low', child: Text('Lowest price')),
+                    PopupMenuItem(
+                        value: 'price_high', child: Text('Highest price')),
+                  ],
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerLow,
+                  border: Border.all(
+                      color: Theme.of(context).colorScheme.outlineVariant),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.sort_rounded,
+                    size: 19, color: Theme.of(context).colorScheme.primary),
+              )),
           const SizedBox(width: 3),
           TextButton(
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(
+              HavenPageRoute(
                 builder: (_) => AllHousesScreen(
-                    title: widget.filters['type'] == null
-                        ? 'All rental homes'
-                        : '${widget.filters['type']} rental homes',
-                    filters: baseFilters),
+                  title: widget.filters['type'] == null
+                      ? 'All rental homes'
+                      : '${widget.filters['type']} rental homes',
+                  filters: baseFilters,
+                ),
               ),
             ),
             child: const Text('View all'),
@@ -226,14 +243,18 @@ class _AllHomesState extends State<AllHomes> {
         ]),
         const SizedBox(height: 10),
         Row(children: [
-          const Icon(Icons.auto_awesome_rounded,
-              color: AppColors.primary, size: 14),
+          Icon(Icons.auto_awesome_rounded,
+              color: Theme.of(context).colorScheme.primary, size: 14),
           const SizedBox(width: 5),
-          Text('Showing $sortLabel',
-              style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600)),
+          Flexible(
+            child: Text('Showing $sortLabel',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600)),
+          ),
         ]),
         const SizedBox(height: 12),
         AnimatedSwitcher(
@@ -242,7 +263,12 @@ class _AllHomesState extends State<AllHomes> {
               ? const _LoadingHomes(key: ValueKey('loading'))
               : loadFailed
                   ? _LoadError(
-                      key: const ValueKey('error'), onRetry: _loadFirstPage)
+                      key: const ValueKey('error'),
+                      message: loadError == null
+                          ? 'Haven could not load these homes.'
+                          : AppFeedback.messageFor(loadError!,
+                              fallback: 'Haven could not load these homes.'),
+                      onRetry: _loadFirstPage)
                   : Column(
                       key: ValueKey('homes-${homes.length}-$sort'),
                       children: [
@@ -327,8 +353,9 @@ class _LoadingHomes extends StatelessWidget {
 
 class _LoadError extends StatelessWidget {
   final VoidCallback onRetry;
+  final String message;
 
-  const _LoadError({super.key, required this.onRetry});
+  const _LoadError({super.key, required this.onRetry, required this.message});
 
   @override
   Widget build(BuildContext context) => Container(
@@ -345,6 +372,10 @@ class _LoadError extends StatelessWidget {
               color: Theme.of(context).colorScheme.onSurfaceVariant),
           const SizedBox(height: 8),
           const Text('Homes could not be loaded'),
+          const SizedBox(height: 5),
+          Text(message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall),
           TextButton(onPressed: onRetry, child: const Text('Try again')),
         ]),
       );

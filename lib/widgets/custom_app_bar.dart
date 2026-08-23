@@ -1,8 +1,11 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:house_rent/config/api_config.dart';
+import 'package:house_rent/navigation/haven_page_route.dart';
 import 'package:house_rent/screens/profile/profile.dart';
+import 'package:house_rent/screens/profile/marketplace_hub_screen.dart';
 import 'package:house_rent/services/app_data_service.dart';
+import 'package:house_rent/services/marketplace_service.dart';
 import 'package:house_rent/theme/app_colors.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -33,29 +36,43 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             ),
             const SizedBox(width: 11),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('HAVEN ZAMBIA',
-                      style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 14,
-                          letterSpacing: .9)),
-                  Text('Find where you belong',
-                      style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontSize: 10)),
-                ],
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('HAVEN ZAMBIA',
+                        maxLines: 1,
+                        softWrap: false,
+                        style: TextStyle(
+                            height: 1,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                            letterSpacing: .9)),
+                    const SizedBox(height: 4),
+                    Text('Find where you belong',
+                        maxLines: 1,
+                        softWrap: false,
+                        style: TextStyle(
+                            height: 1,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            fontSize: 10)),
+                  ],
+                ),
               ),
             ),
+            const _NotificationButton(),
+            const SizedBox(width: 8),
             Material(
               color: Theme.of(context).colorScheme.surface,
               shape: CircleBorder(
                   side: BorderSide(color: Theme.of(context).dividerColor)),
               child: InkWell(
                 onTap: () => Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => const ProfileScreen())),
+                    HavenPageRoute(builder: (_) => const ProfileScreen())),
                 customBorder: const CircleBorder(),
                 child: const Padding(
                     padding: EdgeInsets.all(4), child: ProfileAvatar()),
@@ -69,6 +86,44 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Size get preferredSize => const Size.fromHeight(64);
+}
+
+class _NotificationButton extends StatefulWidget {
+  const _NotificationButton();
+  @override
+  State<_NotificationButton> createState() => _NotificationButtonState();
+}
+
+class _NotificationButtonState extends State<_NotificationButton> {
+  int unread = 0;
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.delayed(const Duration(milliseconds: 900), _load);
+  }
+
+  Future<void> _load() async {
+    try {
+      final count = await MarketplaceService.instance.unreadNotificationCount();
+      if (mounted) {
+        setState(() => unread = count);
+      }
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+        tooltip: 'Updates',
+        onPressed: () => Navigator.push(
+                context,
+                HavenPageRoute(
+                    builder: (_) => const MarketplaceHubScreen(initialTab: 2)))
+            .then((_) => _load()),
+        icon: Badge(
+            isLabelVisible: unread > 0,
+            label: Text(unread > 99 ? '99+' : '$unread'),
+            child: const Icon(Icons.notifications_none_rounded)),
+      );
 }
 
 class ProfileAvatar extends StatefulWidget {
@@ -104,13 +159,18 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
   Widget build(BuildContext context) {
     return CircleAvatar(
       radius: 19,
-      backgroundColor: AppColors.primaryLight,
+      backgroundColor: Theme.of(context).colorScheme.primaryContainer,
       backgroundImage: profileImageUrl == null
           ? null
-          : CachedNetworkImageProvider(profileImageUrl!),
+          : CachedNetworkImageProvider(ApiConfig.optimizedImageUrl(
+              profileImageUrl!,
+              width: 160,
+              height: 160,
+              quality: 76,
+            )),
       child: profileImageUrl == null
-          ? const Icon(Icons.person_outline_rounded,
-              color: AppColors.primary, size: 21)
+          ? Icon(Icons.person_outline_rounded,
+              color: Theme.of(context).colorScheme.primary, size: 21)
           : null,
     );
   }

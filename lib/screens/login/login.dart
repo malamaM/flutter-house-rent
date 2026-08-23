@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:house_rent/config/api_config.dart';
+import 'package:house_rent/navigation/haven_page_route.dart';
 import 'package:house_rent/screens/home/app_shell.dart';
 import 'package:house_rent/screens/login/create_account.dart';
 import 'package:house_rent/services/app_data_service.dart';
-import 'package:house_rent/theme/app_colors.dart';
+import 'package:house_rent/services/api_error.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -47,18 +48,14 @@ class _SignInScreenState extends State<SignInScreen> {
         await SessionService.currentUser(forceRefresh: true);
         if (mounted) {
           Navigator.pushReplacement(
-              context, MaterialPageRoute(builder: (_) => const AppShell()));
+              context, HavenPageRoute(builder: (_) => const AppShell()));
         }
         return;
       }
-      var message = 'Those details do not match an account.';
-      try {
-        message = jsonDecode(response.body)['message'] ?? message;
-      } catch (_) {}
-      _showMessage(message);
-    } catch (_) {
-      _showMessage(
-          'We could not reach Haven Zambia. Check your connection and try again.');
+      throw HavenApiException.fromResponse(response, operation: 'sign you in');
+    } catch (error) {
+      _showMessage(ApiErrorResolver.message(error,
+          fallback: 'Haven could not sign you in. Check your details.'));
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -91,8 +88,8 @@ class _SignInScreenState extends State<SignInScreen> {
                     color: colors.outlineVariant,
                     borderRadius: BorderRadius.circular(4))),
             const SizedBox(height: 24),
-            const Icon(Icons.construction_rounded,
-                color: AppColors.primary, size: 34),
+            Icon(Icons.construction_rounded,
+                color: Theme.of(context).colorScheme.primary, size: 34),
             const SizedBox(height: 14),
             Text('$feature is coming soon',
                 style: Theme.of(context).textTheme.headlineMedium),
@@ -219,7 +216,7 @@ class _SignInScreenState extends State<SignInScreen> {
                         TextButton(
                             onPressed: () => Navigator.push(
                                 context,
-                                MaterialPageRoute(
+                                HavenPageRoute(
                                     builder: (_) =>
                                         const CreateAccountScreen())),
                             child: const Text('Create account')),

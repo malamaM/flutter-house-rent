@@ -7,6 +7,9 @@ import 'package:house_rent/models/house.dart';
 import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/services/premium_haptics.dart';
 import 'package:house_rent/services/listing_draft_service.dart';
+import 'package:house_rent/services/media_upload_policy.dart';
+import 'package:house_rent/services/video_preparation_service.dart';
+import 'package:house_rent/services/app_feedback.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/listing_form_components.dart';
 import 'package:image_picker/image_picker.dart';
@@ -52,9 +55,13 @@ class _EditListingScreenState extends State<EditListingScreen> {
   bool loadingImages = true;
   bool saving = false;
   double uploadProgress = 0;
+  bool preparingVideo = false;
+  double videoPreparationProgress = 0;
   Timer? _draftDebounce;
   bool _completed = false;
   String get _draftId => 'edit-${widget.house.id}';
+  int get _activeRegularVideoCount =>
+      existingMedia.where((media) => !media.featured).length + newVideos.length;
 
   List<TextEditingController> get _controllers => [
         title,
@@ -198,8 +205,12 @@ class _EditListingScreenState extends State<EditListingScreen> {
             .addAll(images.map((image) => {'id': image.id, 'url': image.url}));
         loadingImages = false;
       });
-    } catch (_) {
-      if (mounted) setState(() => loadingImages = false);
+    } catch (error) {
+      if (mounted) {
+        setState(() => loadingImages = false);
+        _message(AppFeedback.messageFor(error,
+            fallback: 'Haven could not load the existing gallery photos.'));
+      }
     }
   }
 
@@ -228,9 +239,10 @@ class _EditListingScreenState extends State<EditListingScreen> {
         if (mounted) setState(() => newCoverImage = retained);
         unawaited(_saveDraft());
       }
-    } catch (_) {
-      _message(
-          'Haven Zambia could not open your photo library. Check photo permissions.');
+    } catch (error) {
+      _message(AppFeedback.messageFor(error,
+          fallback:
+              'Haven could not open your photo library. Check photo permissions.'));
     }
   }
 
@@ -250,36 +262,75 @@ class _EditListingScreenState extends State<EditListingScreen> {
         });
         unawaited(_saveDraft());
       }
-    } catch (_) {
-      _message(
-          'Haven Zambia could not open your photo library. Check photo permissions.');
+    } catch (error) {
+      _message(AppFeedback.messageFor(error,
+          fallback:
+              'Haven could not open your photo library. Check photo permissions.'));
     }
   }
 
   Future<void> _pickVideo({required bool featured}) async {
+    if (preparingVideo || saving) return;
+    if (!featured &&
+        _activeRegularVideoCount >= MediaUploadPolicy.maxRegularVideos) {
+      _message('A listing can have up to 4 regular videos.');
+      return;
+    }
+    PreparedVideo? prepared;
     try {
       final video = await picker.pickVideo(
         source: ImageSource.gallery,
         maxDuration: featured ? const Duration(minutes: 2) : null,
       );
       if (video == null || !mounted) return;
-      final retained =
-          await ListingDraftService.instance.retainMedia(_draftId, video.path);
+      setState(() {
+        preparingVideo = true;
+        videoPreparationProgress = 0;
+      });
+      prepared = await VideoPreparationService.instance.prepare(
+        video.path,
+        onProgress: (value) {
+          if (mounted) setState(() => videoPreparationProgress = value);
+        },
+      );
+      await MediaUploadPolicy.validateFile(
+        prepared.path,
+        maxBytes: featured
+            ? MediaUploadPolicy.maxReelVideoBytes
+            : MediaUploadPolicy.maxVideoBytes,
+        label: featured ? 'Featured reel video' : 'Video',
+      );
+      final retained = await ListingDraftService.instance
+          .retainMedia(_draftId, prepared.path);
+      if (!mounted) return;
       setState(() {
         if (featured) {
           newReelVideo = retained;
-        } else if (newVideos.length < 4) {
+        } else if (_activeRegularVideoCount <
+            MediaUploadPolicy.maxRegularVideos) {
           newVideos.add(retained);
         }
       });
       unawaited(_saveDraft());
-    } catch (_) {
-      _message(
-          'Haven Zambia could not open your video library. Check permissions.');
+    } on MediaUploadException catch (error) {
+      _message(error.message);
+    } catch (error) {
+      _message(AppFeedback.messageFor(error,
+          fallback:
+              'Haven could not open your video library. Check media permissions.'));
+    } finally {
+      await prepared?.deleteTemporaryCopy();
+      if (mounted) {
+        setState(() {
+          preparingVideo = false;
+          videoPreparationProgress = 0;
+        });
+      }
     }
   }
 
   Future<void> _save() async {
+    if (preparingVideo || saving) return;
     FocusScope.of(context).unfocus();
     if (!formKey.currentState!.validate()) return;
     // Acknowledge the tap straight away; publishing feedback remains separate
@@ -310,32 +361,33 @@ class _EditListingScreenState extends State<EditListingScreen> {
       'garage': garage ? 1 : 0,
       'car_garage': int.tryParse(parking.text) ?? widget.house.carGarage,
     };
-    final success = await House.updateHouse(
-      widget.house.id,
-      data,
-      coverImagePath: newCoverImage?.path,
-      galleryImagePaths: newGalleryImages.isEmpty
-          ? null
-          : newGalleryImages.map((image) => image.path).toList(),
-      deletedImageIds: deletedImageIds,
-      videoPaths: newVideos.map((video) => video.path).toList(),
-      reelVideoPath: newReelVideo?.path,
-      deletedMediaIds: deletedMediaIds,
-      onProgress: (value) {
-        if (mounted) setState(() => uploadProgress = value);
-      },
-    );
-    if (!mounted) return;
-    setState(() => saving = false);
-    if (success) {
+    try {
+      await House.updateHouse(
+        widget.house.id,
+        data,
+        coverImagePath: newCoverImage?.path,
+        galleryImagePaths: newGalleryImages.isEmpty
+            ? null
+            : newGalleryImages.map((image) => image.path).toList(),
+        deletedImageIds: deletedImageIds,
+        videoPaths: newVideos.map((video) => video.path).toList(),
+        reelVideoPath: newReelVideo?.path,
+        deletedMediaIds: deletedMediaIds,
+        onProgress: (value) {
+          if (mounted) setState(() => uploadProgress = value);
+        },
+      );
+      if (!mounted) return;
       _completed = true;
       await ListingDraftService.instance.clear(_draftId);
       PremiumHaptics.success();
       _message('Your listing changes are live.');
       Navigator.pop(context, true);
-    } else {
+    } on MediaUploadException catch (error) {
       await _saveDraft();
-      _message('The listing could not be updated. Please try again.');
+      _message(error.message);
+    } finally {
+      if (mounted) setState(() => saving = false);
     }
   }
 
@@ -471,7 +523,7 @@ class _EditListingScreenState extends State<EditListingScreen> {
                   top: BorderSide(
                       color: Theme.of(context).colorScheme.outlineVariant))),
           child: ElevatedButton(
-            onPressed: saving ? null : _save,
+            onPressed: saving || preparingVideo ? null : _save,
             child: saving
                 ? Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                     const SizedBox(
@@ -480,7 +532,7 @@ class _EditListingScreenState extends State<EditListingScreen> {
                         child: CircularProgressIndicator(
                             color: Colors.white, strokeWidth: 2)),
                     const SizedBox(width: 10),
-                    Text('Uploading ${(uploadProgress * 100).round()}%'),
+                    Text('Uploading media ${(uploadProgress * 100).round()}%'),
                   ])
                 : const Text('Save changes'),
           ),
@@ -513,11 +565,12 @@ class _EditListingScreenState extends State<EditListingScreen> {
                       fit: BoxFit.cover,
                       placeholder: (_, __) =>
                           const Center(child: CircularProgressIndicator()),
-                      errorWidget: (_, __, ___) => const ColoredBox(
-                          color: AppColors.primaryLight,
+                      errorWidget: (_, __, ___) => ColoredBox(
+                          color: Theme.of(context).colorScheme.primaryContainer,
                           child: Center(
                               child: Icon(Icons.home_work_outlined,
-                                  color: AppColors.primary, size: 42))),
+                                  color: Theme.of(context).colorScheme.primary,
+                                  size: 42))),
                     ),
             ),
             Padding(
@@ -632,8 +685,8 @@ class _EditListingScreenState extends State<EditListingScreen> {
         ...regular.map((media) => ListTile(
             dense: true,
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.play_circle_outline_rounded,
-                color: AppColors.primary),
+            leading: Icon(Icons.play_circle_outline_rounded,
+                color: Theme.of(context).colorScheme.primary),
             title: const Text('Property walkthrough'),
             trailing: IconButton(
                 icon: const Icon(Icons.close_rounded),
@@ -644,13 +697,15 @@ class _EditListingScreenState extends State<EditListingScreen> {
         ...newVideos.map((video) => ListTile(
             dense: true,
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.play_circle_outline_rounded,
-                color: AppColors.primary),
+            leading: Icon(Icons.play_circle_outline_rounded,
+                color: Theme.of(context).colorScheme.primary),
             title: Text(video.path.split('/').last,
                 maxLines: 1, overflow: TextOverflow.ellipsis),
             trailing: IconButton(
                 icon: const Icon(Icons.close_rounded),
                 onPressed: () => setState(() => newVideos.remove(video))))),
+        if (preparingVideo)
+          MediaPreparationIndicator(progress: videoPreparationProgress),
       ]),
     );
   }
@@ -673,7 +728,7 @@ class _EditVideoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(children: [
-        Icon(icon, color: AppColors.primary),
+        Icon(icon, color: Theme.of(context).colorScheme.primary),
         const SizedBox(width: 11),
         Expanded(
             child:
@@ -706,8 +761,8 @@ class _NetworkThumb extends StatelessWidget {
             width: 88,
             height: 88,
             fit: BoxFit.cover,
-            errorWidget: (_, __, ___) =>
-                const ColoredBox(color: AppColors.primaryLight)),
+            errorWidget: (_, __, ___) => ColoredBox(
+                color: Theme.of(context).colorScheme.primaryContainer)),
       );
 }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
+import 'package:house_rent/navigation/haven_page_route.dart';
 import 'package:house_rent/screens/details/details.dart';
 import 'package:house_rent/screens/home/all_houses_screen.dart';
 import 'package:house_rent/services/app_cache.dart';
@@ -72,34 +73,37 @@ class _BestOfferState extends State<BestOffer> {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Expanded(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Worth a closer look',
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(
+              child: Text('Worth a closer look',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.headlineMedium),
-              const SizedBox(height: 3),
-              Text('Distinctively marked deals worth considering',
-                  style: Theme.of(context).textTheme.bodyMedium),
-            ]),
-          ),
-          TextButton(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => AllHousesScreen(
-                  title: 'Rental deals',
-                  filters: dealFilters,
+            ),
+            TextButton(
+              onPressed: () => Navigator.push(
+                context,
+                HavenPageRoute(
+                  builder: (_) => AllHousesScreen(
+                    title: 'Rental deals',
+                    filters: dealFilters,
+                  ),
                 ),
               ),
+              child: const Text('View all'),
             ),
-            child: const Text('View all'),
-          ),
+          ]),
+          const SizedBox(height: 3),
+          Text('Distinctively marked deals worth considering',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodyMedium),
         ]),
       ),
       const SizedBox(height: 16),
       SizedBox(
-        height: 355,
+        height: propertyCardCarouselHeight(context),
         child: FutureBuilder<List<House>>(
           future: offers,
           initialData: _settledOffers,

@@ -1,8 +1,11 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:house_rent/screens/myaccount/changepassword/change_password.dart';
+import 'package:house_rent/navigation/haven_page_route.dart';
 import 'package:house_rent/screens/myaccount/update/update_profile.dart';
-import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/theme/theme_controller.dart';
+import 'package:house_rent/widgets/haven_navigation_bar.dart';
+import 'package:house_rent/widgets/haven_settings_group.dart';
 
 class MyAccount extends StatelessWidget {
   const MyAccount({Key? key}) : super(key: key);
@@ -10,67 +13,65 @@ class MyAccount extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Account settings')),
+      appBar: const HavenNavigationBar(title: 'Account settings'),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 36),
         children: [
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-                color: AppColors.primaryLight,
+                color: Theme.of(context).colorScheme.primaryContainer,
                 borderRadius: BorderRadius.circular(18)),
             child: Row(
               children: [
-                const Icon(Icons.shield_outlined,
-                    color: AppColors.primary, size: 28),
+                Icon(Icons.shield_outlined,
+                    color: Theme.of(context).colorScheme.primary, size: 28),
                 const SizedBox(width: 14),
                 Expanded(
                     child: Text(
                         'Keep your contact details current so owners and renters can reach you.',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(color: AppColors.primaryDark))),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onPrimaryContainer))),
               ],
             ),
           ),
           const SizedBox(height: 24),
-          _AccountItem(
-            icon: Icons.person_outline_rounded,
-            title: 'Personal information',
-            subtitle: 'Name, email, phone and profile photo',
-            onTap: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const EditProfileScreen())),
-          ),
-          Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            child: ListenableBuilder(
+          HavenSettingsGroup(label: 'Your account', children: [
+            HavenSettingsRow(
+              icon: CupertinoIcons.person,
+              title: 'Personal information',
+              subtitle: 'Name, email, phone and profile photo',
+              onTap: () => Navigator.push(context,
+                  HavenPageRoute(builder: (_) => const EditProfileScreen())),
+            ),
+            ListenableBuilder(
               listenable: ThemeController.instance,
-              builder: (context, _) => ListTile(
-                onTap: () => _showThemeModePicker(context),
-                leading: const Icon(Icons.dark_mode_outlined),
-                title: const Text('Dark mode',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
-                subtitle: Text(
-                    '${ThemeController.instance.preferenceLabel} · follows your device when automatic'),
+              builder: (context, _) => HavenSettingsRow(
+                icon: CupertinoIcons.moon,
+                title: 'Dark mode',
+                subtitle: 'Automatic, on or off',
                 trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                   Text(ThemeController.instance.preferenceLabel,
-                      style: TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.w700)),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.chevron_right_rounded),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.primary)),
+                  const SizedBox(width: 7),
+                  Icon(CupertinoIcons.chevron_forward,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ]),
+                onTap: () => _showThemeModePicker(context),
               ),
             ),
-          ),
-          _AccountItem(
-            icon: Icons.lock_outline_rounded,
-            title: 'Password',
-            subtitle: 'Update your account password',
-            onTap: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const ChangePassword())),
-          ),
+            HavenSettingsRow(
+              icon: CupertinoIcons.lock,
+              title: 'Password',
+              subtitle: 'Update your account password',
+              onTap: () => Navigator.push(context,
+                  HavenPageRoute(builder: (_) => const ChangePassword())),
+            ),
+          ]),
           const SizedBox(height: 28),
           Text(
               'Privacy and support features will appear here as they become available.',
@@ -81,85 +82,41 @@ class MyAccount extends StatelessWidget {
   }
 
   Future<void> _showThemeModePicker(BuildContext context) =>
-      showModalBottomSheet<void>(
+      showCupertinoModalPopup<void>(
         context: context,
-        showDragHandle: true,
-        builder: (sheetContext) => SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 20),
-            child: ListenableBuilder(
-              listenable: ThemeController.instance,
-              builder: (_, __) => Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const ListTile(
-                    title: Text('Dark mode',
-                        style: TextStyle(fontWeight: FontWeight.w800)),
-                    subtitle: Text('Choose how Haven Zambia should look.'),
+        builder: (sheetContext) => CupertinoActionSheet(
+          title: const Text('Dark mode'),
+          message: const Text('Choose how Haven Zambia should look.'),
+          actions: [
+            for (final option in const <(ThemeMode, String, String)>[
+              (ThemeMode.system, 'Automatic', 'Match this device'),
+              (ThemeMode.dark, 'On', 'Always use dark mode'),
+              (ThemeMode.light, 'Off', 'Always use light mode'),
+            ])
+              CupertinoActionSheetAction(
+                onPressed: () async {
+                  await ThemeController.instance.setMode(option.$1);
+                  if (sheetContext.mounted) Navigator.pop(sheetContext);
+                },
+                child: SizedBox(
+                  width: double.infinity,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Text(option.$2),
+                      if (ThemeController.instance.mode == option.$1)
+                        const Positioned(
+                            right: 18,
+                            child: Icon(CupertinoIcons.check_mark, size: 17)),
+                    ],
                   ),
-                  for (final option in const <(ThemeMode, String, String)>[
-                    (ThemeMode.system, 'Automatic', 'Match this device'),
-                    (ThemeMode.dark, 'On', 'Always use dark mode'),
-                    (ThemeMode.light, 'Off', 'Always use light mode'),
-                  ])
-                    ListTile(
-                      onTap: () async {
-                        await ThemeController.instance.setMode(option.$1);
-                        if (sheetContext.mounted) Navigator.pop(sheetContext);
-                      },
-                      leading: Icon(switch (option.$1) {
-                        ThemeMode.system => Icons.brightness_auto_rounded,
-                        ThemeMode.dark => Icons.dark_mode_rounded,
-                        ThemeMode.light => Icons.light_mode_rounded,
-                      }),
-                      title: Text(option.$2),
-                      subtitle: Text(option.$3),
-                      trailing: ThemeController.instance.mode == option.$1
-                          ? Icon(Icons.check_circle_rounded,
-                              color: Theme.of(sheetContext).colorScheme.primary)
-                          : const Icon(Icons.circle_outlined),
-                    ),
-                ],
+                ),
               ),
-            ),
+          ],
+          cancelButton: CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(sheetContext),
+            child: const Text('Cancel'),
           ),
         ),
       );
-}
-
-class _AccountItem extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  const _AccountItem(
-      {required this.icon,
-      required this.title,
-      required this.subtitle,
-      required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        leading: Container(
-          width: 40,
-          height: 40,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(12)),
-          child: Icon(icon, color: AppColors.primary, size: 20),
-        ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-        subtitle: Padding(
-            padding: const EdgeInsets.only(top: 4), child: Text(subtitle)),
-        trailing: const Icon(Icons.chevron_right_rounded),
-      ),
-    );
-  }
 }

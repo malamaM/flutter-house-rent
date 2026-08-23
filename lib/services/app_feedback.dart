@@ -1,7 +1,5 @@
-import 'dart:async';
-import 'dart:io';
-
 import 'package:flutter/material.dart';
+import 'package:house_rent/services/api_error.dart';
 
 class AppFeedback {
   AppFeedback._();
@@ -9,26 +7,15 @@ class AppFeedback {
   static final messengerKey = GlobalKey<ScaffoldMessengerState>();
 
   static String messageFor(Object error,
-      {String fallback = 'Something went wrong. Please try again.'}) {
-    if (error is TimeoutException) {
-      return 'This is taking longer than expected. Check your connection and try again.';
-    }
-    if (error is SocketException) {
-      return 'You appear to be offline. Check your connection and try again.';
-    }
-    if (error is FormatException) {
-      return 'Haven Zambia received an unexpected response. Please try again.';
-    }
-    final raw =
-        error.toString().replaceFirst(RegExp(r'^Exception:\s*'), '').trim();
-    if (raw.isEmpty || raw.contains('SocketException')) return fallback;
-    return raw;
-  }
+          {String fallback =
+              'Haven could not complete that action. Please try again.'}) =>
+      ApiErrorResolver.message(error, fallback: fallback);
 
   static void success(String message) => _show(message, isError: false);
 
   static void error(Object error,
-          {String fallback = 'Something went wrong. Please try again.',
+          {String fallback =
+              'Haven could not complete that action. Please try again.',
           VoidCallback? retry}) =>
       _show(messageFor(error, fallback: fallback), isError: true, retry: retry);
 

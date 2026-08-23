@@ -61,13 +61,28 @@ class Categories extends StatelessWidget {
                           ? Theme.of(context).colorScheme.onPrimary
                           : Theme.of(context).colorScheme.primary),
                   const SizedBox(height: 7),
-                  Text(item.label,
-                      style: TextStyle(
-                          color: selected
-                              ? Theme.of(context).colorScheme.onPrimary
-                              : Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700)),
+                  Flexible(
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          item.label,
+                          maxLines: 1,
+                          softWrap: false,
+                          style: TextStyle(
+                            color: selected
+                                ? Theme.of(context).colorScheme.onPrimary
+                                : Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),

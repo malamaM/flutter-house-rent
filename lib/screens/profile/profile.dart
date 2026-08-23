@@ -1,15 +1,22 @@
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:house_rent/config/api_config.dart';
+import 'package:house_rent/navigation/haven_page_route.dart';
 import 'package:house_rent/screens/login/login.dart';
 import 'package:house_rent/screens/my_listings/my_listings.dart';
 import 'package:house_rent/screens/myaccount/myaccount.dart';
 import 'package:house_rent/screens/profile/verification_request_screen.dart';
 import 'package:house_rent/screens/profile/recommendation_history_screen.dart';
 import 'package:house_rent/screens/profile/offline_sync_screen.dart';
+import 'package:house_rent/screens/profile/marketplace_hub_screen.dart';
 import 'package:house_rent/services/app_data_service.dart';
-import 'package:house_rent/theme/app_colors.dart';
+import 'package:house_rent/services/api_error.dart';
+import 'package:house_rent/services/media_upload_policy.dart';
+import 'package:house_rent/widgets/haven_navigation_bar.dart';
+import 'package:house_rent/widgets/haven_settings_group.dart';
+import 'package:house_rent/widgets/zambia_pattern.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -58,21 +65,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final image = await ImagePicker().pickImage(
         source: ImageSource.gallery, imageQuality: 82, maxWidth: 1400);
     if (image == null) return;
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('access_token');
-    if (token == null) return;
-    final request = http.MultipartRequest(
-        'POST', Uri.parse('${ApiConfig.apiBase}/update-profile-picture'));
-    request.headers['Authorization'] = 'Bearer $token';
-    request.files.add(await http.MultipartFile.fromPath(
-        'profile_picture', File(image.path).path));
-    final response = await request.send();
-    if (response.statusCode == 200) {
-      await SessionService.currentUser(forceRefresh: true);
-      await _loadProfile();
-      if (mounted) {
+    try {
+      await MediaUploadPolicy.validateFile(image.path,
+          maxBytes: MediaUploadPolicy.maxImageBytes, label: 'Profile photo');
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('access_token');
+      if (token == null) return;
+      final request = http.MultipartRequest(
+          'POST', Uri.parse('${ApiConfig.apiBase}/update-profile-picture'));
+      request.headers['Authorization'] = 'Bearer $token';
+      request.files.add(await http.MultipartFile.fromPath(
+          'profile_picture', File(image.path).path));
+      final response = await http.Response.fromStream(
+          await request.send().timeout(const Duration(minutes: 2)));
+      if (response.statusCode == 200) {
+        await SessionService.currentUser(forceRefresh: true);
+        await _loadProfile();
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Profile photo updated')));
+      } else {
+        throw HavenApiException.fromResponse(response,
+            operation: 'update your profile photo');
+      }
+    } on HavenApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } on MediaUploadException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(ApiErrorResolver.message(error,
+                fallback: 'Haven could not update your profile photo.'))));
       }
     }
   }
@@ -96,199 +126,186 @@ class _ProfileScreenState extends State<ProfileScreen> {
     SessionRecommendation.instance.reset();
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(context,
-        MaterialPageRoute(builder: (_) => const SignInScreen()), (_) => false);
+        HavenPageRoute(builder: (_) => const SignInScreen()), (_) => false);
   }
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
+      appBar: const HavenNavigationBar(title: 'Profile'),
       body: loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CupertinoActivityIndicator(radius: 13))
           : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 36),
               children: [
                 Container(
-                  padding: const EdgeInsets.all(20),
+                  clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
-                      color: AppColors.surfaceDark,
-                      borderRadius: BorderRadius.circular(22)),
-                  child: Row(
+                    color: Color.alphaBlend(
+                        colors.primaryContainer.withValues(alpha: .16),
+                        colors.surface),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: colors.outlineVariant, width: .7),
+                  ),
+                  child: Stack(
+                    alignment: Alignment.center,
                     children: [
-                      Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          CircleAvatar(
-                            radius: 38,
-                            backgroundColor: AppColors.primaryLight,
-                            backgroundImage: imageUrl == null
-                                ? null
-                                : CachedNetworkImageProvider(imageUrl!),
-                            child: imageUrl == null
-                                ? const Icon(Icons.person_rounded,
-                                    color: AppColors.primary, size: 36)
-                                : null,
-                          ),
-                          Positioned(
-                            right: -4,
-                            bottom: -4,
-                            child: Material(
-                              color: AppColors.accent,
-                              shape: const CircleBorder(),
-                              child: InkWell(
-                                onTap: _changePhoto,
-                                customBorder: const CircleBorder(),
-                                child: const Padding(
-                                    padding: EdgeInsets.all(8),
-                                    child: Icon(Icons.camera_alt_outlined,
-                                        color: Colors.white, size: 16)),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(width: 18),
-                      Expanded(
+                      const Positioned.fill(
+                          child: IgnorePointer(child: ZambiaPattern())),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                CircleAvatar(
+                                  radius: 43,
+                                  backgroundColor: colors.primaryContainer,
+                                  backgroundImage: imageUrl == null
+                                      ? null
+                                      : CachedNetworkImageProvider(
+                                          ApiConfig.optimizedImageUrl(
+                                            imageUrl!,
+                                            width: 420,
+                                            height: 420,
+                                            quality: 80,
+                                          ),
+                                        ),
+                                  child: imageUrl == null
+                                      ? Icon(CupertinoIcons.person_fill,
+                                          color: colors.primary, size: 36)
+                                      : null,
+                                ),
+                                Positioned(
+                                  right: -4,
+                                  bottom: -4,
+                                  child: Material(
+                                    color: colors.primary,
+                                    shape: const CircleBorder(),
+                                    child: InkWell(
+                                      onTap: _changePhoto,
+                                      customBorder: const CircleBorder(),
+                                      child: Padding(
+                                          padding: const EdgeInsets.all(8),
+                                          child: Icon(
+                                              CupertinoIcons.camera_fill,
+                                              color: colors.onPrimary,
+                                              size: 15)),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 13),
                             Text(name.isEmpty ? 'Haven Zambia member' : name,
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 19,
-                                    fontWeight: FontWeight.w700)),
-                            const SizedBox(height: 5),
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.titleLarge),
+                            const SizedBox(height: 4),
                             Text(email,
-                                style: const TextStyle(
-                                    color: Colors.white60, fontSize: 13)),
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.bodyMedium),
                           ],
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 28),
-                Text('Property',
-                    style: Theme.of(context).textTheme.headlineMedium),
-                const SizedBox(height: 10),
-                _ProfileItem(
-                  icon: Icons.cloud_sync_outlined,
-                  title: 'Offline & sync',
-                  subtitle: 'Pending changes and connection status',
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const OfflineSyncScreen())),
-                ),
-                _ProfileItem(
-                  icon: Icons.home_work_outlined,
-                  title: 'My listings',
-                  subtitle: 'Create and manage your properties',
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const MyListingsScreen())),
+                const SizedBox(height: 24),
+                HavenSettingsGroup(
+                  label: 'Property',
+                  children: [
+                    HavenSettingsRow(
+                        icon: CupertinoIcons.chat_bubble_2,
+                        title: 'Messages',
+                        subtitle: 'Secure conversations about properties',
+                        onTap: () => Navigator.push(
+                            context,
+                            HavenPageRoute(
+                                builder: (_) => const MarketplaceHubScreen()))),
+                    HavenSettingsRow(
+                        icon: CupertinoIcons.calendar,
+                        title: 'Viewings',
+                        subtitle: 'Requests, confirmations and history',
+                        onTap: () => Navigator.push(
+                            context,
+                            HavenPageRoute(
+                                builder: (_) => const MarketplaceHubScreen(
+                                    initialTab: 1)))),
+                    HavenSettingsRow(
+                        icon: CupertinoIcons.bell,
+                        title: 'Updates & saved searches',
+                        subtitle: 'Replies and alerts for matching homes',
+                        onTap: () => Navigator.push(
+                            context,
+                            HavenPageRoute(
+                                builder: (_) => const MarketplaceHubScreen(
+                                    initialTab: 2)))),
+                    HavenSettingsRow(
+                        icon: CupertinoIcons.cloud_upload,
+                        title: 'Offline & sync',
+                        subtitle: 'Pending changes and connection status',
+                        onTap: () => Navigator.push(
+                            context,
+                            HavenPageRoute(
+                                builder: (_) => const OfflineSyncScreen()))),
+                    HavenSettingsRow(
+                        icon: CupertinoIcons.house,
+                        title: 'My listings',
+                        subtitle: 'Create and manage your properties',
+                        onTap: () => Navigator.push(
+                            context,
+                            HavenPageRoute(
+                                builder: (_) => const MyListingsScreen()))),
+                  ],
                 ),
                 const SizedBox(height: 24),
-                Text('Account',
-                    style: Theme.of(context).textTheme.headlineMedium),
-                const SizedBox(height: 10),
-                _ProfileItem(
-                  icon: Icons.manage_accounts_outlined,
-                  title: 'Account settings',
-                  subtitle: 'Personal details and password',
-                  onTap: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const MyAccount())),
-                ),
-                _ProfileItem(
-                  icon: Icons.auto_awesome_outlined,
-                  title: 'Your home search',
-                  subtitle: 'Preferences and recommendation history',
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const RecommendationHistoryScreen())),
-                ),
-                _ProfileItem(
-                  icon: Icons.verified_user_outlined,
-                  title: 'Lister verification',
-                  subtitle: 'Request a trusted identity badge',
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const VerificationRequestScreen())),
-                ),
-                _ProfileItem(
-                  icon: Icons.help_outline_rounded,
-                  title: 'Help and support',
-                  subtitle: 'Get help using Haven Zambia',
-                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Support details are coming soon.'))),
-                ),
-                const SizedBox(height: 18),
-                OutlinedButton.icon(
-                  onPressed: _logout,
-                  icon:
-                      const Icon(Icons.logout_rounded, color: AppColors.error),
-                  label: const Text('Sign out',
-                      style: TextStyle(color: AppColors.error)),
-                ),
+                HavenSettingsGroup(label: 'Account', children: [
+                  HavenSettingsRow(
+                      icon: CupertinoIcons.person_crop_circle,
+                      title: 'Account settings',
+                      subtitle: 'Personal details, appearance and password',
+                      onTap: () => Navigator.push(context,
+                          HavenPageRoute(builder: (_) => const MyAccount()))),
+                  HavenSettingsRow(
+                      icon: CupertinoIcons.sparkles,
+                      title: 'Your home search',
+                      subtitle: 'Preferences and recommendation history',
+                      onTap: () => Navigator.push(
+                          context,
+                          HavenPageRoute(
+                              builder: (_) =>
+                                  const RecommendationHistoryScreen()))),
+                  HavenSettingsRow(
+                      icon: CupertinoIcons.checkmark_shield,
+                      title: 'Lister verification',
+                      subtitle: 'Request a trusted identity badge',
+                      onTap: () => Navigator.push(
+                          context,
+                          HavenPageRoute(
+                              builder: (_) =>
+                                  const VerificationRequestScreen()))),
+                  HavenSettingsRow(
+                      icon: CupertinoIcons.question_circle,
+                      title: 'Help and support',
+                      subtitle: 'Get help using Haven Zambia',
+                      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content:
+                                  Text('Support details are coming soon.')))),
+                ]),
+                const SizedBox(height: 24),
+                HavenSettingsGroup(children: [
+                  HavenSettingsRow(
+                      icon: CupertinoIcons.square_arrow_right,
+                      title: 'Sign out',
+                      color: colors.error,
+                      trailing: const SizedBox.shrink(),
+                      onTap: _logout),
+                ]),
               ],
             ),
-    );
-  }
-}
-
-class _ProfileItem extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  const _ProfileItem(
-      {required this.icon,
-      required this.title,
-      required this.subtitle,
-      required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Theme.of(context).colorScheme.surface,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                    color: AppColors.primaryLight,
-                    borderRadius: BorderRadius.circular(12)),
-                child: Icon(icon, color: AppColors.primary, size: 20),
-              ),
-              const SizedBox(width: 13),
-              Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                    Text(title,
-                        style: const TextStyle(fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 3),
-                    Text(subtitle,
-                        style: Theme.of(context).textTheme.bodyMedium),
-                  ])),
-              Icon(Icons.chevron_right_rounded,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

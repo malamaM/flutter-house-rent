@@ -50,8 +50,7 @@ class OfflineStatusPill extends StatelessWidget {
                               ? Icons.cloud_off_rounded
                               : Icons.sync_rounded,
                           size: 15,
-                          color:
-                              Theme.of(context).colorScheme.onInverseSurface,
+                          color: Theme.of(context).colorScheme.onInverseSurface,
                         ),
                         const SizedBox(width: 7),
                         Text(text,

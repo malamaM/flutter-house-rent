@@ -98,11 +98,12 @@ class _FilterScreenState extends State<FilterScreen> {
     final colors = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Advanced Search'),
+        title: const Text('Refine your search'),
         actions: [
           TextButton(
             onPressed: _clearFilters,
-            child: const Text('Clear All', style: TextStyle(color: Colors.red)),
+            child: Text('Clear all',
+                style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ),
         ],
       ),
@@ -111,34 +112,25 @@ class _FilterScreenState extends State<FilterScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Search Keyword',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            Text('Search', style: Theme.of(context).textTheme.labelLarge),
             const SizedBox(height: 8),
             TextField(
               controller: _keywordController,
-              decoration: InputDecoration(
-                hintText: 'City, title, or description...',
-                filled: true,
-                fillColor: colors.surfaceContainerLow,
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none),
+              decoration: const InputDecoration(
+                hintText: 'City, title, or description…',
+                prefixIcon: Icon(Icons.search_rounded),
               ),
             ),
             const SizedBox(height: 24),
-            const Text('Property Details',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            Text('Property details',
+                style: Theme.of(context).textTheme.labelLarge),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              value: _selectedType,
+              initialValue: _selectedType,
               hint: const Text('Property type'),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: colors.surfaceContainerLow,
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none),
-              ),
+              decoration: const InputDecoration(
+                  labelText: 'Property type',
+                  prefixIcon: Icon(Icons.home_work_outlined)),
               items: [
                 'House',
                 'Apartment',
@@ -153,8 +145,8 @@ class _FilterScreenState extends State<FilterScreen> {
               onChanged: (val) => setState(() => _selectedType = val),
             ),
             const SizedBox(height: 24),
-            const Text('Price Range',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            Text('Monthly price range',
+                style: Theme.of(context).textTheme.labelLarge),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -162,14 +154,8 @@ class _FilterScreenState extends State<FilterScreen> {
                   child: TextField(
                     controller: _minPriceController,
                     keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      hintText: 'Min Price',
-                      filled: true,
-                      fillColor: colors.surfaceContainerLow,
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide.none),
-                    ),
+                    decoration: const InputDecoration(
+                        labelText: 'Minimum', prefixText: 'K '),
                   ),
                 ),
                 const Padding(
@@ -180,14 +166,8 @@ class _FilterScreenState extends State<FilterScreen> {
                   child: TextField(
                     controller: _maxPriceController,
                     keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      hintText: 'Max Price',
-                      filled: true,
-                      fillColor: colors.surfaceContainerLow,
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide.none),
-                    ),
+                    decoration: const InputDecoration(
+                        labelText: 'Maximum', prefixText: 'K '),
                   ),
                 ),
               ],
@@ -220,15 +200,7 @@ class _FilterScreenState extends State<FilterScreen> {
         ),
         child: ElevatedButton(
           onPressed: _applyFilters,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: colors.primary,
-            foregroundColor: colors.onPrimary,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          child: const Text('Apply Filters',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          child: const Text('Apply filters'),
         ),
       ),
     );

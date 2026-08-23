@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:house_rent/config/api_config.dart';
+import 'package:house_rent/services/api_error.dart';
 import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/services/offline_sync_service.dart';
 import 'package:house_rent/services/recommendation_service.dart';
@@ -66,7 +67,10 @@ class SessionService {
         },
       ).timeout(const Duration(seconds: 8));
       if (response.statusCode == 401) throw const SessionExpiredException();
-      if (response.statusCode != 200) throw Exception('Session unavailable');
+      if (response.statusCode != 200) {
+        throw HavenApiException.fromResponse(response,
+            operation: 'refresh your account session');
+      }
       final user =
           Map<String, dynamic>.from(json.decode(response.body)['user']);
       _memoryUser = user;
@@ -125,6 +129,23 @@ class PropertyDetailsService {
 
   static String get _apiBase => ApiConfig.apiBase;
 
+  static Future<void> cacheOwnerContact(
+      int houseId, Map<String, dynamic> owner) async {
+    if (owner['phone_number']?.toString().isNotEmpty != true &&
+        owner['whatsapp_number']?.toString().isNotEmpty != true &&
+        owner['email']?.toString().isNotEmpty != true) {
+      return;
+    }
+    final key =
+        await AppCache.instance.privateKey('house:$houseId:owner:contact-v2');
+    await AppCache.instance.write(
+      key,
+      owner,
+      freshFor: const Duration(hours: 6),
+      keepFor: const Duration(days: 30),
+    );
+  }
+
   static Future<Map<String, dynamic>> owner(
     int houseId, {
     bool forceRefresh = false,
@@ -153,7 +174,10 @@ class PropertyDetailsService {
       final response = await http
           .get(Uri.parse('$_apiBase/houses/$houseId/owner'))
           .timeout(const Duration(seconds: 10));
-      if (response.statusCode != 200) throw Exception('Owner unavailable');
+      if (response.statusCode != 200) {
+        throw HavenApiException.fromResponse(response,
+            operation: 'load the lister’s contact details');
+      }
       final owner =
           Map<String, dynamic>.from(json.decode(response.body)['user']);
       await AppCache.instance.write(
@@ -201,7 +225,10 @@ class PropertyDetailsService {
       final response = await http
           .get(Uri.parse('$_apiBase/houses/$houseId/media'))
           .timeout(const Duration(seconds: 10));
-      if (response.statusCode != 200) throw Exception('Media unavailable');
+      if (response.statusCode != 200) {
+        throw HavenApiException.fromResponse(response,
+            operation: 'load this property’s videos');
+      }
       final value = json.decode(response.body)['media'];
       final list = value is List ? value : <dynamic>[];
       await AppCache.instance.write(
@@ -254,7 +281,10 @@ class PropertyDetailsService {
         );
         return <GalleryImageData>[];
       }
-      if (response.statusCode != 200) throw Exception('Gallery unavailable');
+      if (response.statusCode != 200) {
+        throw HavenApiException.fromResponse(response,
+            operation: 'load this property’s gallery');
+      }
       final images = json.decode(response.body)['images'];
       final value = images is List ? images : <dynamic>[];
       await AppCache.instance.write(
@@ -353,7 +383,10 @@ class ListerReviewsService {
       final response = await http
           .get(Uri.parse('$_apiBase/users/$listerId/reviews'))
           .timeout(const Duration(seconds: 10));
-      if (response.statusCode != 200) throw Exception('Reviews unavailable');
+      if (response.statusCode != 200) {
+        throw HavenApiException.fromResponse(response,
+            operation: 'load this lister’s reviews');
+      }
       final value = Map<String, dynamic>.from(json.decode(response.body));
       await AppCache.instance.write(
         key,
@@ -402,13 +435,17 @@ class ListerReviewData {
   final String comment;
   final String reviewerName;
   final DateTime? createdAt;
+  final String? ownerResponse;
+  final DateTime? respondedAt;
 
   const ListerReviewData(
       {required this.id,
       required this.rating,
       required this.comment,
       required this.reviewerName,
-      this.createdAt});
+      this.createdAt,
+      this.ownerResponse,
+      this.respondedAt});
 
   factory ListerReviewData.fromMap(Map<String, dynamic> map) {
     final reviewer = map['reviewer'] is Map
@@ -423,6 +460,10 @@ class ListerReviewData {
       comment: '${map['comment'] ?? ''}',
       reviewerName: reviewerName.isEmpty ? 'Haven Zambia user' : reviewerName,
       createdAt: DateTime.tryParse('${map['created_at'] ?? ''}'),
+      ownerResponse: '${map['owner_response'] ?? ''}'.trim().isEmpty
+          ? null
+          : '${map['owner_response']}',
+      respondedAt: DateTime.tryParse('${map['responded_at'] ?? ''}'),
     );
   }
 }

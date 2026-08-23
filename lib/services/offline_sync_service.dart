@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/widgets.dart';
 import 'package:house_rent/config/api_config.dart';
+import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/services/app_feedback.dart';
 import 'package:house_rent/services/network_status_service.dart';
 import 'package:http/http.dart' as http;
@@ -60,6 +62,24 @@ class OfflineSyncService with WidgetsBindingObserver {
     _scheduleNextRetry();
   }
 
+  Future<void> queueContactMessage(int houseId, String body) async {
+    final message = body.trim();
+    if (message.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    final actions = _read(prefs)
+      ..add({
+        'type': 'contact_message',
+        'house_id': houseId,
+        'body': message,
+        'client_uuid': _uuid(),
+        'created_at': DateTime.now().toUtc().toIso8601String(),
+      });
+    // Keep the durable queue bounded without disturbing newer user actions.
+    if (actions.length > 100) actions.removeRange(0, actions.length - 100);
+    await _write(prefs, actions);
+    _scheduleNextRetry();
+  }
+
   Future<void> clear() async {
     _retryTimer?.cancel();
     final prefs = await SharedPreferences.getInstance();
@@ -111,10 +131,44 @@ class OfflineSyncService with WidgetsBindingObserver {
                   body: jsonEncode(action['payload']),
                 )
                 .timeout(const Duration(seconds: 12));
+          } else if (action['type'] == 'contact_message') {
+            final conversationResponse = await http
+                .post(
+                  Uri.parse(
+                      '${ApiConfig.apiBase}/houses/${action['house_id']}/conversation'),
+                  headers: headers,
+                )
+                .timeout(const Duration(seconds: 12));
+            if (conversationResponse.statusCode < 200 ||
+                conversationResponse.statusCode >= 300) {
+              response = conversationResponse;
+            } else {
+              final payload = Map<String, dynamic>.from(
+                  jsonDecode(conversationResponse.body));
+              final conversation =
+                  Map<String, dynamic>.from(payload['conversation'] as Map);
+              response = await http
+                  .post(
+                    Uri.parse(
+                        '${ApiConfig.apiBase}/conversations/${conversation['id']}/messages'),
+                    headers: headers,
+                    body: jsonEncode({
+                      'body': action['body'],
+                      'client_uuid': action['client_uuid'],
+                    }),
+                  )
+                  .timeout(const Duration(seconds: 12));
+            }
           } else {
             continue;
           }
           if (response.statusCode >= 200 && response.statusCode < 300) {
+            if (action['type'] == 'contact_message') {
+              final key = await AppCache.instance
+                  .privateKey('marketplace:conversations:v2');
+              await AppCache.instance.remove(key);
+              AppCache.instance.announce('marketplace:conversations:v2', key);
+            }
             synced++;
           } else if (response.statusCode == 401 ||
               response.statusCode == 403 ||
@@ -207,5 +261,16 @@ class OfflineSyncService with WidgetsBindingObserver {
     // Small deterministic jitter prevents every device reconnecting together.
     final jitter = Duration(milliseconds: DateTime.now().millisecond % 1700);
     _schedule(Duration(seconds: base) + jitter);
+  }
+
+  String _uuid() {
+    final random = Random.secure();
+    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    final hex =
+        bytes.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
+    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
+        '${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
   }
 }

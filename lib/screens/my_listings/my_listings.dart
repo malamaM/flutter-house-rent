@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
+import 'package:house_rent/navigation/haven_page_route.dart';
 import 'package:house_rent/screens/details/details.dart';
 import 'package:house_rent/screens/my_listings/create_listing_screen.dart';
 import 'package:house_rent/screens/my_listings/edit_listing.dart';
-import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/property_card.dart';
 import 'package:house_rent/widgets/screen_state.dart';
+import 'package:house_rent/widgets/haven_navigation_bar.dart';
+import 'package:house_rent/services/marketplace_service.dart';
+import 'package:house_rent/services/api_error.dart';
+import 'package:house_rent/services/app_feedback.dart';
 
 class MyListingsScreen extends StatefulWidget {
   const MyListingsScreen({Key? key}) : super(key: key);
@@ -29,8 +33,8 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
   }
 
   Future<void> _create() async {
-    final created = await Navigator.push(context,
-        MaterialPageRoute(builder: (_) => const CreateListingScreen()));
+    final created = await Navigator.push(
+        context, HavenPageRoute(builder: (_) => const CreateListingScreen()));
     if (created == true && mounted) {
       setState(() {
         _reload(forceRefresh: true);
@@ -40,7 +44,7 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
 
   Future<void> _edit(House house) async {
     final changed = await Navigator.push(context,
-        MaterialPageRoute(builder: (_) => EditListingScreen(house: house)));
+        HavenPageRoute(builder: (_) => EditListingScreen(house: house)));
     if (changed == true && mounted) {
       setState(() {
         _reload(forceRefresh: true);
@@ -67,38 +71,47 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
     );
     if (confirmed != true || !mounted) return;
     setState(() => _renewing.add(house.id));
-    final renewed = await House.renewListing(house.id);
-    if (!mounted) return;
-    if (renewed) {
+    try {
+      await House.renewListing(house.id);
+      if (!mounted) return;
       setState(() {
-        _renewing.remove(house.id);
         _reload(forceRefresh: true);
       });
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Listing renewed for 30 days')));
-    } else {
-      setState(() => _renewing.remove(house.id));
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Could not renew this listing. Try again.')));
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(ApiErrorResolver.message(error,
+              fallback: 'Haven could not renew this listing.')),
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _renewing.remove(house.id));
+    }
+  }
+
+  Future<void> _availability(House house, String value) async {
+    try {
+      await MarketplaceService.instance.updateAvailability(house.id, value);
+      if (!mounted) return;
+      setState(() => _reload(forceRefresh: true));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(value == 'available'
+              ? 'Home marked available.'
+              : 'Availability updated.')));
+    } on MarketplaceException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('My listings'),
-            Text('Manage your published properties',
-                style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w400)),
-          ],
-        ),
-      ),
+      appBar: const HavenNavigationBar(title: 'My listings'),
       body: FutureBuilder<List<House>>(
         future: listings,
         builder: (context, snapshot) {
@@ -109,7 +122,8 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
             return ScreenState(
               icon: Icons.cloud_off_outlined,
               title: 'Could not load your listings',
-              message: 'Check your connection and try again.',
+              message: AppFeedback.messageFor(snapshot.error!,
+                  fallback: 'Haven could not load your listings.'),
               actionLabel: 'Try again',
               onAction: () => setState(() {
                 _reload(forceRefresh: true);
@@ -153,6 +167,7 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
                       house: house,
                       renewing: _renewing.contains(house.id),
                       onRenew: () => _renew(house),
+                      onAvailability: (value) => _availability(house, value),
                     ),
                   ],
                 );
@@ -163,8 +178,6 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _create,
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
         icon: const Icon(Icons.add_rounded),
         label: const Text('New listing'),
       ),
@@ -177,11 +190,13 @@ class _ListingLifecycleBar extends StatelessWidget {
     required this.house,
     required this.renewing,
     required this.onRenew,
+    required this.onAvailability,
   });
 
   final House house;
   final bool renewing;
   final VoidCallback onRenew;
+  final ValueChanged<String> onAvailability;
 
   @override
   Widget build(BuildContext context) {
@@ -203,30 +218,56 @@ class _ListingLifecycleBar extends StatelessWidget {
                 ? colors.error.withValues(alpha: .25)
                 : colors.outlineVariant),
       ),
-      child: Row(children: [
-        Icon(house.isArchived ? Icons.inventory_2_outlined : Icons.schedule,
-            size: 17, color: urgent ? colors.onErrorContainer : colors.primary),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(label,
-              style: TextStyle(
-                  color: urgent
-                      ? colors.onErrorContainer
-                      : colors.onSurfaceVariant,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700)),
-        ),
-        if (house.canRenew)
-          TextButton.icon(
-            onPressed: renewing ? null : onRenew,
-            icon: renewing
-                ? const SizedBox(
-                    width: 15,
-                    height: 15,
-                    child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.refresh_rounded, size: 18),
-            label: const Text('Renew'),
+      child: Column(children: [
+        Row(children: [
+          Icon(house.isArchived ? Icons.inventory_2_outlined : Icons.schedule,
+              size: 17,
+              color: urgent ? colors.onErrorContainer : colors.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(label,
+                style: TextStyle(
+                    color: urgent
+                        ? colors.onErrorContainer
+                        : colors.onSurfaceVariant,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700)),
           ),
+          if (house.canRenew)
+            TextButton.icon(
+              onPressed: renewing ? null : onRenew,
+              icon: renewing
+                  ? const SizedBox(
+                      width: 15,
+                      height: 15,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Renew'),
+            ),
+          PopupMenuButton<String>(
+            tooltip: 'Update availability',
+            onSelected: onAvailability,
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'available', child: Text('Available')),
+              PopupMenuItem(
+                  value: 'viewing', child: Text('Viewings in progress')),
+              PopupMenuItem(value: 'let', child: Text('Now rented')),
+              PopupMenuItem(value: 'paused', child: Text('Pause listing')),
+            ],
+          ),
+        ]),
+        if (house.qualityScore > 0 && house.qualityScore < 86) ...[
+          const SizedBox(height: 6),
+          Row(children: [
+            Icon(Icons.auto_awesome_outlined, size: 16, color: colors.primary),
+            const SizedBox(width: 7),
+            Expanded(
+                child: Text(
+              'Listing quality ${house.qualityScore}% · ${house.qualityWarnings.isEmpty ? 'Add more detail to stand out' : house.qualityWarnings.first}',
+              style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant),
+            )),
+          ]),
+        ],
       ]),
     );
   }

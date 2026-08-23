@@ -5,6 +5,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/services/app_data_service.dart';
+import 'package:house_rent/services/api_error.dart';
+import 'package:house_rent/services/media_upload_policy.dart';
+import 'package:house_rent/widgets/haven_navigation_bar.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -97,22 +100,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           )
           .timeout(const Duration(seconds: 12));
       if (response.statusCode != 200) {
-        var message = 'Could not save your information.';
-        try {
-          final data = jsonDecode(response.body) as Map<String, dynamic>;
-          final errors = data['errors'];
-          message = errors is Map && errors.isNotEmpty
-              ? (errors.values.first as List).first.toString()
-              : data['message']?.toString() ?? message;
-        } catch (_) {}
-        throw _ProfileException(message);
+        throw HavenApiException.fromResponse(response,
+            operation: 'save your personal information');
       }
       await SessionService.updateCachedUser(changes);
       _notice('Personal information updated');
+    } on HavenApiException catch (error) {
+      _notice(error.message);
     } on _ProfileException catch (error) {
       _notice(error.message);
-    } catch (_) {
-      _notice('Could not save your information. Check your connection.');
+    } catch (error) {
+      _notice(ApiErrorResolver.message(error,
+          fallback: 'Haven could not save your personal information.'));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -132,6 +131,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (_uploadingPhoto) return;
     setState(() => _uploadingPhoto = true);
     try {
+      await MediaUploadPolicy.validateFile(image.path,
+          maxBytes: MediaUploadPolicy.maxImageBytes, label: 'Profile photo');
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('access_token');
       if (token == null) throw const _ProfileException('Please sign in again.');
@@ -142,17 +143,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ..headers['Authorization'] = 'Bearer $token'
         ..files.add(
             await http.MultipartFile.fromPath('profile_picture', image.path));
-      final response =
-          await request.send().timeout(const Duration(seconds: 20));
+      final response = await http.Response.fromStream(
+          await request.send().timeout(const Duration(minutes: 2)));
       if (response.statusCode != 200) {
-        throw const _ProfileException('Could not update your profile photo.');
+        throw HavenApiException.fromResponse(response,
+            operation: 'update your profile photo');
       }
       await _loadProfile(forceRefresh: true);
       _notice('Profile photo updated');
+    } on HavenApiException catch (error) {
+      _notice(error.message);
+    } on MediaUploadException catch (error) {
+      _notice(error.message);
     } on _ProfileException catch (error) {
       _notice(error.message);
-    } catch (_) {
-      _notice('Could not update your profile photo. Check your connection.');
+    } catch (error) {
+      _notice(ApiErrorResolver.message(error,
+          fallback: 'Haven could not update your profile photo.'));
     } finally {
       if (mounted) setState(() => _uploadingPhoto = false);
     }
@@ -169,7 +176,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Personal information')),
+      appBar: const HavenNavigationBar(title: 'Personal information'),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Form(
@@ -390,7 +397,12 @@ class _ProfileHeader extends StatelessWidget {
             ),
             child: ClipOval(
               child: CachedNetworkImage(
-                imageUrl: imageUrl,
+                imageUrl: ApiConfig.optimizedImageUrl(
+                  imageUrl,
+                  width: 360,
+                  height: 360,
+                  quality: 80,
+                ),
                 fit: BoxFit.cover,
                 placeholder: (_, __) => Container(
                   color: colors.surfaceContainerHighest,

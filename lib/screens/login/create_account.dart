@@ -2,8 +2,10 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:house_rent/config/api_config.dart';
+import 'package:house_rent/navigation/haven_page_route.dart';
 import 'package:house_rent/screens/home/app_shell.dart';
 import 'package:house_rent/services/app_data_service.dart';
+import 'package:house_rent/services/api_error.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -62,28 +64,26 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
             }),
           )
           .timeout(const Duration(seconds: 15));
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('access_token', data['access_token'] as String);
         await SessionService.currentUser(forceRefresh: true);
         if (mounted) {
           Navigator.pushAndRemoveUntil(
             context,
-            MaterialPageRoute(builder: (_) => const AppShell()),
+            HavenPageRoute(builder: (_) => const AppShell()),
             (_) => false,
           );
         }
         return;
       }
-      final errors = data['errors'];
-      final message = errors is Map && errors.isNotEmpty
-          ? (errors.values.first as List).first.toString()
-          : data['message']?.toString() ?? 'Could not create your account.';
-      _notice(message);
-    } catch (_) {
-      _notice(
-          'We could not reach Haven Zambia. Check your connection and try again.');
+      throw HavenApiException.fromResponse(response,
+          operation: 'create your account');
+    } catch (error) {
+      _notice(ApiErrorResolver.message(error,
+          fallback:
+              'Haven could not create your account. Review your details and try again.'));
     } finally {
       if (mounted) setState(() => _loading = false);
     }

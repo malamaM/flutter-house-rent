@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:house_rent/config/api_config.dart';
+import 'package:house_rent/services/api_error.dart';
+import 'package:house_rent/widgets/haven_navigation_bar.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -54,17 +56,12 @@ class _ChangePasswordState extends State<ChangePassword> {
         _notice('Password updated successfully');
         return;
       }
-      var message = 'Could not update your password.';
-      try {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final errors = data['errors'];
-        message = errors is Map && errors.isNotEmpty
-            ? (errors.values.first as List).first.toString()
-            : data['message']?.toString() ?? message;
-      } catch (_) {}
-      _notice(message);
-    } catch (_) {
-      _notice('Could not update your password. Check your connection.');
+      throw HavenApiException.fromResponse(response,
+          operation: 'update your password');
+    } catch (error) {
+      _notice(ApiErrorResolver.message(error,
+          fallback:
+              'Haven could not update your password. Confirm the current password and try again.'));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -81,7 +78,7 @@ class _ChangePasswordState extends State<ChangePassword> {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Password')),
+      appBar: const HavenNavigationBar(title: 'Password'),
       body: ListView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 36),

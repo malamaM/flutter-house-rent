@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:house_rent/config/api_config.dart';
+import 'package:house_rent/services/api_error.dart';
+import 'package:house_rent/services/media_upload_policy.dart';
+import 'package:house_rent/widgets/haven_navigation_bar.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -45,10 +48,19 @@ class _VerificationRequestScreenState extends State<VerificationRequestScreen> {
           headers: {
             'Authorization': 'Bearer $token',
             'Accept': 'application/json'
-          });
+          }).timeout(const Duration(seconds: 12));
       if (response.statusCode == 200 && mounted) {
         setState(() => status =
             jsonDecode(response.body)['verification_status'] ?? 'unverified');
+      } else if (response.statusCode != 200) {
+        throw HavenApiException.fromResponse(response,
+            operation: 'load your verification status');
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(ApiErrorResolver.message(error,
+                fallback: 'Haven could not load your verification status.'))));
       }
     } finally {
       if (mounted) setState(() => loading = false);
@@ -105,6 +117,19 @@ class _VerificationRequestScreenState extends State<VerificationRequestScreen> {
       }
     }
     if (!mounted || selected == null) return;
+    try {
+      await MediaUploadPolicy.validateFile(
+        selected.path,
+        maxBytes: MediaUploadPolicy.maxVerificationFileBytes,
+        label: front ? 'Front document' : 'Back document',
+      );
+    } on MediaUploadException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+      return;
+    }
     setState(() {
       if (front) {
         documentFront = selected;
@@ -127,6 +152,19 @@ class _VerificationRequestScreenState extends State<VerificationRequestScreen> {
       return;
     }
     if (!mounted || captured == null) return;
+    try {
+      await MediaUploadPolicy.validateFile(
+        captured.path,
+        maxBytes: MediaUploadPolicy.maxVerificationFileBytes,
+        label: 'Selfie',
+      );
+    } on MediaUploadException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+      return;
+    }
     setState(() => selfie = captured);
   }
 
@@ -164,6 +202,17 @@ class _VerificationRequestScreenState extends State<VerificationRequestScreen> {
     if (token == null) return;
     setState(() => submitting = true);
     try {
+      await Future.wait([
+        MediaUploadPolicy.validateFile(documentFront!.path,
+            maxBytes: MediaUploadPolicy.maxVerificationFileBytes,
+            label: 'Front document'),
+        MediaUploadPolicy.validateFile(documentBack!.path,
+            maxBytes: MediaUploadPolicy.maxVerificationFileBytes,
+            label: 'Back document'),
+        MediaUploadPolicy.validateFile(selfie!.path,
+            maxBytes: MediaUploadPolicy.maxVerificationFileBytes,
+            label: 'Selfie'),
+      ]);
       final request = http.MultipartRequest(
           'POST', Uri.parse('${ApiConfig.apiBase}/verification-request'))
         ..headers.addAll(
@@ -180,8 +229,9 @@ class _VerificationRequestScreenState extends State<VerificationRequestScreen> {
           'document_back', documentBack!.path));
       request.files
           .add(await http.MultipartFile.fromPath('selfie', selfie!.path));
-      final response = await http.Response.fromStream(await request.send());
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final response = await http.Response.fromStream(
+        await request.send().timeout(const Duration(minutes: 5)),
+      );
       if (!mounted) return;
       if (response.statusCode == 201) {
         setState(() => status = 'pending');
@@ -189,14 +239,25 @@ class _VerificationRequestScreenState extends State<VerificationRequestScreen> {
             content: Text(
                 'Submitted securely. Haven Zambia will review your request.')));
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(body['message'] ?? 'Could not submit request.')));
+        throw HavenApiException.fromResponse(response,
+            operation: 'submit your verification request');
       }
-    } catch (_) {
+    } on HavenApiException catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text(
-                'Could not submit. Check your connection and try again.')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } on MediaUploadException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(ApiErrorResolver.message(error,
+                fallback:
+                    'Haven could not submit your verification request.'))));
       }
     } finally {
       if (mounted) setState(() => submitting = false);
@@ -214,7 +275,7 @@ class _VerificationRequestScreenState extends State<VerificationRequestScreen> {
         ? const Color(0xFFA7E6C7)
         : const Color(0xFF0A5F42);
     return Scaffold(
-        appBar: AppBar(title: const Text('Lister verification')),
+        appBar: const HavenNavigationBar(title: 'Lister verification'),
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         body: loading
             ? const Center(child: CircularProgressIndicator())
@@ -270,7 +331,7 @@ class _VerificationRequestScreenState extends State<VerificationRequestScreen> {
                     if (!locked) ...[
                       const SizedBox(height: 24),
                       DropdownButtonFormField<String>(
-                          value: type,
+                          initialValue: type,
                           decoration:
                               const InputDecoration(labelText: 'Lister type'),
                           items: const [
@@ -302,7 +363,7 @@ class _VerificationRequestScreenState extends State<VerificationRequestScreen> {
                                   'Tell us how you manage or own the properties you list.')),
                       const SizedBox(height: 18),
                       DropdownButtonFormField<String>(
-                          value: documentType,
+                          initialValue: documentType,
                           decoration: const InputDecoration(
                               labelText: 'Identity document'),
                           items: const [

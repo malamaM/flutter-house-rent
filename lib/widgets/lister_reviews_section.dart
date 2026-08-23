@@ -125,13 +125,14 @@ class _ReviewCard extends StatelessWidget {
         Row(children: [
           CircleAvatar(
               radius: 17,
-              backgroundColor: AppColors.primaryLight,
+              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
               child: Text(
                   review.reviewerName.trim().isEmpty
                       ? 'H'
                       : review.reviewerName.trim()[0].toUpperCase(),
-                  style: const TextStyle(
-                      color: AppColors.primary, fontWeight: FontWeight.w800))),
+                  style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w800))),
           const SizedBox(width: 10),
           Expanded(
               child: Text(review.reviewerName,
@@ -142,6 +143,30 @@ class _ReviewCard extends StatelessWidget {
         Text(review.comment,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Theme.of(context).colorScheme.onSurface, height: 1.45)),
+        if (review.ownerResponse != null) ...[
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Response from the lister',
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700)),
+                const SizedBox(height: 5),
+                Text(review.ownerResponse!,
+                    style: Theme.of(context).textTheme.bodyMedium),
+              ],
+            ),
+          ),
+        ],
       ]),
     );
   }

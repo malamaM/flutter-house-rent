@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:house_rent/screens/home/explore.dart';
@@ -9,6 +8,7 @@ import 'package:house_rent/screens/home/reels_screen.dart';
 import 'package:house_rent/screens/home/saved_houses_screen.dart';
 import 'package:house_rent/screens/profile/offline_sync_screen.dart';
 import 'package:house_rent/models/house.dart';
+import 'package:house_rent/navigation/haven_page_route.dart';
 import 'package:house_rent/services/navigation_warmup_service.dart';
 import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/widgets/custom_bottom_navigation_bar.dart';
@@ -45,6 +45,9 @@ class _AppShellState extends State<AppShell> {
   late final List<_TabNavigatorObserver> _observers;
   final Set<int> _mountedTabs = {0};
   final List<Timer> _warmupTimers = [];
+  Timer? _toursNavSettleTimer;
+  bool _toursNavEmphasized = false;
+  double _toursBackdropLuminance = .3;
 
   @override
   void initState() {
@@ -87,6 +90,7 @@ class _AppShellState extends State<AppShell> {
 
   @override
   void dispose() {
+    _toursNavSettleTimer?.cancel();
     for (final timer in _warmupTimers) {
       timer.cancel();
     }
@@ -100,7 +104,13 @@ class _AppShellState extends State<AppShell> {
       setState(() {
         _mountedTabs.add(index);
         _currentIndex = index;
+        _toursNavEmphasized = index == 2;
       });
+      if (index == 2) {
+        _scheduleToursNavSettle();
+      } else {
+        _toursNavSettleTimer?.cancel();
+      }
       unawaited(NavigationWarmupService.instance.warmTab(index));
       return;
     }
@@ -110,6 +120,30 @@ class _AppShellState extends State<AppShell> {
     // separate from house-cache updates, so it cannot reset a warm tab.
     _navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
     AppCache.instance.announce('tab-refresh', '$index');
+  }
+
+  void _showToursNavigation() {
+    if (!mounted || _currentIndex != 2) return;
+    _toursNavSettleTimer?.cancel();
+    if (!_toursNavEmphasized) {
+      setState(() => _toursNavEmphasized = true);
+    }
+    _scheduleToursNavSettle();
+  }
+
+  void _scheduleToursNavSettle() {
+    _toursNavSettleTimer?.cancel();
+    _toursNavSettleTimer = Timer(const Duration(milliseconds: 1450), () {
+      if (mounted && _currentIndex == 2 && _toursNavEmphasized) {
+        setState(() => _toursNavEmphasized = false);
+      }
+    });
+  }
+
+  void _updateToursBackdrop(double luminance) {
+    final next = luminance.clamp(0.0, 1.0);
+    if (!mounted || (_toursBackdropLuminance - next).abs() < .025) return;
+    setState(() => _toursBackdropLuminance = next);
   }
 
   @override
@@ -147,21 +181,14 @@ class _AppShellState extends State<AppShell> {
                                   initialType: widget.initialHomeType,
                                 ),
                               1 => const Explore(),
-                              2 => const ReelsScreen(),
+                              2 => ReelsScreen(
+                                  onInteraction: _showToursNavigation,
+                                  onBackdropLuminance: _updateToursBackdrop,
+                                ),
                               _ => const SavedHousesScreen(),
                             };
                             final settings = RouteSettings(name: 'tab-$index');
-                            // The tab root must also be Cupertino on iOS. Mixing
-                            // Material below a Cupertino details page can prevent
-                            // Flutter from enabling its native edge-back gesture.
-                            if (Theme.of(context).platform ==
-                                TargetPlatform.iOS) {
-                              return CupertinoPageRoute<void>(
-                                builder: (_) => page,
-                                settings: settings,
-                              );
-                            }
-                            return MaterialPageRoute<void>(
+                            return HavenPageRoute<void>(
                               builder: (_) => page,
                               settings: settings,
                             );
@@ -180,7 +207,7 @@ class _AppShellState extends State<AppShell> {
               child: Center(
                 child: OfflineStatusPill(
                   onTap: () => _navigatorKeys[_currentIndex].currentState?.push(
-                        MaterialPageRoute<void>(
+                        HavenPageRoute<void>(
                             builder: (_) => const OfflineSyncScreen()),
                       ),
                 ),
@@ -192,6 +219,10 @@ class _AppShellState extends State<AppShell> {
             ? CustomBottomNavigationBar(
                 currentIndex: _currentIndex,
                 onSelected: _selectTab,
+                immersive: _currentIndex == 2,
+                interactionEmphasis: _toursNavEmphasized,
+                onInteractionStart: _showToursNavigation,
+                backdropLuminance: _toursBackdropLuminance,
               )
             : null,
       ),

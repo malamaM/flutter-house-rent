@@ -10,6 +10,7 @@ import 'package:house_rent/services/app_feedback.dart';
 import 'package:house_rent/services/offline_sync_service.dart';
 import 'package:house_rent/services/recommendation_service.dart';
 import 'package:house_rent/services/network_status_service.dart';
+import 'package:house_rent/theme/haven_responsive_media.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -57,6 +58,9 @@ class MyApp extends StatelessWidget {
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
         themeMode: ThemeController.instance.mode,
+        builder: (context, child) => HavenResponsiveMedia(
+          child: child ?? const SizedBox.shrink(),
+        ),
         home: const SplashScreen(),
       ),
     );

@@ -1,16 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/screens/my_listings/create_listing_screen.dart';
 import 'package:house_rent/screens/my_listings/edit_listing.dart';
+import 'package:house_rent/widgets/all_homes.dart';
 import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/widgets/demand_badge.dart';
+import 'package:house_rent/widgets/categories.dart';
 import 'package:house_rent/widgets/custom_bottom_navigation_bar.dart';
 import 'package:house_rent/widgets/lister_trust_badges.dart';
 import 'package:house_rent/widgets/recommended_house.dart';
 import 'package:house_rent/widgets/property_card.dart';
 import 'package:house_rent/theme/app_theme.dart';
+import 'package:house_rent/theme/haven_responsive_media.dart';
+import 'package:house_rent/widgets/custom_app_bar.dart';
+import 'package:house_rent/widgets/house_info.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -143,6 +150,121 @@ void main() {
     ));
 
     expect(find.text('Tours'), findsOneWidget);
-    expect(find.byIcon(Icons.smart_display_rounded), findsOneWidget);
+    expect(find.byIcon(CupertinoIcons.play_rectangle_fill), findsOneWidget);
+  });
+
+  testWidgets('compact home cards support large Android text scaling',
+      (tester) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final house = House(
+      'A comfortably long property name',
+      'Lusaka, Kabulonga',
+      '',
+      bedrooms: 3,
+      bathrooms: 2,
+      size: 145,
+      priceRental: 12500,
+      isVerified: true,
+    );
+    double? effectiveTextScale;
+
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.lightTheme,
+      home: MediaQuery(
+        data: const MediaQueryData(textScaler: TextScaler.linear(2.5)),
+        child: HavenResponsiveMedia(
+          child: Builder(
+            builder: (context) {
+              effectiveTextScale =
+                  MediaQuery.textScalerOf(context).scale(14) / 14;
+              return Scaffold(
+                appBar: const CustomAppBar(),
+                bottomNavigationBar:
+                    const CustomBottomNavigationBar(currentIndex: 0),
+                body: Column(
+                  children: [
+                    Categories(selectedType: null, onSelected: (_) {}),
+                    HouseInfo(house: house),
+                    Builder(
+                      builder: (context) => SizedBox(
+                        height: propertyCardCarouselHeight(context),
+                        child: PropertyCard(house: house, onTap: () {}),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    ));
+    await tester.pump();
+
+    expect(effectiveTextScale, closeTo(1.35, .001));
+    expect(
+      MediaQuery.textScalerOf(tester.element(find.text('Bedrooms'))).scale(14) /
+          14,
+      closeTo(1.35, .001),
+    );
+    expect(
+      MediaQuery.textScalerOf(tester.element(find.text('HAVEN ZAMBIA')))
+              .scale(14) /
+          14,
+      closeTo(1.35, .001),
+    );
+    expect(tester.takeException(), isNull);
+    await tester.pump(const Duration(seconds: 1));
+  });
+
+  testWidgets('zoomed Android layouts keep horizontal card content balanced',
+      (tester) async {
+    tester.view.physicalSize = const Size(320, 760);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues({});
+
+    final house = House(
+      'Kafue River Townhouse',
+      'Kafue',
+      '',
+      bedrooms: 2,
+      bathrooms: 2,
+      size: 130,
+      priceRental: 5700,
+      isVerified: true,
+    );
+
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.lightTheme,
+      home: MediaQuery(
+        data: const MediaQueryData(textScaler: TextScaler.linear(2.5)),
+        child: HavenResponsiveMedia(
+          child: Scaffold(
+            body: SingleChildScrollView(
+              child: Column(
+                children: [
+                  PropertyCard(horizontal: true, house: house, onTap: () {}),
+                  const SizedBox(height: 20),
+                  AllHomes(initialHouses: [house]),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    ));
+    await tester.pump();
+
+    final bedY = tester.getCenter(find.byIcon(Icons.bed_outlined).first).dy;
+    final bathY =
+        tester.getCenter(find.byIcon(Icons.bathtub_outlined).first).dy;
+    expect((bedY - bathY).abs(), lessThan(2));
+    expect(tester.takeException(), isNull);
   });
 }

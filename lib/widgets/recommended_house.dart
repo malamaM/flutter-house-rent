@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
+import 'package:house_rent/navigation/haven_page_route.dart';
 import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/screens/details/details.dart';
 import 'package:house_rent/screens/home/all_houses_screen.dart';
 import 'package:house_rent/widgets/property_card.dart';
 import 'package:house_rent/widgets/screen_state.dart';
 import 'package:house_rent/services/session_recommendation.dart';
+import 'package:house_rent/services/app_feedback.dart';
 
 class RecommendedHouse extends StatefulWidget {
   final Map<String, String> filters;
@@ -82,7 +84,7 @@ class _RecommendedHouseState extends State<RecommendedHouse> {
           subtitle: 'Fresh picks based on what renters view most',
           onSeeAll: () => Navigator.push(
             context,
-            MaterialPageRoute(
+            HavenPageRoute(
               builder: (_) => AllHousesScreen(
                 title: 'Recommended homes',
                 filters: recommendedFilters,
@@ -92,7 +94,7 @@ class _RecommendedHouseState extends State<RecommendedHouse> {
         ),
         const SizedBox(height: 16),
         SizedBox(
-          height: 355,
+          height: propertyCardCarouselHeight(context),
           child: FutureBuilder<List<House>>(
             future: houses,
             initialData: _settledHouses,
@@ -113,10 +115,14 @@ class _RecommendedHouseState extends State<RecommendedHouse> {
                 );
               }
               if (snapshot.hasError || !snapshot.hasData) {
-                return const ScreenState(
+                return ScreenState(
                   icon: Icons.wifi_off_rounded,
                   title: 'Could not load homes',
-                  message: 'Check your connection and try again.',
+                  message: snapshot.hasError
+                      ? AppFeedback.messageFor(snapshot.error!,
+                          fallback:
+                              'Haven could not load your recommended homes.')
+                      : 'Haven did not return any home information.',
                 );
               }
               final items = SessionRecommendation.instance.rank(snapshot.data!);
@@ -160,20 +166,26 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: Theme.of(context).textTheme.headlineMedium),
-                const SizedBox(height: 3),
-                Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
-              ],
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.headlineMedium),
+              ),
+              TextButton(onPressed: onSeeAll, child: const Text('View all')),
+            ],
           ),
-          TextButton(onPressed: onSeeAll, child: const Text('View all')),
+          const SizedBox(height: 3),
+          Text(subtitle,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodyMedium),
         ],
       ),
     );

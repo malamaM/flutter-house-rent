@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:house_rent/navigation/haven_page_route.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/screens/home/app_shell.dart';
 import 'package:house_rent/screens/home/explore.dart';
@@ -91,10 +92,7 @@ class _HomeState extends State<Home> {
         return;
       }
       final completed = await Navigator.of(context).push<bool>(
-        MaterialPageRoute(
-          fullscreenDialog: true,
-          builder: (_) => const RentalPreferencesScreen(),
-        ),
+        HavenPageRoute(builder: (_) => const RentalPreferencesScreen()),
       );
       if (completed == true && mounted) {
         final refreshedFeed =
@@ -172,7 +170,7 @@ class _HomeState extends State<Home> {
                 SearchInput(onTap: () {
                   if (!AppShell.selectTab(context, 1)) {
                     Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => const Explore()));
+                        HavenPageRoute(builder: (_) => const Explore()));
                   }
                 }),
                 const SizedBox(height: 24),

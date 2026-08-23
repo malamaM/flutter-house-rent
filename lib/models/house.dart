@@ -3,7 +3,9 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:house_rent/config/api_config.dart';
+import 'package:house_rent/services/api_error.dart';
 import 'package:house_rent/services/app_cache.dart';
+import 'package:house_rent/services/media_upload_policy.dart';
 import 'package:house_rent/services/offline_sync_service.dart';
 import 'package:house_rent/services/performance_monitor.dart';
 import 'package:http/http.dart' as http;
@@ -16,7 +18,7 @@ class House {
   static const _feedKeepFor = Duration(days: 14);
   static const _privateFreshFor = Duration(minutes: 2);
   static const _privateKeepFor = Duration(days: 30);
-  static const _homeFeedCacheVersion = 3;
+  static const _homeFeedCacheVersion = 4;
   static const _refreshRetryDelays = <Duration>[
     Duration(seconds: 5),
     Duration(seconds: 15),
@@ -40,6 +42,9 @@ class House {
   int carGarage;
   String? description;
   String? status;
+  String availabilityStatus;
+  int qualityScore;
+  List<String> qualityWarnings;
   DateTime? publishedAt;
   DateTime? expiresAt;
   DateTime? archivedAt;
@@ -64,10 +69,17 @@ class House {
   bool isSaved;
   int? ownerId;
   String? ownerName;
+  String? ownerEmail;
+  String? ownerPhone;
+  String? ownerWhatsApp;
+  String? ownerCompany;
   bool isVerified;
   bool isTopRated;
   double averageRating;
   int totalReviews;
+  double responseRate;
+  int? typicalResponseMinutes;
+  int completedViewings;
   bool isFromCache;
   DateTime? cachedAt;
   List<HouseReelAsset> reelAssets;
@@ -86,6 +98,9 @@ class House {
     this.carGarage = 0,
     this.description,
     this.status,
+    this.availabilityStatus = 'available',
+    this.qualityScore = 0,
+    this.qualityWarnings = const [],
     this.publishedAt,
     this.expiresAt,
     this.archivedAt,
@@ -110,10 +125,17 @@ class House {
     this.isSaved = false,
     this.ownerId,
     this.ownerName,
+    this.ownerEmail,
+    this.ownerPhone,
+    this.ownerWhatsApp,
+    this.ownerCompany,
     this.isVerified = false,
     this.isTopRated = false,
     this.averageRating = 0,
     this.totalReviews = 0,
+    this.responseRate = 0,
+    this.typicalResponseMinutes,
+    this.completedViewings = 0,
     this.isFromCache = false,
     this.cachedAt,
     this.reelAssets = const [],
@@ -125,6 +147,16 @@ class House {
 
   bool get isArchived => lifecycleStatus == 'archived' || status == 'Archived';
   bool get canRenew => isArchived || daysUntilExpiry <= 7;
+
+  Map<String, dynamic> get ownerContact => {
+        if (ownerId != null) 'id': ownerId,
+        if (ownerName?.isNotEmpty == true) 'name': ownerName,
+        if (ownerEmail?.isNotEmpty == true) 'email': ownerEmail,
+        if (ownerPhone?.isNotEmpty == true) 'phone_number': ownerPhone,
+        if (ownerWhatsApp?.isNotEmpty == true) 'whatsapp_number': ownerWhatsApp,
+        if (ownerCompany?.isNotEmpty == true) 'company': ownerCompany,
+        'is_verified': isVerified,
+      };
 
   factory House.fromMap(Map<String, dynamic> map,
       {bool fromCache = false, DateTime? cachedAt}) {
@@ -144,6 +176,11 @@ class House {
       carGarage: _parseInt(map['car_garage']),
       description: map['description'],
       status: map['status'],
+      availabilityStatus: map['availability_status']?.toString() ?? 'available',
+      qualityScore: _parseInt(map['quality_score']),
+      qualityWarnings: (map['quality_warnings'] as List? ?? const [])
+          .map((item) => item.toString())
+          .toList(),
       publishedAt: DateTime.tryParse(map['published_at']?.toString() ?? ''),
       expiresAt: DateTime.tryParse(map['expires_at']?.toString() ?? ''),
       archivedAt: DateTime.tryParse(map['archived_at']?.toString() ?? ''),
@@ -169,6 +206,10 @@ class House {
       isSaved: map['is_saved'] == true || map['is_saved'] == 1,
       ownerId: user == null ? null : _parseInt(user['id']),
       ownerName: _ownerName(user),
+      ownerEmail: user?['email']?.toString(),
+      ownerPhone: user?['phone_number']?.toString(),
+      ownerWhatsApp: user?['whatsapp_number']?.toString(),
+      ownerCompany: user?['company']?.toString(),
       isVerified: user != null &&
           (user['is_verified'] == true ||
               user['is_verified'] == 1 ||
@@ -177,6 +218,13 @@ class House {
       averageRating:
           user == null ? 0 : _parseDouble(user['average_rating']) ?? 0,
       totalReviews: user == null ? 0 : _parseInt(user['total_reviews']),
+      responseRate:
+          user == null ? 0 : (_parseDouble(user['response_rate']) ?? 0),
+      typicalResponseMinutes: user == null
+          ? null
+          : _parseNullableInt(user['typical_response_minutes']),
+      completedViewings:
+          user == null ? 0 : _parseInt(user['completed_viewings_count']),
       isFromCache: fromCache,
       cachedAt: cachedAt,
       reelAssets: _reelAssets(map),
@@ -205,6 +253,9 @@ class House {
         'car_garage': carGarage,
         'description': description,
         'status': status,
+        'availability_status': availabilityStatus,
+        'quality_score': qualityScore,
+        'quality_warnings': qualityWarnings,
         'published_at': publishedAt?.toIso8601String(),
         'expires_at': expiresAt?.toIso8601String(),
         'archived_at': archivedAt?.toIso8601String(),
@@ -234,6 +285,10 @@ class House {
             : {
                 'id': ownerId,
                 'name': ownerName,
+                'email': ownerEmail,
+                'phone_number': ownerPhone,
+                'whatsapp_number': ownerWhatsApp,
+                'company': ownerCompany,
                 'is_verified': isVerified,
                 'trust_badges': [
                   if (isVerified) {'type': 'verified'},
@@ -241,6 +296,9 @@ class House {
                 ],
                 'average_rating': averageRating,
                 'total_reviews': totalReviews,
+                'response_rate': responseRate,
+                'typical_response_minutes': typicalResponseMinutes,
+                'completed_viewings_count': completedViewings,
               },
         'media': reelAssets
             .where((asset) => asset.isVideo)
@@ -320,7 +378,8 @@ class House {
             .timeout(const Duration(seconds: 12)),
       );
       if (response.statusCode != 200) {
-        throw HttpException('Could not load home feed', response.statusCode);
+        throw HavenApiException.fromResponse(response,
+            operation: 'load your home feed');
       }
       final value = Map<String, dynamic>.from(json.decode(response.body));
       await AppCache.instance
@@ -341,8 +400,8 @@ class House {
   }) async {
     final token = await _token();
     final scope = token == null
-        ? AppCache.instance.publicKey('reels-v2')
-        : await AppCache.instance.privateKey('reels-v2');
+        ? AppCache.instance.publicKey('reels-v3')
+        : await AppCache.instance.privateKey('reels-v3');
     final key = '$scope:${cursor ?? 'first'}';
     final cached = cursor == null ? await AppCache.instance.read(key) : null;
     if (!forceRefresh && cached != null && !cached.isExpired) {
@@ -361,7 +420,8 @@ class House {
             .timeout(const Duration(seconds: 12)),
       );
       if (response.statusCode != 200) {
-        throw HttpException('Could not load tours', response.statusCode);
+        throw HavenApiException.fromResponse(response,
+            operation: 'load Haven Tours');
       }
       final value = Map<String, dynamic>.from(json.decode(response.body));
       if (cursor == null) {
@@ -404,7 +464,8 @@ class House {
             .get(uri, headers: _headers(token))
             .timeout(const Duration(seconds: 12));
         if (response.statusCode != 200) {
-          throw HttpException('Could not load properties', response.statusCode);
+          throw HavenApiException.fromResponse(response,
+              operation: 'load available properties');
         }
         return _dataList(response.body);
       },
@@ -428,8 +489,8 @@ class House {
                   headers: _headers(token))
               .timeout(const Duration(seconds: 12));
           if (response.statusCode != 200) {
-            throw HttpException(
-                'Could not load saved homes', response.statusCode);
+            throw HavenApiException.fromResponse(response,
+                operation: 'load your saved homes');
           }
           return _dataList(response.body);
         },
@@ -473,8 +534,8 @@ class House {
             .get(Uri.parse('$_apiBase/my-houses'), headers: _headers(token))
             .timeout(const Duration(seconds: 12));
         if (response.statusCode != 200) {
-          throw HttpException(
-              'Could not load your listings', response.statusCode);
+          throw HavenApiException.fromResponse(response,
+              operation: 'load your listings');
         }
         return _dataList(response.body);
       },
@@ -658,7 +719,12 @@ class House {
         throw HttpException('Could not update saved home', response.statusCode);
       }
       if (response.statusCode != 200) {
-        return SaveHouseResult(isSaved: previous);
+        return SaveHouseResult(
+          isSaved: previous,
+          errorMessage: HavenApiException.fromResponse(response,
+                  operation: 'update this saved home')
+              .message,
+        );
       }
       final isSaved = json.decode(response.body)['is_saved'] == true;
       // The response is the confirmation point. Let every visible card update
@@ -711,6 +777,12 @@ class House {
     void Function(double progress)? onProgress,
   }) async {
     try {
+      await MediaUploadPolicy.validateListing(
+        coverImagePath: coverImagePath,
+        galleryImagePaths: galleryImagePaths ?? const [],
+        videoPaths: videoPaths ?? const [],
+        reelVideoPath: reelVideoPath,
+      );
       final token = await _requiredToken();
       final request = _ProgressMultipartRequest(
         'POST',
@@ -748,15 +820,23 @@ class House {
         request.fields['deleted_media[$i]'] = deletedMediaIds![i].toString();
       }
       final response = await http.Response.fromStream(
-        await request.send().timeout(const Duration(minutes: 3)),
+        await request.send().timeout(const Duration(minutes: 15)),
       );
       if (response.statusCode == 200) {
         await invalidatePropertyData(id: id);
         return true;
       }
-      return false;
+      throw MediaUploadException(_uploadError(response));
+    } on MediaUploadException {
+      rethrow;
+    } on TimeoutException {
+      throw const MediaUploadException(
+        'The upload timed out. Keep Haven open on a stable connection and try again.',
+      );
     } catch (_) {
-      return false;
+      throw const MediaUploadException(
+        'The upload was interrupted. Your changes are still saved as a draft.',
+      );
     }
   }
 
@@ -766,6 +846,12 @@ class House {
       String? reelVideoPath,
       void Function(double progress)? onProgress}) async {
     try {
+      await MediaUploadPolicy.validateListing(
+        coverImagePath: coverImagePath,
+        galleryImagePaths: galleryImagePaths,
+        videoPaths: videoPaths,
+        reelVideoPath: reelVideoPath,
+      );
       final token = await _requiredToken();
       final request = _ProgressMultipartRequest(
         'POST',
@@ -788,16 +874,30 @@ class House {
         );
       }
       final response = await http.Response.fromStream(
-        await request.send().timeout(const Duration(minutes: 3)),
+        await request.send().timeout(const Duration(minutes: 15)),
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
         await invalidatePropertyData();
         return true;
       }
-      return false;
+      throw MediaUploadException(_uploadError(response));
+    } on MediaUploadException {
+      rethrow;
+    } on TimeoutException {
+      throw const MediaUploadException(
+        'The upload timed out. Keep Haven open on a stable connection and try again.',
+      );
     } catch (_) {
-      return false;
+      throw const MediaUploadException(
+        'The upload was interrupted. Your listing is still saved as a draft.',
+      );
     }
+  }
+
+  static String _uploadError(http.Response response) {
+    return HavenApiException.fromResponse(response,
+            operation: 'accept this listing upload')
+        .message;
   }
 
   static Future<void> invalidatePropertyData({int? id}) async {
@@ -813,19 +913,16 @@ class House {
     AppCache.instance.announce('houses', id == null ? 'all' : 'house:$id');
   }
 
-  static Future<bool> renewListing(int id) async {
-    try {
-      final token = await _requiredToken();
-      final response = await http
-          .post(Uri.parse('$_apiBase/houses/$id/renew'),
-              headers: _headers(token))
-          .timeout(const Duration(seconds: 12));
-      if (response.statusCode != 200) return false;
-      await invalidatePropertyData(id: id);
-      return true;
-    } catch (_) {
-      return false;
+  static Future<void> renewListing(int id) async {
+    final token = await _requiredToken();
+    final response = await http
+        .post(Uri.parse('$_apiBase/houses/$id/renew'), headers: _headers(token))
+        .timeout(const Duration(seconds: 12));
+    if (response.statusCode != 200) {
+      throw HavenApiException.fromResponse(response,
+          operation: 'renew this listing');
     }
+    await invalidatePropertyData(id: id);
   }
 
   static Future<void> recordView(int id) async {
@@ -991,11 +1088,13 @@ class SaveHouseResult {
   final bool isSaved;
   final bool confirmed;
   final bool queued;
+  final String? errorMessage;
 
   const SaveHouseResult({
     required this.isSaved,
     this.confirmed = false,
     this.queued = false,
+    this.errorMessage,
   });
 }
 

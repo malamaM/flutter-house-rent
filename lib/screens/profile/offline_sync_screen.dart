@@ -5,6 +5,7 @@ import 'package:house_rent/services/recommendation_service.dart';
 import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/widgets/offline_status_pill.dart';
 import 'package:house_rent/widgets/screen_state.dart';
+import 'package:house_rent/widgets/haven_navigation_bar.dart';
 
 class OfflineSyncScreen extends StatefulWidget {
   const OfflineSyncScreen({super.key});
@@ -75,7 +76,7 @@ class _OfflineSyncScreenState extends State<OfflineSyncScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Offline & sync')),
+        appBar: const HavenNavigationBar(title: 'Offline & sync'),
         body: FutureBuilder<List<Map<String, dynamic>>>(
           future: _actions,
           builder: (context, snapshot) {
@@ -178,20 +179,27 @@ class _PendingActionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final profile = action['type'] == 'recommendation_profile';
+    final message = action['type'] == 'contact_message';
     final saved = action['is_saved'] == true;
-    final title = profile
-        ? 'Update home-search preferences'
-        : saved
-            ? 'Save property'
-            : 'Remove saved property';
-    final subtitle = profile
-        ? 'Latest preferences · waiting to sync'
-        : 'Property ${action['house_id']} · waiting to sync';
-    final icon = profile
-        ? Icons.tune_rounded
-        : saved
-            ? Icons.bookmark_added_rounded
-            : Icons.bookmark_remove_outlined;
+    final title = message
+        ? 'Message property owner'
+        : profile
+            ? 'Update home-search preferences'
+            : saved
+                ? 'Save property'
+                : 'Remove saved property';
+    final subtitle = message
+        ? 'Property ${action['house_id']} · stored on this device until sync'
+        : profile
+            ? 'Latest preferences · waiting to sync'
+            : 'Property ${action['house_id']} · waiting to sync';
+    final icon = message
+        ? Icons.mark_chat_unread_outlined
+        : profile
+            ? Icons.tune_rounded
+            : saved
+                ? Icons.bookmark_added_rounded
+                : Icons.bookmark_remove_outlined;
 
     return Card(
       child: Padding(

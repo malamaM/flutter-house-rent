@@ -1,8 +1,10 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/services/premium_haptics.dart';
+import 'package:house_rent/services/app_feedback.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/glass_surface.dart';
 import 'package:share_plus/share_plus.dart';
@@ -85,6 +87,9 @@ class _DetailsAppBarState extends State<DetailsAppBar> {
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
       ));
+    } else if (result.errorMessage != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(result.errorMessage!)));
     }
   }
 
@@ -115,10 +120,11 @@ class _DetailsAppBarState extends State<DetailsAppBar> {
         subject: '${house.name} · Haven Zambia',
         sharePositionOrigin: sharePositionOrigin,
       ));
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Sharing is unavailable right now. Please try again.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(AppFeedback.messageFor(error,
+            fallback: 'The system share sheet is unavailable on this device.')),
       ));
     }
   }
@@ -131,7 +137,12 @@ class _DetailsAppBarState extends State<DetailsAppBar> {
         fit: StackFit.expand,
         children: [
           CachedNetworkImage(
-            imageUrl: widget.house.imageUrl,
+            imageUrl: ApiConfig.optimizedImageUrl(
+              widget.house.imageUrl,
+              width: 1440,
+              height: 900,
+              quality: 82,
+            ),
             memCacheWidth: 1440,
             fit: BoxFit.cover,
             placeholder: (_, __) => Container(

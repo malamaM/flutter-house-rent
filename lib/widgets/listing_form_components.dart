@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/glass_surface.dart';
 
 class ListingSectionHeader extends StatelessWidget {
@@ -21,8 +20,8 @@ class ListingSectionHeader extends StatelessWidget {
       children: [
         Text(
           eyebrow.toUpperCase(),
-          style: const TextStyle(
-            color: AppColors.primary,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.primary,
             fontSize: 11,
             letterSpacing: 1.2,
             fontWeight: FontWeight.w800,
@@ -133,13 +132,16 @@ class ListingChoice extends StatelessWidget {
                 label: Text(option),
                 selected: active,
                 onSelected: (_) => onChanged(option),
-                selectedColor: AppColors.primaryLight,
+                selectedColor: Theme.of(context).colorScheme.primaryContainer,
                 side: BorderSide(
-                  color: active ? AppColors.primary : AppColors.divider,
+                  color: active
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.outlineVariant,
                 ),
                 labelStyle: TextStyle(
-                  color:
-                      active ? AppColors.primaryDark : AppColors.textSecondary,
+                  color: active
+                      ? Theme.of(context).colorScheme.onPrimaryContainer
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
                   fontWeight: active ? FontWeight.w700 : FontWeight.w500,
                 ),
                 showCheckmark: false,
@@ -175,16 +177,22 @@ class AmenityTile extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: value ? AppColors.primaryLight : AppColors.surface,
+          color: value
+              ? Theme.of(context).colorScheme.primaryContainer
+              : Theme.of(context).colorScheme.surfaceContainerLow,
           border: Border.all(
-            color: value ? AppColors.primary : AppColors.divider,
+            color: value
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.outlineVariant,
           ),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
           children: [
             Icon(icon,
-                color: value ? AppColors.primary : AppColors.textSecondary),
+                color: value
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.onSurfaceVariant),
             const SizedBox(width: 10),
             Expanded(
               child: Text(label,
@@ -192,7 +200,9 @@ class AmenityTile extends StatelessWidget {
             ),
             Icon(
               value ? Icons.check_circle_rounded : Icons.circle_outlined,
-              color: value ? AppColors.primary : AppColors.divider,
+              color: value
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.outline,
               size: 20,
             ),
           ],
@@ -217,6 +227,57 @@ class ListingSurface extends StatelessWidget {
     return GlassSurface(
       borderRadius: BorderRadius.circular(20),
       child: Padding(padding: padding, child: child),
+    );
+  }
+}
+
+class MediaPreparationIndicator extends StatelessWidget {
+  final double progress;
+
+  const MediaPreparationIndicator({
+    Key? key,
+    required this.progress,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final value = progress.clamp(0.0, 1.0);
+    return Container(
+      margin: const EdgeInsets.only(top: 14),
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: colors.primaryContainer.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.movie_filter_outlined, color: colors.primary, size: 20),
+          const SizedBox(width: 9),
+          const Expanded(
+            child: Text('Preparing video',
+                style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+          Text('${(value * 100).round()}%',
+              style: TextStyle(
+                  color: colors.onPrimaryContainer,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12)),
+        ]),
+        const SizedBox(height: 9),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(99),
+          child: LinearProgressIndicator(
+            value: value > 0 ? value : null,
+            minHeight: 5,
+          ),
+        ),
+        const SizedBox(height: 7),
+        Text('Optimizing only when needed while keeping the clearest version.',
+            style: TextStyle(
+                color: colors.onPrimaryContainer.withValues(alpha: 0.8),
+                fontSize: 11.5)),
+      ]),
     );
   }
 }
