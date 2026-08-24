@@ -75,7 +75,7 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
     if (_pageController.hasClients) {
       _pageController.jumpToPage(0);
     }
-    unawaited(_loadInitial());
+    unawaited(_loadInitial(forceRefresh: true));
   }
 
   @override
@@ -91,10 +91,10 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _loadInitial() async {
+  Future<void> _loadInitial({bool forceRefresh = false}) async {
     final generation = ++_loadGeneration;
     try {
-      final page = await House.fetchReelsPage();
+      final page = await House.fetchReelsPage(forceRefresh: forceRefresh);
       if (!mounted || generation != _loadGeneration) return;
       setState(() {
         houses.addAll(page.houses);

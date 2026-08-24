@@ -4,8 +4,13 @@ import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/navigation/haven_page_route.dart';
 import 'package:house_rent/screens/home/app_shell.dart';
 import 'package:house_rent/screens/login/create_account.dart';
+import 'package:house_rent/screens/onboarding/social_profile_completion_screen.dart';
 import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/services/api_error.dart';
+import 'package:house_rent/services/auth_method_memory.dart';
+import 'package:house_rent/services/social_auth_service.dart';
+import 'package:house_rent/widgets/social_auth_buttons.dart';
+import 'package:house_rent/widgets/social_auth_conflict_sheet.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -20,8 +25,69 @@ class _SignInScreenState extends State<SignInScreen> {
   final formKey = GlobalKey<FormState>();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  final _passwordFocus = FocusNode();
   bool loading = false;
   bool obscurePassword = true;
+  String? socialLoading;
+  RememberedAuthMethod? _lastAuthMethod;
+  SocialAuthAccountConflict? _pendingSocialLink;
+
+  bool get _typedEmailUsedSocially =>
+      _lastAuthMethod?.provider != 'password' &&
+      (_lastAuthMethod?.matchesEmail(emailController.text) ?? false);
+
+  @override
+  void initState() {
+    super.initState();
+    emailController.addListener(_emailChanged);
+    _loadLastAuthMethod();
+  }
+
+  void _emailChanged() {
+    if (mounted && _lastAuthMethod?.email.isNotEmpty == true) setState(() {});
+  }
+
+  Future<void> _loadLastAuthMethod() async {
+    final remembered = await AuthMethodMemory.load();
+    if (mounted) setState(() => _lastAuthMethod = remembered);
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() => socialLoading = 'google');
+    try {
+      final auth = await SocialAuthService.signInWithGoogle();
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          HavenPageRoute(
+            builder: (_) => auth.requiresProfileCompletion
+                ? SocialProfileCompletionScreen(auth: auth)
+                : const AppShell(),
+          ),
+          (_) => false,
+        );
+      }
+    } on SocialAuthAccountConflict catch (conflict) {
+      await _handleSocialConflict(conflict);
+    } on SocialAuthCanceled {
+      _showMessage(
+          'Google sign-in was cancelled before Haven received an account.');
+    } catch (error) {
+      _showMessage(ApiErrorResolver.message(error,
+          fallback: 'Google sign-in could not be completed.'));
+    } finally {
+      if (mounted) setState(() => socialLoading = null);
+    }
+  }
+
+  Future<void> _handleSocialConflict(SocialAuthAccountConflict conflict) async {
+    if (!mounted) return;
+    final choice = await showSocialAuthConflictSheet(context, conflict);
+    if (!mounted || choice != SocialAuthConflictChoice.enterPassword) return;
+    emailController.text = conflict.email;
+    setState(() => _pendingSocialLink = conflict);
+    _passwordFocus.requestFocus();
+  }
 
   Future<void> _signIn() async {
     if (!formKey.currentState!.validate()) return;
@@ -45,6 +111,23 @@ class _SignInScreenState extends State<SignInScreen> {
         final token = jsonDecode(response.body)['access_token'];
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('access_token', token);
+        final pendingLink = _pendingSocialLink;
+        if (pendingLink != null) {
+          try {
+            await SocialAuthService.linkGoogleToSignedInAccount(
+              accessToken: token,
+              identityToken: pendingLink.identityToken,
+            );
+            _pendingSocialLink = null;
+          } catch (_) {
+            await prefs.remove('access_token');
+            rethrow;
+          }
+        }
+        await AuthMethodMemory.remember(
+          provider: 'password',
+          email: emailController.text,
+        );
         await SessionService.currentUser(forceRefresh: true);
         if (mounted) {
           Navigator.pushReplacement(
@@ -142,7 +225,11 @@ class _SignInScreenState extends State<SignInScreen> {
                             .textTheme
                             .bodyLarge
                             ?.copyWith(color: colors.onSurfaceVariant)),
-                    const SizedBox(height: 36),
+                    if (_lastAuthMethod != null) ...[
+                      const SizedBox(height: 16),
+                      _LastSignInReminder(method: _lastAuthMethod!),
+                    ],
+                    const SizedBox(height: 30),
                     Text('Email address',
                         style: Theme.of(context).textTheme.labelLarge),
                     const SizedBox(height: 8),
@@ -164,12 +251,17 @@ class _SignInScreenState extends State<SignInScreen> {
                         return null;
                       },
                     ),
+                    if (_typedEmailUsedSocially) ...[
+                      const SizedBox(height: 9),
+                      _EmailProviderHint(method: _lastAuthMethod!),
+                    ],
                     const SizedBox(height: 18),
                     Text('Password',
                         style: Theme.of(context).textTheme.labelLarge),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: passwordController,
+                      focusNode: _passwordFocus,
                       obscureText: obscurePassword,
                       textInputAction: TextInputAction.done,
                       onFieldSubmitted: (_) => _signIn(),
@@ -189,6 +281,10 @@ class _SignInScreenState extends State<SignInScreen> {
                           ? 'Enter your password'
                           : null,
                     ),
+                    if (_pendingSocialLink != null) ...[
+                      const SizedBox(height: 10),
+                      const _PendingLinkHint(),
+                    ],
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
@@ -197,7 +293,8 @@ class _SignInScreenState extends State<SignInScreen> {
                     ),
                     const SizedBox(height: 14),
                     ElevatedButton(
-                      onPressed: loading ? null : _signIn,
+                      onPressed:
+                          loading || socialLoading != null ? null : _signIn,
                       child: loading
                           ? const SizedBox(
                               width: 22,
@@ -207,6 +304,15 @@ class _SignInScreenState extends State<SignInScreen> {
                           : const Text('Sign in'),
                     ),
                     const SizedBox(height: 24),
+                    SocialAuthButtons(
+                      action: 'Continue',
+                      busyProvider: socialLoading,
+                      onGoogle: _signInWithGoogle,
+                      onApple: () => _notAvailable('Sign in with Apple'),
+                      onFacebook: () => _notAvailable('Facebook sign-in'),
+                      lastUsedProvider: _lastAuthMethod?.provider,
+                    ),
+                    const SizedBox(height: 20),
                     Wrap(
                       alignment: WrapAlignment.center,
                       crossAxisAlignment: WrapCrossAlignment.center,
@@ -214,11 +320,18 @@ class _SignInScreenState extends State<SignInScreen> {
                         Text('New to Haven Zambia?',
                             style: Theme.of(context).textTheme.bodyMedium),
                         TextButton(
-                            onPressed: () => Navigator.push(
+                            onPressed: () async {
+                              final conflict = await Navigator.push<
+                                  SocialAuthAccountConflict>(
                                 context,
                                 HavenPageRoute(
                                     builder: (_) =>
-                                        const CreateAccountScreen())),
+                                        const CreateAccountScreen()),
+                              );
+                              if (conflict != null && mounted) {
+                                await _handleSocialConflict(conflict);
+                              }
+                            },
                             child: const Text('Create account')),
                       ],
                     ),
@@ -236,6 +349,94 @@ class _SignInScreenState extends State<SignInScreen> {
   void dispose() {
     emailController.dispose();
     passwordController.dispose();
+    _passwordFocus.dispose();
     super.dispose();
+  }
+}
+
+class _LastSignInReminder extends StatelessWidget {
+  const _LastSignInReminder({required this.method});
+
+  final RememberedAuthMethod method;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+      decoration: BoxDecoration(
+        color: colors.primaryContainer.withValues(alpha: .38),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(children: [
+        Icon(Icons.history_rounded, size: 18, color: colors.primary),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Text(
+            'Last signed in on this device with ${method.providerLabel}',
+            style: TextStyle(
+              color: colors.onSurfaceVariant,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+class _EmailProviderHint extends StatelessWidget {
+  const _EmailProviderHint({required this.method});
+
+  final RememberedAuthMethod method;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.info_outline_rounded, size: 17, color: colors.primary),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Text(
+            'This email last used ${method.providerLabel}. Continue with '
+            '${method.providerLabel} unless you deliberately added a password later.',
+            style: TextStyle(
+              color: colors.onSurfaceVariant,
+              fontSize: 12.5,
+              height: 1.3,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PendingLinkHint extends StatelessWidget {
+  const _PendingLinkHint();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.link_rounded, size: 18, color: colors.primary),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Text(
+            'After your password is verified, Google will be securely connected to this Haven account.',
+            style: TextStyle(
+              color: colors.onSurfaceVariant,
+              fontSize: 12.5,
+              height: 1.3,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }

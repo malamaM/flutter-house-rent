@@ -84,7 +84,13 @@ class _ExploreState extends State<Explore> {
   }
 
   void _refreshSuggestions() {
-    if (mounted) setState(() {});
+    // Do not rebuild synchronously while the text field is acquiring focus.
+    // Let Flutter paint the focused field/keyboard first, then reveal the
+    // recommendation menu on the next frame.
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   List<_AreaOption> get _suggestedAreas {
@@ -166,7 +172,7 @@ class _ExploreState extends State<Explore> {
           curve: Curves.easeOutCubic,
         ));
       }
-      _fetch(showLoading: false);
+      _fetch(showLoading: false, forceRefresh: isActiveTabRefresh);
     }
   }
 
@@ -186,6 +192,7 @@ class _ExploreState extends State<Explore> {
     bool showLoading = true,
     bool reset = true,
     bool panToResults = false,
+    bool forceRefresh = false,
   }) async {
     if (_loadingMore && !reset) return;
     final generation = reset ? ++_requestGeneration : _requestGeneration;
@@ -202,7 +209,7 @@ class _ExploreState extends State<Explore> {
         ...filters,
         'page': '$requestedPage',
         'per_page': '20',
-      });
+      }, forceRefresh: forceRefresh);
       if (!mounted || generation != _requestGeneration) return;
       final located = result
           .where((item) => item.latitude != null && item.longitude != null)
@@ -453,27 +460,42 @@ class _ExploreState extends State<Explore> {
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _MapSearchBar(
-                    controller: _searchController,
-                    focusNode: _searchFocus,
-                    filterCount: filters.length,
-                    onChanged: (value) {
-                      setState(() {});
-                      _search(value);
-                    },
-                    onSubmitted: (value) => _search(value, immediate: true),
-                    onFilters: _openFilters,
-                  ),
-                  if (_searchFocus.hasFocus && _areaOptions.isNotEmpty)
-                    _AreaSuggestions(
-                      areas: _suggestedAreas,
-                      personalized: _searchController.text.trim().isEmpty,
-                      onSelected: _selectArea,
+              child: TapRegion(
+                groupId: 'map-search-region',
+                onTapOutside: (_) {
+                  if (_searchFocus.hasFocus) {
+                    _searchFocus.unfocus();
+                    if (mounted) setState(() {});
+                  }
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _MapSearchBar(
+                      controller: _searchController,
+                      focusNode: _searchFocus,
+                      onTap: () {
+                        if (!_searchFocus.hasFocus) {
+                          _searchFocus.requestFocus();
+                        }
+                        _refreshSuggestions();
+                      },
+                      filterCount: filters.length,
+                      onChanged: (value) {
+                        setState(() {});
+                        _search(value);
+                      },
+                      onSubmitted: (value) => _search(value, immediate: true),
+                      onFilters: _openFilters,
                     ),
-                ],
+                    if (_searchFocus.hasFocus && _areaOptions.isNotEmpty)
+                      _AreaSuggestions(
+                        areas: _suggestedAreas,
+                        personalized: _searchController.text.trim().isEmpty,
+                        onSelected: _selectArea,
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -539,6 +561,7 @@ class _ExploreState extends State<Explore> {
 class _MapSearchBar extends StatelessWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
+  final VoidCallback onTap;
   final int filterCount;
   final ValueChanged<String> onChanged;
   final ValueChanged<String> onSubmitted;
@@ -547,6 +570,7 @@ class _MapSearchBar extends StatelessWidget {
   const _MapSearchBar({
     required this.controller,
     required this.focusNode,
+    required this.onTap,
     required this.filterCount,
     required this.onChanged,
     required this.onSubmitted,
@@ -568,6 +592,7 @@ class _MapSearchBar extends StatelessWidget {
               child: TextField(
                 controller: controller,
                 focusNode: focusNode,
+                onTap: onTap,
                 onChanged: onChanged,
                 onSubmitted: onSubmitted,
                 textInputAction: TextInputAction.search,

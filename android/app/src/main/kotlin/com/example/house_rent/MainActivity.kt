@@ -1,4 +1,4 @@
-package com.example.house_rent
+package com.malamachiluwe.haven
 
 import android.media.MediaExtractor
 import android.media.MediaFormat

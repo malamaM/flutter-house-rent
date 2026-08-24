@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/services/app_data_service.dart';
@@ -178,48 +179,42 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Scaffold(
       appBar: const HavenNavigationBar(title: 'Personal information'),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CupertinoActivityIndicator(radius: 13))
           : Form(
               key: _formKey,
               child: ListView(
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 36),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 36),
                 children: [
                   _ProfileHeader(
                     imageUrl: _profileImageUrl,
                     uploading: _uploadingPhoto,
                     onChangePhoto: _pickImage,
                   ),
-                  const SizedBox(height: 26),
+                  const SizedBox(height: 22),
                   const _SectionHeading(
-                    title: 'About you',
-                    subtitle:
-                        'The essentials attached to your Haven Zambia account.',
+                    title: 'ABOUT YOU',
+                    subtitle: 'The essentials attached to your account.',
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   _FormCard(children: [
-                    Row(children: [
-                      Expanded(
-                        child: _field(
-                          controller: _firstName,
-                          label: 'First name',
-                          icon: Icons.person_outline_rounded,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _field(
-                          controller: _lastName,
-                          label: 'Last name',
-                        ),
-                      ),
-                    ]),
-                    const SizedBox(height: 14),
+                    _field(
+                      controller: _firstName,
+                      label: 'First name',
+                      icon: CupertinoIcons.person,
+                    ),
+                    _FormDivider(color: colors.outlineVariant),
+                    _field(
+                      controller: _lastName,
+                      label: 'Last name',
+                      icon: CupertinoIcons.person,
+                    ),
+                    _FormDivider(color: colors.outlineVariant),
                     _field(
                       controller: _email,
-                      label: 'Email address',
-                      icon: Icons.mail_outline_rounded,
+                      label: 'Email',
+                      icon: CupertinoIcons.mail,
                       keyboardType: TextInputType.emailAddress,
                       validator: (value) {
                         final missing = _required(value);
@@ -229,64 +224,70 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             : 'Enter a valid email address';
                       },
                     ),
-                    const SizedBox(height: 14),
+                    _FormDivider(color: colors.outlineVariant),
                     _field(
                       controller: _phone,
-                      label: 'Phone number',
-                      icon: Icons.phone_outlined,
+                      label: 'Phone',
+                      icon: CupertinoIcons.phone,
                       keyboardType: TextInputType.phone,
                     ),
                   ]),
-                  const SizedBox(height: 26),
+                  const SizedBox(height: 22),
                   const _SectionHeading(
-                    title: 'WhatsApp contact',
+                    title: 'WHATSAPP CONTACT',
                     subtitle:
                         'Control how renters can reach you from your listings.',
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   _FormCard(children: [
-                    SwitchListTile.adaptive(
-                      contentPadding: EdgeInsets.zero,
-                      secondary: Container(
-                        width: 42,
-                        height: 42,
+                    CupertinoListTile(
+                      padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
+                      leading: Container(
+                        width: 34,
+                        height: 34,
                         decoration: BoxDecoration(
                           color: colors.primaryContainer,
-                          borderRadius: BorderRadius.circular(13),
+                          borderRadius: BorderRadius.circular(9),
                         ),
-                        child: Icon(Icons.chat_rounded,
-                            color: colors.onPrimaryContainer),
+                        child: Icon(CupertinoIcons.chat_bubble_fill,
+                            size: 18, color: colors.onPrimaryContainer),
                       ),
-                      title: const Text('Available on WhatsApp',
-                          style: TextStyle(fontWeight: FontWeight.w700)),
-                      subtitle: const Padding(
-                        padding: EdgeInsets.only(top: 4),
-                        child: Text('Show a WhatsApp action on your listings.'),
+                      title: const Text('Available on WhatsApp'),
+                      subtitle:
+                          const Text('Show a WhatsApp button on your listings'),
+                      trailing: CupertinoSwitch(
+                        value: _whatsAppEnabled,
+                        activeTrackColor: colors.primary,
+                        onChanged: (value) =>
+                            setState(() => _whatsAppEnabled = value),
                       ),
-                      value: _whatsAppEnabled,
-                      onChanged: (value) =>
-                          setState(() => _whatsAppEnabled = value),
                     ),
                     if (_whatsAppEnabled) ...[
-                      Divider(color: colors.outlineVariant),
-                      CheckboxListTile(
-                        contentPadding: EdgeInsets.zero,
-                        controlAffinity: ListTileControlAffinity.leading,
+                      _FormDivider(color: colors.outlineVariant),
+                      CupertinoListTile(
+                        padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+                        onTap: () => setState(
+                            () => _whatsAppSameAsPhone = !_whatsAppSameAsPhone),
                         title: const Text('Use my phone number'),
-                        subtitle: Text(_phone.text.trim().isEmpty
-                            ? 'Add your phone number above'
-                            : _phone.text.trim()),
-                        value: _whatsAppSameAsPhone,
-                        onChanged: (value) => setState(
-                            () => _whatsAppSameAsPhone = value ?? true),
+                        subtitle: Text(
+                          _phone.text.trim().isEmpty
+                              ? 'Add your phone number above'
+                              : _phone.text.trim(),
+                        ),
+                        trailing: AnimatedOpacity(
+                          duration: const Duration(milliseconds: 140),
+                          opacity: _whatsAppSameAsPhone ? 1 : 0,
+                          child: Icon(CupertinoIcons.check_mark,
+                              size: 20, color: colors.primary),
+                        ),
                       ),
                       if (!_whatsAppSameAsPhone) ...[
-                        const SizedBox(height: 8),
+                        _FormDivider(color: colors.outlineVariant),
                         _field(
                           controller: _whatsApp,
-                          label: 'Different WhatsApp number',
-                          hint: 'e.g. +260 97 123 4567',
-                          icon: Icons.phone_in_talk_outlined,
+                          label: 'WhatsApp',
+                          hint: '+260 97 123 4567',
+                          icon: CupertinoIcons.phone_badge_plus,
                           keyboardType: TextInputType.phone,
                           validator: (value) =>
                               value == null || value.trim().isEmpty
@@ -297,16 +298,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ],
                   ]),
                   const SizedBox(height: 28),
-                  ElevatedButton.icon(
+                  CupertinoButton.filled(
+                    borderRadius: BorderRadius.circular(14),
                     onPressed: _saving ? null : _save,
-                    icon: _saving
-                        ? const SizedBox(
-                            width: 19,
-                            height: 19,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.check_rounded),
-                    label: Text(_saving ? 'Saving…' : 'Save changes'),
+                    child: _saving
+                        ? const CupertinoActivityIndicator(
+                            color: CupertinoColors.white)
+                        : const Text('Save changes'),
                   ),
                   const SizedBox(height: 10),
                   Text(
@@ -331,15 +329,39 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     TextInputType? keyboardType,
     String? Function(String?)? validator,
   }) {
-    return TextFormField(
+    final colors = Theme.of(context).colorScheme;
+    return CupertinoTextFormFieldRow(
       controller: controller,
       keyboardType: keyboardType,
       validator: validator ?? _required,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        prefixIcon: icon == null ? null : Icon(icon),
+      placeholder: hint ?? label,
+      textInputAction: keyboardType == TextInputType.emailAddress
+          ? TextInputAction.next
+          : TextInputAction.next,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      prefix: SizedBox(
+        width: 112,
+        child: Row(
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 20, color: colors.primary),
+              const SizedBox(width: 10),
+            ],
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: colors.onSurface, fontSize: 16),
+              ),
+            ),
+          ],
+        ),
       ),
+      style: TextStyle(color: colors.onSurface, fontSize: 16),
+      placeholderStyle: TextStyle(color: colors.onSurfaceVariant, fontSize: 16),
+      decoration: const BoxDecoration(),
+      autovalidateMode: AutovalidateMode.onUserInteraction,
     );
   }
 
@@ -369,100 +391,70 @@ class _ProfileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
       decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [
-          colors.primaryContainer.withValues(alpha: .8),
-          colors.surfaceContainerLow,
-        ]),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: colors.outlineVariant),
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+            color: colors.outlineVariant.withValues(alpha: .55), width: .5),
       ),
-      child: Row(children: [
-        Stack(clipBehavior: Clip.none, children: [
-          Container(
-            width: 82,
-            height: 82,
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              color: colors.surface,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: colors.shadow.withValues(alpha: .12),
-                  blurRadius: 18,
-                  offset: const Offset(0, 7),
-                ),
-              ],
-            ),
-            child: ClipOval(
-              child: CachedNetworkImage(
-                imageUrl: ApiConfig.optimizedImageUrl(
-                  imageUrl,
-                  width: 360,
-                  height: 360,
-                  quality: 80,
-                ),
-                fit: BoxFit.cover,
-                placeholder: (_, __) => Container(
-                  color: colors.surfaceContainerHighest,
-                ),
-                errorWidget: (_, __, ___) => Icon(Icons.person_rounded,
-                    size: 42, color: colors.onSurfaceVariant),
+      child: Column(children: [
+        GestureDetector(
+          onTap: uploading ? null : onChangePhoto,
+          child: Stack(clipBehavior: Clip.none, children: [
+            Container(
+              width: 88,
+              height: 88,
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: colors.surface,
+                shape: BoxShape.circle,
+                border: Border.all(
+                    color: colors.outlineVariant.withValues(alpha: .7)),
               ),
-            ),
-          ),
-          Positioned(
-            right: -4,
-            bottom: -2,
-            child: Material(
-              color: colors.primary,
-              shape: const CircleBorder(),
-              child: InkWell(
-                onTap: uploading ? null : onChangePhoto,
-                customBorder: const CircleBorder(),
-                child: SizedBox(
-                  width: 34,
-                  height: 34,
-                  child: uploading
-                      ? Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: colors.onPrimary),
-                        )
-                      : Icon(Icons.camera_alt_outlined,
-                          size: 18, color: colors.onPrimary),
+              child: ClipOval(
+                child: CachedNetworkImage(
+                  imageUrl: ApiConfig.optimizedImageUrl(
+                    imageUrl,
+                    width: 360,
+                    height: 360,
+                    quality: 80,
+                  ),
+                  fit: BoxFit.cover,
+                  placeholder: (_, __) => Container(
+                    color: colors.surfaceContainerHighest,
+                  ),
+                  errorWidget: (_, __, ___) => Icon(CupertinoIcons.person_fill,
+                      size: 42, color: colors.onSurfaceVariant),
                 ),
               ),
             ),
-          ),
-        ]),
-        const SizedBox(width: 18),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Your Haven Zambia profile',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800, letterSpacing: -.3)),
-              const SizedBox(height: 5),
-              Text('Keep your identity and contact details current.',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(color: colors.onSurfaceVariant)),
-              const SizedBox(height: 10),
-              TextButton.icon(
-                onPressed: uploading ? null : onChangePhoto,
-                style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    minimumSize: const Size(0, 34),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-                icon: const Icon(Icons.photo_library_outlined, size: 17),
-                label: const Text('Change photo'),
+            Positioned(
+              right: -3,
+              bottom: -2,
+              child: Container(
+                width: 31,
+                height: 31,
+                decoration: BoxDecoration(
+                  color: colors.primary,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: colors.surface, width: 2),
+                ),
+                child: uploading
+                    ? const CupertinoActivityIndicator(
+                        radius: 7, color: CupertinoColors.white)
+                    : Icon(CupertinoIcons.camera_fill,
+                        size: 15, color: colors.onPrimary),
               ),
-            ],
-          ),
+            ),
+          ]),
+        ),
+        const SizedBox(height: 7),
+        CupertinoButton(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          minimumSize: const Size(0, 32),
+          onPressed: uploading ? null : onChangePhoto,
+          child: const Text('Change Photo'),
         ),
       ]),
     );
@@ -480,16 +472,14 @@ class _SectionHeading extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(title,
-          style: Theme.of(context)
-              .textTheme
-              .titleLarge
-              ?.copyWith(fontWeight: FontWeight.w800)),
+          style: TextStyle(
+              color: colors.onSurfaceVariant,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              letterSpacing: .2)),
       const SizedBox(height: 4),
       Text(subtitle,
-          style: Theme.of(context)
-              .textTheme
-              .bodyMedium
-              ?.copyWith(color: colors.onSurfaceVariant)),
+          style: TextStyle(color: colors.onSurfaceVariant, fontSize: 13)),
     ]);
   }
 }
@@ -503,15 +493,31 @@ class _FormCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.all(16),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: colors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: colors.outlineVariant),
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+            color: colors.outlineVariant.withValues(alpha: .55), width: .5),
       ),
       child: Column(children: children),
     );
   }
+}
+
+class _FormDivider extends StatelessWidget {
+  const _FormDivider({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(left: 48),
+        child: Container(
+          height: .5,
+          color: color.withValues(alpha: .65),
+        ),
+      );
 }
 
 class _ProfileException implements Exception {

@@ -400,8 +400,10 @@ class House {
   }) async {
     final token = await _token();
     final scope = token == null
-        ? AppCache.instance.publicKey('reels-v3')
-        : await AppCache.instance.privateKey('reels-v3');
+        // Bump the cache namespace after changing the server-side demo/reels
+        // candidate set so an older preloaded buffer cannot hide new tours.
+        ? AppCache.instance.publicKey('reels-v4')
+        : await AppCache.instance.privateKey('reels-v4');
     final key = '$scope:${cursor ?? 'first'}';
     final cached = cursor == null ? await AppCache.instance.read(key) : null;
     if (!forceRefresh && cached != null && !cached.isExpired) {

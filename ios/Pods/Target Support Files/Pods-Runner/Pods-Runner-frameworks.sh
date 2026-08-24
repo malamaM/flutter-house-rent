@@ -176,6 +176,15 @@ code_sign_if_enabled() {
 }
 
 if [[ "$CONFIGURATION" == "Debug" ]]; then
+  install_framework "${PODS_CONFIGURATION_BUILD_DIR}/AppAuth/AppAuth.framework"
+  install_framework "${PODS_CONFIGURATION_BUILD_DIR}/AppCheckCore/AppCheckCore.framework"
+  install_framework "${PODS_CONFIGURATION_BUILD_DIR}/GTMAppAuth/GTMAppAuth.framework"
+  install_framework "${PODS_CONFIGURATION_BUILD_DIR}/GTMSessionFetcher/GTMSessionFetcher.framework"
+  install_framework "${PODS_CONFIGURATION_BUILD_DIR}/GoogleSignIn/GoogleSignIn.framework"
+  install_framework "${PODS_CONFIGURATION_BUILD_DIR}/GoogleUtilities/GoogleUtilities.framework"
+  install_framework "${PODS_CONFIGURATION_BUILD_DIR}/PromisesObjC/FBLPromises.framework"
+  install_framework "${PODS_CONFIGURATION_BUILD_DIR}/PromisesSwift/Promises.framework"
+  install_framework "${PODS_CONFIGURATION_BUILD_DIR}/RecaptchaInterop/RecaptchaInterop.framework"
   install_framework "${PODS_CONFIGURATION_BUILD_DIR}/audioplayers_darwin/audioplayers_darwin.framework"
   install_framework "${PODS_CONFIGURATION_BUILD_DIR}/file_picker_darwin/file_picker_darwin.framework"
   install_framework "${PODS_CONFIGURATION_BUILD_DIR}/geolocator_apple/geolocator_apple.framework"
@@ -188,6 +197,15 @@ if [[ "$CONFIGURATION" == "Debug" ]]; then
   install_framework "${PODS_CONFIGURATION_BUILD_DIR}/video_player_avfoundation/video_player_avfoundation.framework"
 fi
 if [[ "$CONFIGURATION" == "Profile" ]]; then
+  install_framework "${PODS_CONFIGURATION_BUILD_DIR}/AppAuth/AppAuth.framework"
+  install_framework "${PODS_CONFIGURATION_BUILD_DIR}/AppCheckCore/AppCheckCore.framework"
+  install_framework "${PODS_CONFIGURATION_BUILD_DIR}/GTMAppAuth/GTMAppAuth.framework"
+  install_framework "${PODS_CONFIGURATION_BUILD_DIR}/GTMSessionFetcher/GTMSessionFetcher.framework"
+  install_framework "${PODS_CONFIGURATION_BUILD_DIR}/GoogleSignIn/GoogleSignIn.framework"
+  install_framework "${PODS_CONFIGURATION_BUILD_DIR}/GoogleUtilities/GoogleUtilities.framework"
+  install_framework "${PODS_CONFIGURATION_BUILD_DIR}/PromisesObjC/FBLPromises.framework"
+  install_framework "${PODS_CONFIGURATION_BUILD_DIR}/PromisesSwift/Promises.framework"
+  install_framework "${PODS_CONFIGURATION_BUILD_DIR}/RecaptchaInterop/RecaptchaInterop.framework"
   install_framework "${PODS_CONFIGURATION_BUILD_DIR}/audioplayers_darwin/audioplayers_darwin.framework"
   install_framework "${PODS_CONFIGURATION_BUILD_DIR}/file_picker_darwin/file_picker_darwin.framework"
   install_framework "${PODS_CONFIGURATION_BUILD_DIR}/geolocator_apple/geolocator_apple.framework"
@@ -200,6 +218,15 @@ if [[ "$CONFIGURATION" == "Profile" ]]; then
   install_framework "${PODS_CONFIGURATION_BUILD_DIR}/video_player_avfoundation/video_player_avfoundation.framework"
 fi
 if [[ "$CONFIGURATION" == "Release" ]]; then
+  install_framework "${PODS_CONFIGURATION_BUILD_DIR}/AppAuth/AppAuth.framework"
+  install_framework "${PODS_CONFIGURATION_BUILD_DIR}/AppCheckCore/AppCheckCore.framework"
+  install_framework "${PODS_CONFIGURATION_BUILD_DIR}/GTMAppAuth/GTMAppAuth.framework"
+  install_framework "${PODS_CONFIGURATION_BUILD_DIR}/GTMSessionFetcher/GTMSessionFetcher.framework"
+  install_framework "${PODS_CONFIGURATION_BUILD_DIR}/GoogleSignIn/GoogleSignIn.framework"
+  install_framework "${PODS_CONFIGURATION_BUILD_DIR}/GoogleUtilities/GoogleUtilities.framework"
+  install_framework "${PODS_CONFIGURATION_BUILD_DIR}/PromisesObjC/FBLPromises.framework"
+  install_framework "${PODS_CONFIGURATION_BUILD_DIR}/PromisesSwift/Promises.framework"
+  install_framework "${PODS_CONFIGURATION_BUILD_DIR}/RecaptchaInterop/RecaptchaInterop.framework"
   install_framework "${PODS_CONFIGURATION_BUILD_DIR}/audioplayers_darwin/audioplayers_darwin.framework"
   install_framework "${PODS_CONFIGURATION_BUILD_DIR}/file_picker_darwin/file_picker_darwin.framework"
   install_framework "${PODS_CONFIGURATION_BUILD_DIR}/geolocator_apple/geolocator_apple.framework"

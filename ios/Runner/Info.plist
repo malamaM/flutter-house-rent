@@ -6,6 +6,17 @@
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.91306448097-dl42f87d4f2gdg1ap7fn5uqhfe0nua6n</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleDisplayName</key>
 	<string>Haven Zambia</string>
 	<key>CFBundleExecutable</key>
@@ -24,6 +35,10 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>GIDClientID</key>
+	<string>91306448097-dl42f87d4f2gdg1ap7fn5uqhfe0nua6n.apps.googleusercontent.com</string>
+	<key>GIDServerClientID</key>
+	<string>91306448097-p94qtvjqn0ba53drj556ga3m28l4o12c.apps.googleusercontent.com</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSAppTransportSecurity</key>

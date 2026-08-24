@@ -4,8 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/navigation/haven_page_route.dart';
 import 'package:house_rent/screens/home/app_shell.dart';
+import 'package:house_rent/screens/onboarding/social_profile_completion_screen.dart';
 import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/services/api_error.dart';
+import 'package:house_rent/services/auth_method_memory.dart';
+import 'package:house_rent/services/social_auth_service.dart';
+import 'package:house_rent/widgets/social_auth_buttons.dart';
+import 'package:house_rent/widgets/social_auth_conflict_sheet.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -31,6 +36,38 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   _WhatsAppChoice _whatsAppChoice = _WhatsAppChoice.same;
   bool _loading = false;
   bool _obscurePassword = true;
+  String? _socialLoading;
+
+  Future<void> _continueWithGoogle() async {
+    setState(() => _socialLoading = 'google');
+    try {
+      final auth = await SocialAuthService.signInWithGoogle();
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          HavenPageRoute(
+            builder: (_) => auth.requiresProfileCompletion
+                ? SocialProfileCompletionScreen(auth: auth)
+                : const AppShell(),
+          ),
+          (_) => false,
+        );
+      }
+    } on SocialAuthAccountConflict catch (conflict) {
+      if (!mounted) return;
+      final choice = await showSocialAuthConflictSheet(context, conflict);
+      if (mounted && choice == SocialAuthConflictChoice.enterPassword) {
+        Navigator.pop(context, conflict);
+      }
+    } on SocialAuthCanceled {
+      _notice('Google sign-in was cancelled before Haven received an account.');
+    } catch (error) {
+      _notice(ApiErrorResolver.message(error,
+          fallback: 'Google account creation could not be completed.'));
+    } finally {
+      if (mounted) setState(() => _socialLoading = null);
+    }
+  }
 
   String? _required(String? value) =>
       value == null || value.trim().isEmpty ? 'This field is required' : null;
@@ -68,6 +105,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('access_token', data['access_token'] as String);
+        await AuthMethodMemory.remember(
+          provider: 'password',
+          email: _email.text,
+        );
         await SessionService.currentUser(forceRefresh: true);
         if (mounted) {
           Navigator.pushAndRemoveUntil(
@@ -118,6 +159,16 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         .textTheme
                         .bodyLarge
                         ?.copyWith(color: colors.onSurfaceVariant)),
+                const SizedBox(height: 24),
+                SocialAuthButtons(
+                  action: 'Continue',
+                  busyProvider: _socialLoading,
+                  onGoogle: _continueWithGoogle,
+                  onApple: () => _notice(
+                      'Apple account creation will be available once Apple developer access is configured.'),
+                  onFacebook: () => _notice(
+                      'Facebook account creation is not configured yet.'),
+                ),
                 const SizedBox(height: 28),
                 Row(children: [
                   Expanded(
@@ -207,7 +258,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                 }),
                 const SizedBox(height: 26),
                 ElevatedButton(
-                  onPressed: _loading ? null : _createAccount,
+                  onPressed: _loading || _socialLoading != null
+                      ? null
+                      : _createAccount,
                   child: _loading
                       ? const SizedBox(
                           width: 22,

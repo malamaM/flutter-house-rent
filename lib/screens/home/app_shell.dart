@@ -38,7 +38,7 @@ class AppShell extends StatefulWidget {
   State<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   int _currentIndex = 0;
   final _navigatorKeys = List.generate(4, (_) => GlobalKey<NavigatorState>());
   final _routeDepths = List<int>.filled(4, 0);
@@ -48,10 +48,12 @@ class _AppShellState extends State<AppShell> {
   Timer? _toursNavSettleTimer;
   bool _toursNavEmphasized = false;
   double _toursBackdropLuminance = .3;
+  DateTime? _backgroundedAt;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _observers = List.generate(
       4,
       (index) => _TabNavigatorObserver((depth) {
@@ -90,11 +92,30 @@ class _AppShellState extends State<AppShell> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _toursNavSettleTimer?.cancel();
     for (final timer in _warmupTimers) {
       timer.cancel();
     }
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _backgroundedAt ??= DateTime.now();
+      return;
+    }
+    if (state != AppLifecycleState.resumed) return;
+    final backgroundedAt = _backgroundedAt;
+    _backgroundedAt = null;
+    if (backgroundedAt == null ||
+        DateTime.now().difference(backgroundedAt) <
+            const Duration(minutes: 5)) {
+      return;
+    }
+    AppCache.instance.announce('tab-refresh', '$_currentIndex');
   }
 
   void _selectTab(int index) {

@@ -49,6 +49,8 @@ dependencies:
   permission_handler: ^11.3.1
   url_launcher: ^6.3.1
   share_plus: ^13.3.0
+  google_sign_in: ^7.2.0
+  flutter_svg: ^2.0.9
   flutter_map_marker_cluster: any
 
 dev_dependencies:
@@ -78,6 +80,10 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/brand/google_g.svg
+    - assets/brand/facebook.svg
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware.
