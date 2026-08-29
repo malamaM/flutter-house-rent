@@ -86,6 +86,107 @@ void main() {
     expect(find.text('Garden'), findsOneWidget);
   });
 
+  testWidgets('property facts and amenities are fully visible without swiping',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final house = House.fromMap({
+      'id': 8,
+      'title': 'Complete home',
+      'bedrooms': 3,
+      'bathrooms': 2,
+      'size': 140,
+      'car_garage': 1,
+      'type': 'Apartment',
+      'amenities': [
+        {'id': 1, 'key': 'security', 'name': 'Security'},
+        {'id': 2, 'key': 'garden', 'name': 'Garden'},
+        {'id': 3, 'key': 'gym', 'name': 'Gym'},
+      ],
+    });
+
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.lightTheme,
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: Column(children: [
+            HouseInfo(house: house),
+            HouseAmenities(house: house),
+          ]),
+        ),
+      ),
+    ));
+
+    expect(
+      find.descendant(
+        of: find.byType(HouseInfo),
+        matching: find.byType(ListView),
+      ),
+      findsNothing,
+    );
+    expect(find.text('Property type'), findsNothing);
+    expect(find.text('See more'), findsOneWidget);
+    await tester.tap(find.text('See more'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Bedrooms'), findsOneWidget);
+    expect(find.text('Property details'), findsOneWidget);
+    expect(find.text('Bathrooms'), findsOneWidget);
+    expect(find.text('Apartment'), findsOneWidget);
+    expect(find.text('Property type'), findsOneWidget);
+    expect(find.text('Parking'), findsOneWidget);
+    expect(find.text('Security'), findsOneWidget);
+    expect(find.text('Garden'), findsOneWidget);
+    expect(find.text('Gym'), findsNothing);
+    expect(find.text('View all (3)'), findsOneWidget);
+    await tester.tap(find.text('View all (3)'));
+    await tester.pumpAndSettle();
+    expect(find.text('Gym'), findsOneWidget);
+    expect(find.text('Show less'), findsOneWidget);
+    expect(tester.getTopLeft(find.text('Apartment')).dy,
+        greaterThan(tester.getTopLeft(find.text('Bedrooms')).dy));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('additional amenities open in a complete bottom sheet',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final house = House.fromMap({
+      'id': 9,
+      'title': 'Amenity rich home',
+      'amenities': [
+        {'id': 1, 'key': 'security', 'name': 'Security'},
+        {'id': 2, 'key': 'garden', 'name': 'Garden'},
+        {'id': 3, 'key': 'gym', 'name': 'Gym'},
+        {'id': 4, 'key': 'garage', 'name': 'Garage'},
+        {'id': 5, 'key': 'swimming_pool', 'name': 'Swimming pool'},
+      ],
+    });
+
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.lightTheme,
+      home: Scaffold(body: HouseAmenities(house: house)),
+    ));
+
+    expect(find.text('View all (5)'), findsOneWidget);
+    expect(find.text('Swimming pool'), findsNothing);
+
+    await tester.tap(find.text('View all (5)'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('All amenities'), findsOneWidget);
+    expect(find.text('5 included with this home'), findsOneWidget);
+    expect(find.text('Swimming pool'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   Widget app(Widget child) =>
       MaterialApp(theme: AppTheme.lightTheme, home: child);
 
@@ -223,17 +324,19 @@ void main() {
                 appBar: const CustomAppBar(),
                 bottomNavigationBar:
                     const CustomBottomNavigationBar(currentIndex: 0),
-                body: Column(
-                  children: [
-                    Categories(selectedType: null, onSelected: (_) {}),
-                    HouseInfo(house: house),
-                    Builder(
-                      builder: (context) => SizedBox(
-                        height: propertyCardCarouselHeight(context),
-                        child: PropertyCard(house: house, onTap: () {}),
+                body: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      Categories(selectedType: null, onSelected: (_) {}),
+                      HouseInfo(house: house),
+                      Builder(
+                        builder: (context) => SizedBox(
+                          height: propertyCardCarouselHeight(context),
+                          child: PropertyCard(house: house, onTap: () {}),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               );
             },

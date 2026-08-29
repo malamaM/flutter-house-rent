@@ -23,39 +23,169 @@ class HouseAmenities extends StatelessWidget {
   Widget build(BuildContext context) {
     final amenities = _amenities;
     if (amenities.isEmpty) return const SizedBox.shrink();
-    final colors = Theme.of(context).colorScheme;
+    final visibleAmenities = amenities.take(2).toList();
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Amenities', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
+          Row(
             children: [
-              for (final amenity in amenities)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                  decoration: BoxDecoration(
-                    color: colors.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: colors.outlineVariant),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(amenityIcon(amenity.key),
-                          size: 20, color: colors.primary),
-                      const SizedBox(width: 8),
-                      Text(amenity.name,
-                          style: const TextStyle(fontWeight: FontWeight.w700)),
-                    ],
-                  ),
+              Expanded(
+                child: Text('Amenities',
+                    style: Theme.of(context).textTheme.titleLarge),
+              ),
+              if (amenities.length > visibleAmenities.length)
+                TextButton(
+                  onPressed: () => _showAllAmenities(context, amenities),
+                  child: Text('View all (${amenities.length})'),
                 ),
             ],
+          ),
+          const SizedBox(height: 12),
+          _AmenityGrid(amenities: visibleAmenities),
+        ],
+      ),
+    );
+  }
+
+  void _showAllAmenities(BuildContext context, List<RentalAmenity> amenities) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => FractionallySizedBox(
+        heightFactor: .72,
+        child: Material(
+          color: Theme.of(sheetContext).colorScheme.surface,
+          clipBehavior: Clip.antiAlias,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 10),
+              Align(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Theme.of(sheetContext).colorScheme.outlineVariant,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 12, 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('All amenities',
+                              style: Theme.of(sheetContext)
+                                  .textTheme
+                                  .headlineSmall),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${amenities.length} included with this home',
+                            style: Theme.of(sheetContext).textTheme.bodyMedium,
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Close',
+                      onPressed: () => Navigator.pop(sheetContext),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+                  child: _AmenityGrid(amenities: amenities),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AmenityGrid extends StatelessWidget {
+  final List<RentalAmenity> amenities;
+
+  const _AmenityGrid({required this.amenities});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = 10.0;
+        final columns = constraints.maxWidth >= 600 ? 3 : 2;
+        final cardWidth =
+            (constraints.maxWidth - gap * (columns - 1)) / columns;
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            for (final amenity in amenities)
+              _AmenityCard(amenity: amenity, width: cardWidth),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _AmenityCard extends StatelessWidget {
+  final RentalAmenity amenity;
+  final double width;
+
+  const _AmenityCard({required this.amenity, required this.width});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      width: width,
+      constraints: const BoxConstraints(minHeight: 58),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: colors.primaryContainer,
+              borderRadius: BorderRadius.circular(11),
+            ),
+            alignment: Alignment.center,
+            child: Icon(
+              amenityIcon(amenity.key),
+              size: 19,
+              color: colors.onPrimaryContainer,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              amenity.name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),

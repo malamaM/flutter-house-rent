@@ -1,53 +1,135 @@
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
 
-class HouseInfo extends StatelessWidget {
+class HouseInfo extends StatefulWidget {
   final House house;
 
   const HouseInfo({Key? key, required this.house}) : super(key: key);
 
   @override
+  State<HouseInfo> createState() => _HouseInfoState();
+}
+
+class _HouseInfoState extends State<HouseInfo> {
+  bool _expanded = false;
+
+  @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 84,
-      child: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        scrollDirection: Axis.horizontal,
+    final facts = [
+      _FactData(Icons.bed_outlined, '${widget.house.bedrooms}', 'Bedrooms'),
+      _FactData(
+          Icons.bathtub_outlined, '${widget.house.bathrooms}', 'Bathrooms'),
+      _FactData(Icons.home_work_outlined, widget.house.type ?? 'Not specified',
+          'Property type'),
+      _FactData(Icons.directions_car_outlined, '${widget.house.carGarage}',
+          'Parking'),
+    ];
+    final visibleFacts = _expanded ? facts : facts.take(2).toList();
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _Fact(
-              icon: Icons.bed_outlined,
-              value: '${house.bedrooms}',
-              label: 'Bedrooms'),
-          _Fact(
-              icon: Icons.bathtub_outlined,
-              value: '${house.bathrooms}',
-              label: 'Bathrooms'),
-          _Fact(
-              icon: Icons.square_foot_outlined,
-              value: '${house.size}',
-              label: 'Square metres'),
-          _Fact(
-              icon: Icons.directions_car_outlined,
-              value: '${house.carGarage}',
-              label: 'Parking'),
+          Text('Property details',
+              style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 12),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
+            child: Column(
+              children: [
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    const gap = 10.0;
+                    final columns = constraints.maxWidth >= 600 ? 4 : 2;
+                    final cardWidth =
+                        (constraints.maxWidth - gap * (columns - 1)) / columns;
+                    return Wrap(
+                      spacing: gap,
+                      runSpacing: gap,
+                      children: [
+                        for (final fact in visibleFacts)
+                          _Fact(
+                            width: cardWidth,
+                            icon: fact.icon,
+                            value: fact.value,
+                            label: fact.label,
+                          ),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 2),
+                Tooltip(
+                  message: _expanded
+                      ? 'Hide property details'
+                      : 'Show more property details',
+                  child: Semantics(
+                    button: true,
+                    label: _expanded
+                        ? 'Hide property details'
+                        : 'Show more property details',
+                    child: TextButton.icon(
+                      onPressed: () => setState(() => _expanded = !_expanded),
+                      style: TextButton.styleFrom(
+                        foregroundColor:
+                            Theme.of(context).colorScheme.onSurfaceVariant,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 4),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      icon: AnimatedRotation(
+                        turns: _expanded ? .5 : 0,
+                        duration: const Duration(milliseconds: 260),
+                        curve: Curves.easeOutCubic,
+                        child: const Icon(Icons.keyboard_arrow_down_rounded,
+                            size: 20),
+                      ),
+                      label: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        child: Text(
+                          _expanded ? 'Show less' : 'See more',
+                          key: ValueKey(_expanded),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _Fact extends StatelessWidget {
+class _FactData {
   final IconData icon;
   final String value;
   final String label;
 
-  const _Fact({required this.icon, required this.value, required this.label});
+  const _FactData(this.icon, this.value, this.label);
+}
+
+class _Fact extends StatelessWidget {
+  final double width;
+  final IconData icon;
+  final String value;
+  final String label;
+
+  const _Fact({
+    required this.width,
+    required this.icon,
+    required this.value,
+    required this.label,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 118,
-      margin: const EdgeInsets.only(right: 10),
+      width: width,
+      height: 84,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
