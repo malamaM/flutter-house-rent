@@ -106,10 +106,11 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
             children: [
               TileLayer(
                 tileProvider: CachedMapTileProvider.instance,
-                urlTemplate:
-                    'https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=YOUR_MAPBOX_TOKEN_HERE',
-                userAgentPackageName: 'com.malamachiluwe.houserent',
-                fallbackUrl: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate: CachedMapTileProvider.voyagerUrl,
+                subdomains: CachedMapTileProvider.voyagerSubdomains,
+                userAgentPackageName:
+                    CachedMapTileProvider.userAgentPackageName,
+                fallbackUrl: CachedMapTileProvider.openStreetMapUrl,
               ),
               if (_selectedLocation != null)
                 MarkerLayer(

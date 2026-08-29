@@ -79,18 +79,18 @@ class _HouseLocationMapState extends State<HouseLocationMap> {
                           ]),
                           child: TileLayer(
                             tileProvider: CachedMapTileProvider.instance,
-                            urlTemplate:
-                                'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-                            subdomains: const ['a', 'b', 'c', 'd'],
-                            userAgentPackageName: 'com.malamachiluwe.houserent',
+                            urlTemplate: CachedMapTileProvider.voyagerUrl,
+                            subdomains: CachedMapTileProvider.voyagerSubdomains,
+                            userAgentPackageName:
+                                CachedMapTileProvider.userAgentPackageName,
                           ),
                         )
                       else
                         TileLayer(
                           tileProvider: CachedMapTileProvider.instance,
-                          urlTemplate:
-                              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                          userAgentPackageName: 'com.malamachiluwe.houserent',
+                          urlTemplate: CachedMapTileProvider.openStreetMapUrl,
+                          userAgentPackageName:
+                              CachedMapTileProvider.userAgentPackageName,
                         ),
                       CircleLayer(circles: [
                         CircleMarker(

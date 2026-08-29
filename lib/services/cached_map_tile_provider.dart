@@ -7,6 +7,12 @@ import 'package:flutter_map/flutter_map.dart';
 class CachedMapTileProvider extends TileProvider {
   CachedMapTileProvider._();
   static final instance = CachedMapTileProvider._();
+  static const userAgentPackageName = 'com.malamachiluwe.haven';
+  static const openStreetMapUrl =
+      'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+  static const voyagerUrl =
+      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png';
+  static const voyagerSubdomains = ['a', 'b', 'c', 'd'];
 
   @override
   ImageProvider getImage(TileCoordinates coordinates, TileLayer options) =>
