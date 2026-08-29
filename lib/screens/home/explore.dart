@@ -386,8 +386,7 @@ class _ExploreState extends State<Explore> {
                   ]),
                   child: TileLayer(
                     tileProvider: CachedMapTileProvider.instance,
-                    urlTemplate: CachedMapTileProvider.voyagerUrl,
-                    subdomains: CachedMapTileProvider.voyagerSubdomains,
+                    urlTemplate: CachedMapTileProvider.openStreetMapUrl,
                     userAgentPackageName:
                         CachedMapTileProvider.userAgentPackageName,
                   ),
@@ -552,7 +551,7 @@ class _ExploreState extends State<Explore> {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  darkMap ? '© OpenStreetMap © CARTO' : '© OpenStreetMap',
+                  '© OpenStreetMap',
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 8,

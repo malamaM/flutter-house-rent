@@ -79,8 +79,7 @@ class _HouseLocationMapState extends State<HouseLocationMap> {
                           ]),
                           child: TileLayer(
                             tileProvider: CachedMapTileProvider.instance,
-                            urlTemplate: CachedMapTileProvider.voyagerUrl,
-                            subdomains: CachedMapTileProvider.voyagerSubdomains,
+                            urlTemplate: CachedMapTileProvider.openStreetMapUrl,
                             userAgentPackageName:
                                 CachedMapTileProvider.userAgentPackageName,
                           ),
@@ -131,10 +130,7 @@ class _HouseLocationMapState extends State<HouseLocationMap> {
                                     .surface
                                     .withValues(alpha: .84),
                                 borderRadius: BorderRadius.circular(5)),
-                            child: Text(
-                                darkMap
-                                    ? '© OpenStreetMap © CARTO'
-                                    : '© OpenStreetMap',
+                            child: Text('© OpenStreetMap',
                                 style: TextStyle(
                                     color: Theme.of(context)
                                         .colorScheme

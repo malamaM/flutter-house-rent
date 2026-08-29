@@ -10,9 +10,6 @@ class CachedMapTileProvider extends TileProvider {
   static const userAgentPackageName = 'com.malamachiluwe.haven';
   static const openStreetMapUrl =
       'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-  static const voyagerUrl =
-      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png';
-  static const voyagerSubdomains = ['a', 'b', 'c', 'd'];
 
   @override
   ImageProvider getImage(TileCoordinates coordinates, TileLayer options) =>

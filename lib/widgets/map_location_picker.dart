@@ -106,11 +106,9 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
             children: [
               TileLayer(
                 tileProvider: CachedMapTileProvider.instance,
-                urlTemplate: CachedMapTileProvider.voyagerUrl,
-                subdomains: CachedMapTileProvider.voyagerSubdomains,
+                urlTemplate: CachedMapTileProvider.openStreetMapUrl,
                 userAgentPackageName:
                     CachedMapTileProvider.userAgentPackageName,
-                fallbackUrl: CachedMapTileProvider.openStreetMapUrl,
               ),
               if (_selectedLocation != null)
                 MarkerLayer(
