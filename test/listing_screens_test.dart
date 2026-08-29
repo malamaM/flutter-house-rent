@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:house_rent/models/house.dart';
+import 'package:house_rent/models/marketplace.dart';
 import 'package:house_rent/screens/my_listings/create_listing_screen.dart';
 import 'package:house_rent/screens/my_listings/edit_listing.dart';
 import 'package:house_rent/widgets/all_homes.dart';
@@ -62,6 +63,46 @@ void main() {
 
     expect(staleBadge.isVerified, isFalse);
     expect(verifiedOwner.isVerified, isTrue);
+  });
+
+  test('marketplace models preserve read receipts and viewing details', () {
+    final message = ChatMessage.fromMap({
+      'id': 4,
+      'body': 'See you then',
+      'is_mine': true,
+      'created_at': '2026-08-29T10:00:00Z',
+      'read_at': '2026-08-29T10:01:00Z',
+    });
+    final incoming = ChatMessage.fromMap({
+      'id': 5,
+      'body': 'I can show you around.',
+      'is_mine': '0',
+    });
+    final viewing = ViewingSummary.fromMap({
+      'id': 8,
+      'status': 'confirmed',
+      'viewer_role': 'renter',
+      'requested_at': '2026-08-30T12:00:00Z',
+      'responded_at': '2026-08-29T11:00:00Z',
+      'note': 'I will bring my sister.',
+      'lister_response': 'Please call when you arrive.',
+      'house': {
+        'title': 'Kabulonga Home',
+        'image-cover': 'houses/cover.webp',
+        'district': 'Kabulonga',
+        'city': 'Lusaka',
+      },
+      'lister': {'first_name': 'Mary', 'last_name': 'Banda'},
+    });
+
+    expect(message.readAt, isNotNull);
+    expect(message.isMine, isTrue);
+    expect(incoming.isMine, isFalse);
+    expect(viewing.imagePath, 'houses/cover.webp');
+    expect(viewing.otherPartyName, 'Mary Banda');
+    expect(viewing.note, 'I will bring my sister.');
+    expect(viewing.listerResponse, 'Please call when you arrive.');
+    expect(viewing.respondedAt, isNotNull);
   });
 
   testWidgets('house amenities are parsed and shown as detail cards',

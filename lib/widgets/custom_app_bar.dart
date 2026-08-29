@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:house_rent/config/api_config.dart';
@@ -91,8 +92,37 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   Size get preferredSize => const Size.fromHeight(64);
 }
 
-class _MessagesButton extends StatelessWidget {
+class _MessagesButton extends StatefulWidget {
   const _MessagesButton();
+
+  @override
+  State<_MessagesButton> createState() => _MessagesButtonState();
+}
+
+class _MessagesButtonState extends State<_MessagesButton> {
+  Timer? _pollTimer;
+  bool hasUnread = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.delayed(const Duration(milliseconds: 900), _load);
+    _pollTimer = Timer.periodic(const Duration(seconds: 30), (_) => _load());
+  }
+
+  Future<void> _load() async {
+    try {
+      final unread =
+          await MarketplaceService.instance.hasUnreadMessages(refresh: true);
+      if (mounted) setState(() => hasUnread = unread);
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => IconButton(
@@ -101,8 +131,14 @@ class _MessagesButton extends StatelessWidget {
           context,
           HavenPageRoute(
               builder: (_) => const MarketplaceHubScreen(initialTab: 0)),
+        ).then((_) => _load()),
+        icon: Badge(
+          isLabelVisible: hasUnread,
+          smallSize: 8,
+          padding: EdgeInsets.zero,
+          backgroundColor: Theme.of(context).colorScheme.error,
+          child: const Icon(CupertinoIcons.chat_bubble_2),
         ),
-        icon: const Icon(CupertinoIcons.chat_bubble_2),
       );
 }
 
@@ -114,10 +150,12 @@ class _NotificationButton extends StatefulWidget {
 
 class _NotificationButtonState extends State<_NotificationButton> {
   int unread = 0;
+  Timer? _pollTimer;
   @override
   void initState() {
     super.initState();
     Future<void>.delayed(const Duration(milliseconds: 900), _load);
+    _pollTimer = Timer.periodic(const Duration(seconds: 30), (_) => _load());
   }
 
   Future<void> _load() async {
@@ -130,6 +168,12 @@ class _NotificationButtonState extends State<_NotificationButton> {
   }
 
   @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) => IconButton(
         tooltip: 'Updates',
         onPressed: () => Navigator.push(
@@ -139,7 +183,9 @@ class _NotificationButtonState extends State<_NotificationButton> {
             .then((_) => _load()),
         icon: Badge(
             isLabelVisible: unread > 0,
-            label: Text(unread > 99 ? '99+' : '$unread'),
+            smallSize: 8,
+            padding: EdgeInsets.zero,
+            backgroundColor: Theme.of(context).colorScheme.error,
             child: const Icon(Icons.notifications_none_rounded)),
       );
 }

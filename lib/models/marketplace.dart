@@ -37,9 +37,13 @@ class ViewingSummary {
   final int id;
   final String title;
   final String location;
+  final String? imagePath;
+  final String? otherPartyName;
   final String status;
   final ViewingRole role;
   final DateTime? requestedAt;
+  final DateTime? respondedAt;
+  final DateTime? completedAt;
   final String? note;
   final String? listerResponse;
 
@@ -47,9 +51,13 @@ class ViewingSummary {
     required this.id,
     required this.title,
     required this.location,
+    this.imagePath,
+    this.otherPartyName,
     required this.status,
     required this.role,
     this.requestedAt,
+    this.respondedAt,
+    this.completedAt,
     this.note,
     this.listerResponse,
   });
@@ -60,15 +68,24 @@ class ViewingSummary {
     final house = _map(map['house']);
     final district = _text(house['district']);
     final city = _text(house['city']);
+    final role = map['viewer_role'] == 'lister'
+        ? ViewingRole.lister
+        : ViewingRole.renter;
+    final renter = _map(map['renter']);
+    final lister = _map(map['lister']);
+    final otherParty = role == ViewingRole.lister ? renter : lister;
     return ViewingSummary(
       id: _integer(map['id']),
       title: _text(house['title'], fallback: 'Rental home'),
       location: [district, city].where((part) => part.isNotEmpty).join(', '),
+      imagePath: _nullableText(house['image-cover']),
+      otherPartyName: _nullableText(
+          '${_text(otherParty['first_name'])} ${_text(otherParty['last_name'])}'),
       status: _text(map['status'], fallback: 'pending'),
-      role: map['viewer_role'] == 'lister'
-          ? ViewingRole.lister
-          : ViewingRole.renter,
+      role: role,
       requestedAt: _date(map['requested_at']),
+      respondedAt: _date(map['responded_at']),
+      completedAt: _date(map['completed_at']),
       note: _nullableText(map['note']),
       listerResponse: _nullableText(map['lister_response']),
     );
@@ -168,18 +185,21 @@ class ChatMessage {
   final String body;
   final bool isMine;
   final DateTime? createdAt;
+  final DateTime? readAt;
 
   const ChatMessage(
       {required this.id,
       required this.body,
       required this.isMine,
-      this.createdAt});
+      this.createdAt,
+      this.readAt});
 
   factory ChatMessage.fromMap(Map<String, dynamic> map) => ChatMessage(
         id: _integer(map['id']),
         body: _text(map['body']),
-        isMine: map['is_mine'] == true || map['is_mine'] == 1,
+        isMine: _boolean(map['is_mine'] ?? map['isMine']),
         createdAt: _date(map['created_at']),
+        readAt: _date(map['read_at']),
       );
 }
 
@@ -192,6 +212,11 @@ class ReviewEligibility {
 Map<String, dynamic> _map(dynamic value) =>
     value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
 int _integer(dynamic value) => int.tryParse('${value ?? 0}') ?? 0;
+bool _boolean(dynamic value) =>
+    value == true ||
+    value == 1 ||
+    value == '1' ||
+    '${value ?? ''}'.toLowerCase() == 'true';
 int? _nullableInteger(dynamic value) =>
     value == null ? null : int.tryParse('$value');
 String _text(dynamic value, {String fallback = ''}) {

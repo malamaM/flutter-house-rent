@@ -29,6 +29,11 @@ class MarketplaceService {
     return _pageItems(json).map(ConversationSummary.fromMap).toList();
   }
 
+  Future<bool> hasUnreadMessages({bool refresh = false}) async {
+    final conversations = await this.conversations(refresh: refresh);
+    return conversations.any((conversation) => conversation.unreadCount > 0);
+  }
+
   Future<List<ViewingSummary>> viewings({bool refresh = false}) async {
     final json = await _cachedGet('marketplace:viewings:v2', 'viewings',
         refresh: refresh);

@@ -228,9 +228,29 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
         children: [
           Row(
             children: [
+              _PropertyAvatar(
+                  imagePath: item.imagePath, icon: Icons.home_outlined),
+              const SizedBox(width: 12),
               Expanded(
-                  child: Text(item.title,
-                      style: Theme.of(context).textTheme.titleMedium)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(item.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 3),
+                    Text(
+                        item.role == ViewingRole.lister
+                            ? 'Viewing request from ${item.otherPartyName ?? 'renter'}'
+                            : 'Viewing request to ${item.otherPartyName ?? 'lister'}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
               _StatusPill(status: item.status),
             ],
           ),
@@ -251,14 +271,26 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
             Icon(Icons.schedule_rounded,
                 size: 17, color: Theme.of(context).colorScheme.primary),
             const SizedBox(width: 7),
-            Text(_friendlyDate(item.requestedAt),
-                style: Theme.of(context).textTheme.bodyMedium),
+            Expanded(
+              child: Text(_friendlyDate(item.requestedAt),
+                  style: Theme.of(context).textTheme.bodyMedium),
+            ),
           ]),
+          const SizedBox(height: 7),
+          Text(_viewingStatusDescription(item),
+              style: Theme.of(context).textTheme.bodySmall),
           if (item.note != null) ...[
             const SizedBox(height: 8),
-            Text(item.note!,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+            _ViewingDetail(label: 'Your note', value: item.note!),
+          ],
+          if (item.listerResponse != null) ...[
+            const SizedBox(height: 8),
+            _ViewingDetail(
+                label: 'Lister response', value: item.listerResponse!),
+          ],
+          if (item.respondedAt != null) ...[
+            const SizedBox(height: 7),
+            Text('Responded ${_relativeTime(item.respondedAt!)}',
                 style: Theme.of(context).textTheme.bodySmall),
           ],
           if (item.status == 'pending' ||
@@ -274,6 +306,20 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
         ],
       ),
     );
+  }
+
+  String _viewingStatusDescription(ViewingSummary item) {
+    return switch (item.status) {
+      'pending' => item.role == ViewingRole.lister
+          ? 'Choose a response to this request.'
+          : 'Waiting for the lister to respond.',
+      'confirmed' => 'Viewing confirmed. Please arrive at the agreed time.',
+      'declined' => 'The lister declined this viewing request.',
+      'cancelled' => 'This viewing request was cancelled.',
+      'completed' => 'This viewing was marked as completed.',
+      'no_show' => 'This viewing was marked as a no-show.',
+      _ => 'Viewing request updated.',
+    };
   }
 
   List<Widget> _viewingActions(ViewingSummary item) {
@@ -536,7 +582,10 @@ class _ConversationScreenState extends State<ConversationScreen> {
   @override
   void initState() {
     super.initState();
-    _load();
+    // Opening a conversation must reach the server once so incoming messages
+    // can be marked read and the sender can receive a read receipt. The
+    // service still falls back to cached messages when the device is offline.
+    _load(refresh: true);
   }
 
   Future<void> _load({bool refresh = false}) async {
@@ -1134,6 +1183,37 @@ class _StatusPill extends StatelessWidget {
   }
 }
 
+class _ViewingDetail extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _ViewingDetail({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: RichText(
+        text: TextSpan(
+          style: Theme.of(context).textTheme.bodySmall,
+          children: [
+            TextSpan(
+                text: '$label\n',
+                style: const TextStyle(fontWeight: FontWeight.w800)),
+            TextSpan(text: value),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _UnreadDot extends StatelessWidget {
   const _UnreadDot();
   @override
@@ -1178,14 +1258,31 @@ class _MessageBubble extends StatelessWidget {
                   height: 1.35)),
           if (message.createdAt != null) ...[
             const SizedBox(height: 3),
-            Text(
-                '${message.createdAt!.hour.toString().padLeft(2, '0')}:${message.createdAt!.minute.toString().padLeft(2, '0')}',
-                style: TextStyle(
-                    fontSize: 9,
-                    color: (message.isMine
-                            ? colors.onPrimaryContainer
-                            : colors.onSurfaceVariant)
-                        .withValues(alpha: .7))),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                    '${message.createdAt!.hour.toString().padLeft(2, '0')}:${message.createdAt!.minute.toString().padLeft(2, '0')}',
+                    style: TextStyle(
+                        fontSize: 9,
+                        color: (message.isMine
+                                ? colors.onPrimaryContainer
+                                : colors.onSurfaceVariant)
+                            .withValues(alpha: .7))),
+                if (message.isMine) ...[
+                  const SizedBox(width: 5),
+                  Icon(
+                    message.readAt != null ? Icons.done_all : Icons.done,
+                    size: 14,
+                    semanticLabel:
+                        message.readAt != null ? 'Read' : 'Delivered',
+                    color: message.readAt != null
+                        ? colors.primary
+                        : colors.onPrimaryContainer.withValues(alpha: .68),
+                  ),
+                ],
+              ],
+            ),
           ],
         ]),
       ),
