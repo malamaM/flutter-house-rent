@@ -388,19 +388,26 @@ class House {
     try {
       final uri = Uri.parse('$_apiBase/home-feed')
           .replace(queryParameters: filter == 'all' ? null : {'type': filter});
-      final response = await PerformanceMonitor.instance.measure(
-        'home_feed',
-        () => http
-            .get(uri, headers: _headers(token))
-            .timeout(const Duration(seconds: 12)),
-      );
-      if (response.statusCode != 200) {
-        throw HavenApiException.fromResponse(response,
-            operation: 'load your home feed');
-      }
-      final value = Map<String, dynamic>.from(json.decode(response.body));
-      await AppCache.instance
-          .write(key, value, freshFor: _feedFreshFor, keepFor: _feedKeepFor);
+      // A forced refresh can still be requested by pull-to-refresh or a
+      // preference update. Deduplicate requests for the same type so an older
+      // response cannot race a newer one and overwrite that type's cache.
+      final value = await AppCache.instance
+          .deduplicate<Map<String, dynamic>>('refresh:$key', () async {
+        final response = await PerformanceMonitor.instance.measure(
+          'home_feed',
+          () => http
+              .get(uri, headers: _headers(token))
+              .timeout(const Duration(seconds: 12)),
+        );
+        if (response.statusCode != 200) {
+          throw HavenApiException.fromResponse(response,
+              operation: 'load your home feed');
+        }
+        final payload = Map<String, dynamic>.from(json.decode(response.body));
+        await AppCache.instance.write(key, payload,
+            freshFor: _feedFreshFor, keepFor: _feedKeepFor);
+        return payload;
+      });
       return HomeFeedData.fromMap(value);
     } catch (_) {
       if (cached != null) {

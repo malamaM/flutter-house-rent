@@ -109,10 +109,14 @@ class _HomeState extends State<Home> {
   }
 
   void _selectType(String? value) {
+    if (value == selectedType) return;
     setState(() {
       selectedType = value;
       _settledFeed = null;
-      feed = House.fetchHomeFeed(type: value, forceRefresh: true);
+      // Each type has its own cache entry. Let fetchHomeFeed serve a cached
+      // result immediately and refresh stale entries in the background rather
+      // than starting a forced request for every quick tap.
+      feed = House.fetchHomeFeed(type: value);
     });
   }
 
@@ -153,7 +157,11 @@ class _HomeState extends State<Home> {
         initialData: _settledFeed,
         builder: (context, snapshot) {
           final data = snapshot.data;
-          final waiting = data == null &&
+          // FutureBuilder can retain the previous snapshot's data briefly
+          // after its future changes. ConnectionState is the source of truth;
+          // otherwise a previous type can be rendered while the new type is
+          // loading and look like the filter was ignored.
+          final waiting =
               snapshot.connectionState == ConnectionState.waiting;
           final sections = <Widget>[
             Column(

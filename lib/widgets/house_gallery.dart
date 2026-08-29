@@ -30,8 +30,10 @@ class _HouseGalleryState extends State<HouseGallery> {
     }
   }
 
+  // Gallery metadata is cache-first. Cached results can be shown offline and
+  // stale entries are refreshed in the background by PropertyDetailsService.
   Future<List<GalleryImageData>> _loadImages() =>
-      PropertyDetailsService.gallery(widget.houseId, forceRefresh: true);
+      PropertyDetailsService.gallery(widget.houseId);
 
   @override
   Widget build(BuildContext context) {
