@@ -22,4 +22,18 @@ void main() {
     const external = 'https://images.example.com/photo.jpg';
     expect(ApiConfig.optimizedImageUrl(external, width: 600), external);
   });
+
+  test('serves pre-normalized demo images directly', () {
+    final direct = '${ApiConfig.storageBase}/demo/houses/01.jpg';
+
+    expect(ApiConfig.optimizedImageUrl(direct, width: 600), direct);
+  });
+
+  test('rebases cached Haven storage URLs onto the active server', () {
+    expect(
+      ApiConfig.storageUrl(
+          'http://old-local-server:8000/storage/demo/houses/01.jpg'),
+      '${ApiConfig.storageBase}/demo/houses/01.jpg',
+    );
+  });
 }

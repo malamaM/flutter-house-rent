@@ -9,6 +9,7 @@ import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/zambian_signature.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:house_rent/config/api_config.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -47,6 +48,8 @@ class _SplashScreenState extends State<SplashScreen>
 
   Future<void> _beginLoading() async {
     await _advanceProgress(.12, 'Starting Haven Zambia…');
+    await _advanceProgress(.20, 'Connecting securely…');
+    await ApiConfig.ready;
     await _continue();
   }
 

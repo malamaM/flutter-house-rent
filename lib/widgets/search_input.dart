@@ -16,6 +16,7 @@ class SearchInput extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: GlassSurface(
         borderRadius: BorderRadius.circular(16),
+        tint: Colors.white,
         child: Material(
           color: Colors.transparent,
           child: InkWell(

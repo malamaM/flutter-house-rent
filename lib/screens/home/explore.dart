@@ -12,6 +12,7 @@ import 'package:house_rent/services/recommendation_service.dart';
 import 'package:house_rent/services/cached_map_tile_provider.dart';
 import 'package:house_rent/screens/details/details.dart';
 import 'package:house_rent/screens/home/filter_screen.dart';
+import 'package:house_rent/screens/profile/marketplace_hub_screen.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/property_card.dart';
 import 'package:latlong2/latlong.dart';
@@ -487,6 +488,13 @@ class _ExploreState extends State<Explore> {
                       },
                       onSubmitted: (value) => _search(value, immediate: true),
                       onFilters: _openFilters,
+                      onSavedSearches: () => Navigator.push(
+                        context,
+                        HavenPageRoute(
+                          builder: (_) =>
+                              const MarketplaceHubScreen(initialTab: 3),
+                        ),
+                      ),
                     ),
                     if (_searchFocus.hasFocus && _areaOptions.isNotEmpty)
                       _AreaSuggestions(
@@ -566,6 +574,7 @@ class _MapSearchBar extends StatelessWidget {
   final ValueChanged<String> onChanged;
   final ValueChanged<String> onSubmitted;
   final VoidCallback onFilters;
+  final VoidCallback onSavedSearches;
 
   const _MapSearchBar({
     required this.controller,
@@ -575,11 +584,12 @@ class _MapSearchBar extends StatelessWidget {
     required this.onChanged,
     required this.onSubmitted,
     required this.onFilters,
+    required this.onSavedSearches,
   });
 
   @override
   Widget build(BuildContext context) => Material(
-        color: Theme.of(context).colorScheme.surface,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(15),
         elevation: 2,
         child: SizedBox(
@@ -623,6 +633,12 @@ class _MapSearchBar extends StatelessWidget {
                           fontWeight: FontWeight.w700)),
                 ),
             ]),
+            IconButton(
+              tooltip: 'Saved searches',
+              onPressed: onSavedSearches,
+              icon: const Icon(Icons.saved_search_rounded,
+                  color: AppColors.primary, size: 21),
+            ),
             const SizedBox(width: 3),
           ]),
         ),

@@ -11,6 +11,7 @@ import 'package:house_rent/services/offline_sync_service.dart';
 import 'package:house_rent/services/recommendation_service.dart';
 import 'package:house_rent/services/network_status_service.dart';
 import 'package:house_rent/theme/haven_responsive_media.dart';
+import 'package:house_rent/config/api_config.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,10 +20,6 @@ Future<void> main() async {
   // rendering the splash first keeps launch responsive and lets the saved
   // theme apply as soon as it is available.
   unawaited(ThemeController.instance.load());
-  unawaited(OfflineSyncService.instance.initialize());
-  NetworkStatusService.instance.initialize();
-  RecommendationService.instance.initialize();
-  PerformanceMonitor.instance.initialize();
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
   };
@@ -42,6 +39,11 @@ Future<void> main() async {
     );
   };
   runApp(const MyApp());
+  await ApiConfig.initialize();
+  unawaited(OfflineSyncService.instance.initialize());
+  NetworkStatusService.instance.initialize();
+  RecommendationService.instance.initialize();
+  PerformanceMonitor.instance.initialize();
 }
 
 class MyApp extends StatelessWidget {
