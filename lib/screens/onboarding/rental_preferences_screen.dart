@@ -106,7 +106,15 @@ class _RentalPreferencesScreenState extends State<RentalPreferencesScreen> {
         startNewSearch: widget.startNewSearch,
       );
       if (widget.startNewSearch) SessionRecommendation.instance.reset();
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) {
+        final message = widget.startNewSearch
+            ? 'Your new Haven search is ready.'
+            : widget.editExisting
+                ? 'Your Haven preferences have been updated.'
+                : 'Your Haven is ready. We will use your preferences to find better homes.';
+        Navigator.pop(context, true);
+        AppFeedback.success(message);
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() => saving = false);

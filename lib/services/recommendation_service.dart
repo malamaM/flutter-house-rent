@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/widgets.dart';
@@ -131,33 +132,50 @@ class RecommendationService with WidgetsBindingObserver {
             body: jsonEncode(payload),
           )
           .timeout(const Duration(seconds: 15));
-    } catch (_) {
+    } on TimeoutException {
+      await OfflineSyncService.instance.queueRecommendationProfile(payload);
+    } on SocketException {
+      await OfflineSyncService.instance.queueRecommendationProfile(payload);
+    } on http.ClientException {
       await OfflineSyncService.instance.queueRecommendationProfile(payload);
     }
-    if (response != null && response.statusCode != 200) {
-      throw Exception(_errorMessage(response, 'save your rental preferences'));
+    if (response != null &&
+        (response.statusCode < 200 || response.statusCode >= 300)) {
+      throw HavenApiException.fromResponse(
+        response,
+        operation: 'save your rental preferences',
+      );
     }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('recommendation_profile_complete', true);
     final key = await AppCache.instance.privateKey('recommendation-profile:v1');
-    await AppCache.instance.write(
-      key,
-      {
-        'city_id': cityId,
-        'areas': areaIds.map((id) => {'id': id}).toList(),
-        'min_bedrooms': minBedrooms,
-        'max_bedrooms': maxBedrooms,
-        'min_monthly_price': minMonthlyPrice,
-        'max_monthly_price': maxMonthlyPrice,
-        'amenities': amenityIds.map((id) => {'id': id}).toList(),
-      },
-      freshFor: const Duration(days: 1),
-      keepFor: const Duration(days: 90),
-    );
     if (response != null) {
-      await House.invalidatePropertyData();
+      try {
+        await House.invalidatePropertyData();
+      } catch (_) {
+        // Cache cleanup must not make a successfully saved profile look like
+        // a failed submission.
+      }
     } else {
-      AppCache.instance.announce('recommendation_profile', key);
+      try {
+        await AppCache.instance.write(
+          key,
+          {
+            'city_id': cityId,
+            'areas': areaIds.map((id) => {'id': id}).toList(),
+            'min_bedrooms': minBedrooms,
+            'max_bedrooms': maxBedrooms,
+            'min_monthly_price': minMonthlyPrice,
+            'max_monthly_price': maxMonthlyPrice,
+            'amenities': amenityIds.map((id) => {'id': id}).toList(),
+          },
+          freshFor: const Duration(days: 1),
+          keepFor: const Duration(days: 90),
+        );
+        AppCache.instance.announce('recommendation_profile', key);
+      } catch (_) {
+        // The queued mutation remains the source of truth until it syncs.
+      }
     }
   }
 

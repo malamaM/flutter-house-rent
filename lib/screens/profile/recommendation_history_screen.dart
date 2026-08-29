@@ -34,8 +34,12 @@ class _RecommendationHistoryScreenState
     data = RecommendationService.instance.history();
   }
 
-  void _reload() =>
-      setState(() => data = RecommendationService.instance.history());
+  void _reload() {
+    if (!mounted) return;
+    setState(() {
+      data = RecommendationService.instance.history();
+    });
+  }
 
   Future<void> _openPreferences({required bool newSearch}) async {
     if (newSearch) {
