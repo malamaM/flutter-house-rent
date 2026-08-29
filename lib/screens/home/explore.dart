@@ -94,7 +94,7 @@ class _ExploreState extends State<Explore> {
       setState(() {});
       if (_searchFocus.hasFocus && _resultsSheetController.isAttached) {
         unawaited(_resultsSheetController.animateTo(
-          .48,
+          .18,
           duration: const Duration(milliseconds: 260),
           curve: Curves.easeOutCubic,
         ));
@@ -216,6 +216,7 @@ class _ExploreState extends State<Explore> {
     try {
       final result = await House.fetchHouses(filters: {
         ...filters,
+        'surface': 'explore',
         'page': '$requestedPage',
         'per_page': '20',
       }, forceRefresh: forceRefresh);
@@ -344,6 +345,10 @@ class _ExploreState extends State<Explore> {
     final darkMap = Theme.of(context).brightness == Brightness.dark;
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
     return Scaffold(
+      // AppShell already resizes its body around the keyboard. Resizing this
+      // nested scaffold as well applies the inset twice and leaves a strip of
+      // uncovered map between the results sheet and the keyboard.
+      resizeToAvoidBottomInset: false,
       extendBody: true,
       body: Stack(
         children: [
@@ -766,10 +771,10 @@ class _ResultsSheet extends StatelessWidget {
           controller: controller,
           initialChildSize: .18,
           minChildSize: .14,
-          maxChildSize: keyboardOpen ? .68 : .82,
+          maxChildSize: keyboardOpen ? .42 : .82,
           snap: true,
           snapSizes:
-              keyboardOpen ? const [.18, .48, .68] : const [.18, .48, .82],
+              keyboardOpen ? const [.18, .30, .42] : const [.18, .48, .82],
           builder: (context, controller) => Material(
             color: Theme.of(context).colorScheme.surface,
             elevation: 12,

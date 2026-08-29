@@ -18,7 +18,7 @@ class House {
   static const _feedKeepFor = Duration(days: 14);
   static const _privateFreshFor = Duration(minutes: 2);
   static const _privateKeepFor = Duration(days: 30);
-  static const _homeFeedCacheVersion = 4;
+  static const _homeFeedCacheVersion = 5;
   static const _refreshRetryDelays = <Duration>[
     Duration(seconds: 5),
     Duration(seconds: 15),

@@ -30,7 +30,11 @@ class _AllHomesState extends State<AllHomes> {
   bool loadFailed = false;
   Object? loadError;
 
-  Map<String, String> get baseFilters => {...widget.filters, 'sort': sort};
+  Map<String, String> get baseFilters => {
+        ...widget.filters,
+        'sort': sort,
+        'surface': 'all_homes',
+      };
 
   String get sortLabel {
     if (sort == 'price_low') return 'Lowest price';

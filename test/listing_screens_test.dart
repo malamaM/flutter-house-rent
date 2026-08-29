@@ -11,6 +11,7 @@ import 'package:house_rent/widgets/categories.dart';
 import 'package:house_rent/widgets/custom_bottom_navigation_bar.dart';
 import 'package:house_rent/widgets/lister_trust_badges.dart';
 import 'package:house_rent/widgets/recommended_house.dart';
+import 'package:house_rent/widgets/best_offer.dart';
 import 'package:house_rent/widgets/property_card.dart';
 import 'package:house_rent/theme/app_theme.dart';
 import 'package:house_rent/theme/haven_responsive_media.dart';
@@ -141,6 +142,20 @@ void main() {
     await tester.pump();
 
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('closer look shows an empty state instead of a blank carousel',
+      (tester) async {
+    await tester.pumpWidget(const MaterialApp(
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: BestOffer(initialHouses: <House>[]),
+        ),
+      ),
+    ));
+
+    expect(find.text('Worth a closer look'), findsOneWidget);
+    expect(find.text('New homes coming soon'), findsOneWidget);
   });
 
   testWidgets('bottom navigation exposes Haven Tours', (tester) async {

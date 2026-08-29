@@ -8,7 +8,6 @@ import 'package:house_rent/screens/login/login.dart';
 import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/zambian_signature.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:house_rent/config/api_config.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -116,9 +115,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   Future<_WarmHomeResult?> _warmFirstHome() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final type = prefs.getString('home_property_type');
-      final feed = await House.fetchHomeFeed(type: type);
+      final feed = await House.fetchHomeFeed();
       if (_warmupCancelled) return null;
       await _advanceProgress(.72, 'Finding your best matches…');
       if (!mounted) return null;
@@ -163,7 +160,7 @@ class _SplashScreenState extends State<SplashScreen>
         // Give the splash animation a frame between image decodes.
         await Future<void>.delayed(const Duration(milliseconds: 16));
       }
-      return _WarmHomeResult(feed: feed, type: type);
+      return _WarmHomeResult(feed: feed, type: null);
     } catch (_) {
       // The Home screen retains its normal cache/error states when offline.
       if (mounted) {

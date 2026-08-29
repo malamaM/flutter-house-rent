@@ -5,7 +5,9 @@ import 'package:house_rent/screens/details/details.dart';
 import 'package:house_rent/screens/home/all_houses_screen.dart';
 import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/widgets/property_card.dart';
+import 'package:house_rent/widgets/screen_state.dart';
 import 'package:house_rent/services/session_recommendation.dart';
+import 'package:house_rent/services/app_feedback.dart';
 
 class BestOffer extends StatefulWidget {
   final Map<String, String> filters;
@@ -22,14 +24,17 @@ class _BestOfferState extends State<BestOffer> {
   Future<List<House>>? offers;
   List<House>? _settledOffers;
 
-  Map<String, String> get dealFilters => {...widget.filters, 'deal': '1'};
+  Map<String, String> get closerLookFilters => {
+        ...widget.filters,
+        'surface': 'closer_look',
+      };
 
   @override
   void initState() {
     super.initState();
     _settledOffers = widget.initialHouses;
     offers = widget.initialHouses == null
-        ? House.fetchHouses(filters: dealFilters)
+        ? House.fetchHouses(filters: closerLookFilters)
         : null;
     AppCache.instance.refreshes.addListener(_handleRefresh);
     SessionRecommendation.instance.addListener(_handleSessionChange);
@@ -53,7 +58,7 @@ class _BestOfferState extends State<BestOffer> {
 
   void _handleRefresh() {
     if (AppCache.instance.refreshes.value?.resource == 'houses' && mounted) {
-      final refreshedOffers = House.fetchHouses(filters: dealFilters);
+      final refreshedOffers = House.fetchHouses(filters: closerLookFilters);
       setState(() {
         _settledOffers = null;
         offers = refreshedOffers;
@@ -86,8 +91,8 @@ class _BestOfferState extends State<BestOffer> {
                 context,
                 HavenPageRoute(
                   builder: (_) => AllHousesScreen(
-                    title: 'Rental deals',
-                    filters: dealFilters,
+                    title: 'Worth a closer look',
+                    filters: closerLookFilters,
                   ),
                 ),
               ),
@@ -95,7 +100,7 @@ class _BestOfferState extends State<BestOffer> {
             ),
           ]),
           const SizedBox(height: 3),
-          Text('Distinctively marked deals worth considering',
+          Text('Personalized picks, with standout deals ranked higher',
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodyMedium),
@@ -124,9 +129,24 @@ class _BestOfferState extends State<BestOffer> {
                 ),
               );
             }
-            final items =
-                SessionRecommendation.instance.rank(snapshot.data ?? []);
-            if (items.isEmpty) return const SizedBox.shrink();
+            if (snapshot.hasError || !snapshot.hasData) {
+              return ScreenState(
+                icon: Icons.wifi_off_rounded,
+                title: 'Could not load these homes',
+                message: snapshot.hasError
+                    ? AppFeedback.messageFor(snapshot.error!,
+                        fallback: 'Haven could not load these suggestions.')
+                    : 'Haven did not return any home information.',
+              );
+            }
+            final items = SessionRecommendation.instance.rank(snapshot.data!);
+            if (items.isEmpty) {
+              return const ScreenState(
+                icon: Icons.home_work_outlined,
+                title: 'New homes coming soon',
+                message: 'There are no active properties to show yet.',
+              );
+            }
             return ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               scrollDirection: Axis.horizontal,

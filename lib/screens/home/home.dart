@@ -13,7 +13,6 @@ import 'package:house_rent/widgets/custom_app_bar.dart';
 import 'package:house_rent/widgets/recommended_house.dart';
 import 'package:house_rent/widgets/search_input.dart';
 import 'package:house_rent/widgets/welcome_text.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:house_rent/screens/onboarding/rental_preferences_screen.dart';
 import 'package:house_rent/services/recommendation_service.dart';
 import 'package:house_rent/services/app_cache.dart';
@@ -106,15 +105,10 @@ class _HomeState extends State<Home> {
   }
 
   Future<HomeFeedData> _initialFeed() async {
-    final prefs = await SharedPreferences.getInstance();
-    selectedType = prefs.getString('home_property_type');
     return House.fetchHomeFeed(type: selectedType);
   }
 
   void _selectType(String? value) {
-    unawaited(SharedPreferences.getInstance().then((prefs) => value == null
-        ? prefs.remove('home_property_type')
-        : prefs.setString('home_property_type', value)));
     setState(() {
       selectedType = value;
       _settledFeed = null;

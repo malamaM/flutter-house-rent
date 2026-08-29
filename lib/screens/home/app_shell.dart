@@ -182,6 +182,9 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final showBottomNavigation =
+        !keyboardOpen && _routeDepths[_currentIndex] <= 1;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -232,33 +235,39 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
                     ),
             ),
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: _routeDepths[_currentIndex] <= 1 ? 94 : 18,
-            child: SafeArea(
-              top: false,
-              child: Center(
-                child: OfflineStatusPill(
-                  onTap: () => _navigatorKeys[_currentIndex].currentState?.push(
-                        HavenPageRoute<void>(
-                            builder: (_) => const OfflineSyncScreen()),
-                      ),
+          if (!keyboardOpen)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: _routeDepths[_currentIndex] <= 1 ? 94 : 18,
+              child: SafeArea(
+                top: false,
+                child: Center(
+                  child: OfflineStatusPill(
+                    onTap: () =>
+                        _navigatorKeys[_currentIndex].currentState?.push(
+                              HavenPageRoute<void>(
+                                  builder: (_) => const OfflineSyncScreen()),
+                            ),
+                  ),
                 ),
               ),
             ),
-          ),
-        ]),
-        bottomNavigationBar: _routeDepths[_currentIndex] <= 1
-            ? CustomBottomNavigationBar(
+          if (showBottomNavigation)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: CustomBottomNavigationBar(
                 currentIndex: _currentIndex,
                 onSelected: _selectTab,
                 immersive: _currentIndex == 2,
                 interactionEmphasis: _toursNavEmphasized,
                 onInteractionStart: _showToursNavigation,
                 backdropLuminance: _toursBackdropLuminance,
-              )
-            : null,
+              ),
+            ),
+        ]),
       ),
     );
   }

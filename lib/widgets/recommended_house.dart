@@ -27,7 +27,7 @@ class _RecommendedHouseState extends State<RecommendedHouse> {
 
   Map<String, String> get recommendedFilters => {
         ...widget.filters,
-        'recommended': '1',
+        'surface': 'home',
       };
 
   @override
@@ -81,7 +81,7 @@ class _RecommendedHouseState extends State<RecommendedHouse> {
       children: [
         _Header(
           title: 'Homes you may love',
-          subtitle: 'Fresh picks based on what renters view most',
+          subtitle: 'Personalized using your preferences and activity',
           onSeeAll: () => Navigator.push(
             context,
             HavenPageRoute(
