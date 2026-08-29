@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/navigation/haven_page_route.dart';
@@ -64,6 +65,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 ),
               ),
             ),
+            const _MessagesButton(),
+            const SizedBox(width: 4),
             const _NotificationButton(),
             const SizedBox(width: 8),
             Material(
@@ -86,6 +89,21 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Size get preferredSize => const Size.fromHeight(64);
+}
+
+class _MessagesButton extends StatelessWidget {
+  const _MessagesButton();
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+        tooltip: 'Messages',
+        onPressed: () => Navigator.push(
+          context,
+          HavenPageRoute(
+              builder: (_) => const MarketplaceHubScreen(initialTab: 0)),
+        ),
+        icon: const Icon(CupertinoIcons.chat_bubble_2),
+      );
 }
 
 class _NotificationButton extends StatefulWidget {

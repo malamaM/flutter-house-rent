@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
@@ -188,6 +189,54 @@ class _VerificationRequestScreenState extends State<VerificationRequestScreen> {
     );
   }
 
+  Future<String?> _chooseOption({
+    required String title,
+    required List<MapEntry<String, String>> options,
+  }) {
+    return showCupertinoModalPopup<String>(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: Text(title),
+        actions: [
+          for (final option in options)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.pop(context, option.key),
+              child: Text(option.value),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _chooseListerType() async {
+    final value = await _chooseOption(
+      title: 'Lister type',
+      options: const [
+        MapEntry('individual_lister', 'Individual lister'),
+        MapEntry('agency', 'Registered agency'),
+        MapEntry('property_manager', 'Property manager'),
+      ],
+    );
+    if (value != null && mounted) setState(() => type = value);
+  }
+
+  Future<void> _chooseDocumentType() async {
+    final value = await _chooseOption(
+      title: 'Identity document',
+      options: const [
+        MapEntry('nrc', 'NRC'),
+        MapEntry('drivers_license', "Driver's licence"),
+        MapEntry('passport', 'Passport'),
+      ],
+    );
+    if (value != null && mounted) setState(() => documentType = value);
+  }
+
   Future<void> _submit() async {
     if (phone.text.trim().isEmpty ||
         documentFront == null ||
@@ -330,22 +379,11 @@ class _VerificationRequestScreenState extends State<VerificationRequestScreen> {
                         ])),
                     if (!locked) ...[
                       const SizedBox(height: 24),
-                      DropdownButtonFormField<String>(
-                          initialValue: type,
-                          decoration:
-                              const InputDecoration(labelText: 'Lister type'),
-                          items: const [
-                            DropdownMenuItem(
-                                value: 'individual_lister',
-                                child: Text('Individual lister')),
-                            DropdownMenuItem(
-                                value: 'agency',
-                                child: Text('Registered agency')),
-                            DropdownMenuItem(
-                                value: 'property_manager',
-                                child: Text('Property manager'))
-                          ],
-                          onChanged: (value) => setState(() => type = value!)),
+                      _VerificationSelectField(
+                        label: 'Lister type',
+                        value: _listerTypeLabel(type),
+                        onTap: _chooseListerType,
+                      ),
                       const SizedBox(height: 14),
                       TextField(
                           controller: phone,
@@ -362,20 +400,11 @@ class _VerificationRequestScreenState extends State<VerificationRequestScreen> {
                               hintText:
                                   'Tell us how you manage or own the properties you list.')),
                       const SizedBox(height: 18),
-                      DropdownButtonFormField<String>(
-                          initialValue: documentType,
-                          decoration: const InputDecoration(
-                              labelText: 'Identity document'),
-                          items: const [
-                            DropdownMenuItem(value: 'nrc', child: Text('NRC')),
-                            DropdownMenuItem(
-                                value: 'drivers_license',
-                                child: Text("Driver's licence")),
-                            DropdownMenuItem(
-                                value: 'passport', child: Text('Passport'))
-                          ],
-                          onChanged: (value) =>
-                              setState(() => documentType = value!)),
+                      _VerificationSelectField(
+                        label: 'Identity document',
+                        value: _documentTypeLabel(documentType),
+                        onTap: _chooseDocumentType,
+                      ),
                       const SizedBox(height: 14),
                       OutlinedButton.icon(
                           onPressed: () => _chooseDocumentSide(true),
@@ -421,10 +450,85 @@ class _VerificationRequestScreenState extends State<VerificationRequestScreen> {
                   ]));
   }
 
+  String _listerTypeLabel(String value) => switch (value) {
+        'agency' => 'Registered agency',
+        'property_manager' => 'Property manager',
+        _ => 'Individual lister',
+      };
+
+  String _documentTypeLabel(String value) => switch (value) {
+        'drivers_license' => "Driver's licence",
+        'passport' => 'Passport',
+        _ => 'NRC',
+      };
+
   @override
   void dispose() {
     phone.dispose();
     note.dispose();
     super.dispose();
+  }
+}
+
+class _VerificationSelectField extends StatelessWidget {
+  const _VerificationSelectField({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Semantics(
+      button: true,
+      label: '$label: $value',
+      child: CupertinoButton(
+        onPressed: onTap,
+        padding: EdgeInsets.zero,
+        pressedOpacity: .72,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(16, 10, 14, 11),
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: colors.outlineVariant, width: .8),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            color: colors.primary,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: .2,
+                          ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      value,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(CupertinoIcons.chevron_down,
+                  size: 16, color: colors.onSurfaceVariant),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

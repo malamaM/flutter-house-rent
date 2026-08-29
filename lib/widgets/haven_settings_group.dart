@@ -53,6 +53,7 @@ class HavenSettingsRow extends StatelessWidget {
   final String? subtitle;
   final VoidCallback onTap;
   final Color? color;
+  final Color? iconColor;
   final Widget? trailing;
 
   const HavenSettingsRow({
@@ -62,13 +63,14 @@ class HavenSettingsRow extends StatelessWidget {
     this.subtitle,
     required this.onTap,
     this.color,
+    this.iconColor,
     this.trailing,
   });
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final accent = color ?? colors.primary;
+    final accent = iconColor ?? color ?? colors.primary;
     return CupertinoButton(
       onPressed: onTap,
       padding: EdgeInsets.zero,

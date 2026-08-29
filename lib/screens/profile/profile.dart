@@ -220,6 +220,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         icon: CupertinoIcons.chat_bubble_2,
                         title: 'Messages',
                         subtitle: 'Secure conversations about properties',
+                        iconColor: colors.primary,
                         onTap: () => Navigator.push(
                             context,
                             HavenPageRoute(
@@ -228,6 +229,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         icon: CupertinoIcons.calendar,
                         title: 'Viewings',
                         subtitle: 'Requests, confirmations and history',
+                        iconColor: colors.secondary,
                         onTap: () => Navigator.push(
                             context,
                             HavenPageRoute(
@@ -237,6 +239,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         icon: CupertinoIcons.bell,
                         title: 'Updates & saved searches',
                         subtitle: 'Replies and alerts for matching homes',
+                        iconColor: colors.tertiary,
                         onTap: () => Navigator.push(
                             context,
                             HavenPageRoute(
@@ -246,6 +249,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         icon: CupertinoIcons.cloud_upload,
                         title: 'Offline & sync',
                         subtitle: 'Pending changes and connection status',
+                        iconColor: const Color(0xFF4B7BEC),
                         onTap: () => Navigator.push(
                             context,
                             HavenPageRoute(
@@ -254,6 +258,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         icon: CupertinoIcons.house,
                         title: 'My listings',
                         subtitle: 'Create and manage your properties',
+                        iconColor: const Color(0xFFE08A2E),
                         onTap: () => Navigator.push(
                             context,
                             HavenPageRoute(
@@ -266,12 +271,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       icon: CupertinoIcons.person_crop_circle,
                       title: 'Account settings',
                       subtitle: 'Personal details, appearance and password',
+                      iconColor: colors.primary,
                       onTap: () => Navigator.push(context,
                           HavenPageRoute(builder: (_) => const MyAccount()))),
                   HavenSettingsRow(
                       icon: CupertinoIcons.sparkles,
                       title: 'Your home search',
                       subtitle: 'Preferences and recommendation history',
+                      iconColor: const Color(0xFF9B59B6),
                       onTap: () => Navigator.push(
                           context,
                           HavenPageRoute(
@@ -281,6 +288,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       icon: CupertinoIcons.checkmark_shield,
                       title: 'Lister verification',
                       subtitle: 'Request a trusted identity badge',
+                      iconColor: const Color(0xFF2E9D77),
                       onTap: () => Navigator.push(
                           context,
                           HavenPageRoute(
@@ -290,6 +298,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       icon: CupertinoIcons.question_circle,
                       title: 'Help and support',
                       subtitle: 'Get help using Haven Zambia',
+                      iconColor: const Color(0xFFE06C75),
                       onTap: () => ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                               content:

@@ -653,6 +653,37 @@ class _DetailsState extends State<Details> {
     }
   }
 
+  Future<void> _showSafetyOptions() async {
+    await showCupertinoModalPopup<void>(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: const Text('Safety options'),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _reportListing();
+            },
+            child: const Text('Report listing'),
+          ),
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () {
+              Navigator.pop(context);
+              _blockLister();
+            },
+            child: const Text('Block lister'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
+  }
+
   Future<void> _reportListing() async {
     String reason = 'scam';
     final details = TextEditingController();
@@ -1015,20 +1046,14 @@ class _DetailsState extends State<Details> {
                               ),
                             ),
                             if (!widget.isOwnerView)
-                              PopupMenuButton<String>(
-                                tooltip: 'Safety options',
-                                onSelected: (value) {
-                                  if (value == 'report') _reportListing();
-                                  if (value == 'block') _blockLister();
-                                },
-                                itemBuilder: (_) => const [
-                                  PopupMenuItem(
-                                      value: 'report',
-                                      child: Text('Report listing')),
-                                  PopupMenuItem(
-                                      value: 'block',
-                                      child: Text('Block lister')),
-                                ],
+                              CupertinoButton(
+                                padding: const EdgeInsets.all(8),
+                                minimumSize: Size.zero,
+                                pressedOpacity: .65,
+                                onPressed: _showSafetyOptions,
+                                child: const Icon(
+                                    CupertinoIcons.ellipsis_circle,
+                                    size: 24),
                               ),
                           ],
                         ),
