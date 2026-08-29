@@ -589,7 +589,7 @@ class _MapSearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(15),
         elevation: 2,
         child: SizedBox(

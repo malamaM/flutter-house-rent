@@ -17,6 +17,8 @@ class SearchInput extends StatelessWidget {
       child: GlassSurface(
         borderRadius: BorderRadius.circular(16),
         tint: Colors.white,
+        borderColor: const Color(0xFFE2E7E3),
+        blur: 0,
         child: Material(
           color: Colors.transparent,
           child: InkWell(
@@ -28,13 +30,15 @@ class SearchInput extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 0, 7, 0),
                 child: Row(
                   children: [
-                    Icon(Icons.search_rounded,
-                        color: Theme.of(context).colorScheme.onSurface,
-                        size: 23),
+                    const Icon(Icons.search_rounded,
+                        color: Color(0xFF17211E), size: 23),
                     const SizedBox(width: 12),
                     Expanded(
                         child: Text(hint,
-                            style: Theme.of(context).textTheme.bodyMedium)),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(color: const Color(0xFF6D7773)))),
                     Container(
                       width: 44,
                       height: 44,
