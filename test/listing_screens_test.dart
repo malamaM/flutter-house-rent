@@ -132,9 +132,10 @@ void main() {
     await tester.tap(find.text('See more'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Bedrooms'), findsOneWidget);
+    expect(find.text('Bedrooms'), findsNWidgets(2));
     expect(find.text('Property details'), findsOneWidget);
-    expect(find.text('Bathrooms'), findsOneWidget);
+    expect(find.text('All property details'), findsOneWidget);
+    expect(find.text('Bathrooms'), findsNWidgets(2));
     expect(find.text('Apartment'), findsOneWidget);
     expect(find.text('Property type'), findsOneWidget);
     expect(find.text('Parking'), findsOneWidget);
@@ -142,12 +143,11 @@ void main() {
     expect(find.text('Garden'), findsOneWidget);
     expect(find.text('Gym'), findsNothing);
     expect(find.text('View all (3)'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('property-details-close-pill')));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('View all (3)'));
     await tester.pumpAndSettle();
     expect(find.text('Gym'), findsOneWidget);
-    expect(find.text('Show less'), findsOneWidget);
-    expect(tester.getTopLeft(find.text('Apartment')).dy,
-        greaterThan(tester.getTopLeft(find.text('Bedrooms')).dy));
     expect(tester.takeException(), isNull);
   });
 

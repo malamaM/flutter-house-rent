@@ -1,30 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
+import 'package:house_rent/widgets/glass_surface.dart';
 
-class HouseInfo extends StatefulWidget {
+class HouseInfo extends StatelessWidget {
   final House house;
 
   const HouseInfo({Key? key, required this.house}) : super(key: key);
 
   @override
-  State<HouseInfo> createState() => _HouseInfoState();
-}
-
-class _HouseInfoState extends State<HouseInfo> {
-  bool _expanded = false;
-
-  @override
   Widget build(BuildContext context) {
     final facts = [
-      _FactData(Icons.bed_outlined, '${widget.house.bedrooms}', 'Bedrooms'),
-      _FactData(
-          Icons.bathtub_outlined, '${widget.house.bathrooms}', 'Bathrooms'),
-      _FactData(Icons.home_work_outlined, widget.house.type ?? 'Not specified',
+      _FactData(Icons.bed_outlined, '${house.bedrooms}', 'Bedrooms'),
+      _FactData(Icons.bathtub_outlined, '${house.bathrooms}', 'Bathrooms'),
+      _FactData(Icons.home_work_outlined, house.type ?? 'Not specified',
           'Property type'),
-      _FactData(Icons.directions_car_outlined, '${widget.house.carGarage}',
-          'Parking'),
+      _FactData(Icons.directions_car_outlined, '${house.carGarage}', 'Parking'),
     ];
-    final visibleFacts = _expanded ? facts : facts.take(2).toList();
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -33,72 +24,109 @@ class _HouseInfoState extends State<HouseInfo> {
           Text('Property details',
               style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 12),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOutCubic,
-            child: Column(
-              children: [
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    const gap = 10.0;
-                    final columns = constraints.maxWidth >= 600 ? 4 : 2;
-                    final cardWidth =
-                        (constraints.maxWidth - gap * (columns - 1)) / columns;
-                    return Wrap(
-                      spacing: gap,
-                      runSpacing: gap,
-                      children: [
-                        for (final fact in visibleFacts)
-                          _Fact(
-                            width: cardWidth,
-                            icon: fact.icon,
-                            value: fact.value,
-                            label: fact.label,
-                          ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 2),
-                Tooltip(
-                  message: _expanded
-                      ? 'Hide property details'
-                      : 'Show more property details',
+          _FactGrid(facts: facts.take(2).toList()),
+          const SizedBox(height: 2),
+          Center(
+            child: TextButton.icon(
+              onPressed: () => _showAllFacts(context, facts),
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                visualDensity: VisualDensity.compact,
+              ),
+              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
+              label: const Text('See more'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAllFacts(BuildContext context, List<_FactData> facts) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      enableDrag: true,
+      showDragHandle: false,
+      builder: (sheetContext) => ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(sheetContext).height * .82,
+        ),
+        child: GlassSurface(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+          tint:
+              Theme.of(sheetContext).colorScheme.surface.withValues(alpha: .8),
+          blur: 24,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 10),
+              Align(
+                child: Tooltip(
+                  message: 'Close',
                   child: Semantics(
                     button: true,
-                    label: _expanded
-                        ? 'Hide property details'
-                        : 'Show more property details',
-                    child: TextButton.icon(
-                      onPressed: () => setState(() => _expanded = !_expanded),
-                      style: TextButton.styleFrom(
-                        foregroundColor:
-                            Theme.of(context).colorScheme.onSurfaceVariant,
+                    label: 'Close property details',
+                    child: GestureDetector(
+                      key: const Key('property-details-close-pill'),
+                      onTap: () => Navigator.pop(sheetContext),
+                      behavior: HitTestBehavior.opaque,
+                      child: Padding(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 4),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      icon: AnimatedRotation(
-                        turns: _expanded ? .5 : 0,
-                        duration: const Duration(milliseconds: 260),
-                        curve: Curves.easeOutCubic,
-                        child: const Icon(Icons.keyboard_arrow_down_rounded,
-                            size: 20),
-                      ),
-                      label: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 180),
-                        child: Text(
-                          _expanded ? 'Show less' : 'See more',
-                          key: ValueKey(_expanded),
+                            horizontal: 20, vertical: 6),
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Theme.of(sheetContext)
+                                .colorScheme
+                                .outlineVariant,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('All property details',
+                              style: Theme.of(sheetContext)
+                                  .textTheme
+                                  .headlineSmall),
+                          const SizedBox(height: 4),
+                          Text('A quick overview of this home',
+                              style:
+                                  Theme.of(sheetContext).textTheme.bodyMedium),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Flexible(
+                fit: FlexFit.loose,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+                  child: _FactGrid(facts: facts),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -110,6 +138,37 @@ class _FactData {
   final String label;
 
   const _FactData(this.icon, this.value, this.label);
+}
+
+class _FactGrid extends StatelessWidget {
+  final List<_FactData> facts;
+
+  const _FactGrid({required this.facts});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = 10.0;
+        final columns = constraints.maxWidth >= 600 ? 4 : 2;
+        final cardWidth =
+            (constraints.maxWidth - gap * (columns - 1)) / columns;
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            for (final fact in facts)
+              _Fact(
+                width: cardWidth,
+                icon: fact.icon,
+                value: fact.value,
+                label: fact.label,
+              ),
+          ],
+        );
+      },
+    );
+  }
 }
 
 class _Fact extends StatelessWidget {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/models/recommendation.dart';
 import 'package:house_rent/widgets/amenity_icon.dart';
+import 'package:house_rent/widgets/glass_surface.dart';
 
 class HouseAmenities extends StatelessWidget {
   final House house;
@@ -55,28 +56,52 @@ class HouseAmenities extends StatelessWidget {
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
-      builder: (sheetContext) => FractionallySizedBox(
-        heightFactor: .72,
-        child: Material(
-          color: Theme.of(sheetContext).colorScheme.surface,
-          clipBehavior: Clip.antiAlias,
+      enableDrag: true,
+      showDragHandle: false,
+      builder: (sheetContext) => ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(sheetContext).height * .82,
+        ),
+        child: GlassSurface(
           borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+          tint:
+              Theme.of(sheetContext).colorScheme.surface.withValues(alpha: .8),
+          blur: 24,
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 10),
               Align(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Theme.of(sheetContext).colorScheme.outlineVariant,
-                    borderRadius: BorderRadius.circular(4),
+                child: Tooltip(
+                  message: 'Close',
+                  child: Semantics(
+                    button: true,
+                    label: 'Close amenities',
+                    child: GestureDetector(
+                      key: const Key('amenities-close-pill'),
+                      onTap: () => Navigator.pop(sheetContext),
+                      behavior: HitTestBehavior.opaque,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 6),
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Theme.of(sheetContext)
+                                .colorScheme
+                                .outlineVariant,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 12, 4),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
                 child: Row(
                   children: [
                     Expanded(
@@ -95,16 +120,12 @@ class HouseAmenities extends StatelessWidget {
                         ],
                       ),
                     ),
-                    IconButton(
-                      tooltip: 'Close',
-                      onPressed: () => Navigator.pop(sheetContext),
-                      icon: const Icon(Icons.close_rounded),
-                    ),
                   ],
                 ),
               ),
               const SizedBox(height: 12),
-              Expanded(
+              Flexible(
+                fit: FlexFit.loose,
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
                   child: _AmenityGrid(amenities: amenities),
