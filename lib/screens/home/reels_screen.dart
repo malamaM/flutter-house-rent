@@ -17,7 +17,6 @@ import 'package:house_rent/widgets/demand_badge.dart';
 import 'package:house_rent/widgets/lister_trust_badges.dart';
 import 'package:house_rent/widgets/property_card.dart';
 import 'package:house_rent/widgets/screen_state.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
 
 class ReelsScreen extends StatefulWidget {
@@ -55,7 +54,6 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     AppCache.instance.refreshes.addListener(_handleTabRefresh);
     _loadInitial();
-    _restoreAudio();
   }
 
   void _handleTabRefresh() {
@@ -87,6 +85,7 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
     if (active && !muted) {
       unawaited(music.play().catchError((_) {}));
     } else {
+      if (!active) muted = true;
       unawaited(music.pause().catchError((_) {}));
     }
   }
@@ -135,25 +134,12 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _restoreAudio() async {
-    final prefs = await SharedPreferences.getInstance();
-    muted = prefs.getBool('reels_muted_v2') ?? true;
-    if (!muted && _tabActive) {
-      try {
-        await music.play();
-      } catch (_) {}
-    }
-    if (mounted) setState(() {});
-  }
-
   Future<void> _toggleAudio() async {
     PremiumHaptics.action();
     setState(() => muted = !muted);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('reels_muted_v2', muted);
     if (muted) {
       await music.pause();
-    } else {
+    } else if (_tabActive) {
       try {
         await music.play();
       } catch (_) {}
@@ -326,9 +312,9 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && !muted) {
+    if (state == AppLifecycleState.resumed && _tabActive && !muted) {
       unawaited(music.play().catchError((_) {}));
-    } else if (state != AppLifecycleState.resumed) {
+    } else {
       unawaited(music.pause().catchError((_) {}));
     }
   }
@@ -338,7 +324,7 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
     AppCache.instance.refreshes.removeListener(_handleTabRefresh);
     WidgetsBinding.instance.removeObserver(this);
     _pageController.dispose();
-    music.dispose();
+    unawaited(music.dispose());
     super.dispose();
   }
 

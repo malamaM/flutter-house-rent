@@ -6,37 +6,50 @@ import 'package:audioplayers/audioplayers.dart';
 class ReelsMusicService {
   AudioPlayer? _player;
   bool _ready = false;
+  bool _disposed = false;
+  int _commandVersion = 0;
+  Future<void>? _initialization;
 
   Future<void> play() async {
+    if (_disposed) return;
+    final command = ++_commandVersion;
+    await (_initialization ??= _initialize());
+    if (_disposed || command != _commandVersion) return;
+    await _player?.resume();
+  }
+
+  Future<void> _initialize() async {
+    if (_ready || _disposed) return;
     final player = _player ??= AudioPlayer();
-    if (!_ready) {
-      await AudioPlayer.global.setAudioContext(
-        AudioContext(
-          iOS: AudioContextIOS(
-            category: AVAudioSessionCategory.playback,
-            options: const {AVAudioSessionOptions.mixWithOthers},
-          ),
+    await AudioPlayer.global.setAudioContext(
+      AudioContext(
+        iOS: AudioContextIOS(
+          category: AVAudioSessionCategory.playback,
+          options: const {AVAudioSessionOptions.mixWithOthers},
         ),
-      );
-      await player.setReleaseMode(ReleaseMode.loop);
-      await player.setVolume(.32);
-      await player.setSourceBytes(
-        _buildOriginalAmbientLoop(),
-        mimeType: 'audio/wav',
-      );
-      _ready = true;
-    }
-    await player.resume();
+      ),
+    );
+    await player.setReleaseMode(ReleaseMode.loop);
+    await player.setVolume(.32);
+    await player.setSourceBytes(
+      _buildOriginalAmbientLoop(),
+      mimeType: 'audio/wav',
+    );
+    _ready = true;
   }
 
   Future<void> pause() async {
+    _commandVersion++;
     final player = _player;
     if (player != null) await player.pause();
   }
 
   Future<void> dispose() async {
+    _disposed = true;
+    _commandVersion++;
     final player = _player;
     if (player != null) await player.dispose();
+    _player = null;
   }
 
   /// Generates a short original ambient loop at runtime. No third-party song
