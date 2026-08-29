@@ -15,6 +15,7 @@ import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/listing_form_components.dart';
 import 'package:house_rent/widgets/map_location_picker.dart';
 import 'package:house_rent/widgets/amenity_icon.dart';
+import 'package:house_rent/widgets/haven_navigation_bar.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -448,22 +449,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Create listing'),
-            Text(
-              'A great listing starts with clear details',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                fontSize: 11,
-                fontWeight: FontWeight.w400,
-              ),
-            ),
-          ],
-        ),
-      ),
+      appBar: const HavenNavigationBar(title: 'Create listing'),
       body: SafeArea(
         child: Column(
           children: [
@@ -738,8 +724,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
               key: ValueKey('area:$selectedCityId:$selectedAreaId'),
               initialValue: selectedAreaId,
               isExpanded: true,
-              decoration:
-                  const InputDecoration(labelText: 'Area or suburb'),
+              decoration: const InputDecoration(labelText: 'Area or suburb'),
               hint: Text(selectedCity == null
                   ? 'Choose a city first'
                   : 'Choose the closest area'),

@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:house_rent/navigation/haven_page_route.dart';
 import 'package:house_rent/config/api_config.dart';
@@ -425,10 +426,9 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
   }
 
   Future<void> _createSearch() async {
-    final criteria = await showModalBottomSheet<_SavedSearchDraft>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => const _SavedSearchSheet(),
+    final criteria = await Navigator.push<_SavedSearchDraft>(
+      context,
+      HavenPageRoute(builder: (_) => const _SavedSearchSheet()),
     );
     if (criteria == null) return;
     await _perform(
@@ -684,116 +684,145 @@ class _SavedSearchSheetState extends State<_SavedSearchSheet> {
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(20, 0, 20, 18 + bottom),
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Save this search',
-                    style: Theme.of(context).textTheme.headlineMedium),
-                const SizedBox(height: 6),
-                Text('Reuse these filters anytime. Home alerts are optional.',
-                    style: Theme.of(context).textTheme.bodyMedium),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: _name,
-                  textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                      labelText: 'Search name',
-                      hintText: 'e.g. Kabulonga two-bedroom'),
-                  validator: (value) => (value?.trim().isEmpty ?? true)
-                      ? 'Give this search a name'
-                      : null,
+    return Scaffold(
+      appBar: const HavenNavigationBar(title: 'Save Search'),
+      body: SafeArea(
+          top: false,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(20, 14, 20, 18 + bottom),
+            child: Form(
+              key: _formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                        'Reuse these filters anytime. Home alerts are optional.',
+                        style: Theme.of(context).textTheme.bodyMedium),
+                    const SizedBox(height: 20),
+                    TextFormField(
+                      controller: _name,
+                      textInputAction: TextInputAction.next,
+                      decoration: const InputDecoration(
+                          labelText: 'Search name',
+                          hintText: 'e.g. Kabulonga two-bedroom'),
+                      validator: (value) => (value?.trim().isEmpty ?? true)
+                          ? 'Give this search a name'
+                          : null,
+                    ),
+                    const SizedBox(height: 14),
+                    FutureBuilder<RecommendationOptions>(
+                      future: _options,
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const LinearProgressIndicator();
+                        }
+                        return _locationFields(snapshot.data!);
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    DropdownButtonFormField<String>(
+                      initialValue: _type,
+                      decoration:
+                          const InputDecoration(labelText: 'Property type'),
+                      items: const [
+                        'House',
+                        'Apartment',
+                        'Bedsitter',
+                        'Flat',
+                        'Townhouse',
+                        'Villa',
+                        'Other'
+                      ]
+                          .map((value) => DropdownMenuItem(
+                              value: value, child: Text(value)))
+                          .toList(),
+                      onChanged: (value) => setState(() => _type = value),
+                    ),
+                    const SizedBox(height: 14),
+                    Row(children: [
+                      Expanded(child: _numberField(_minPrice, 'Minimum price')),
+                      const SizedBox(width: 10),
+                      Expanded(child: _numberField(_maxPrice, 'Maximum price')),
+                    ]),
+                    const SizedBox(height: 14),
+                    Row(children: [
+                      Expanded(
+                          child: _bedroomField('Min bedrooms', _minBeds,
+                              (value) => setState(() => _minBeds = value))),
+                      const SizedBox(width: 10),
+                      Expanded(
+                          child: _bedroomField('Max bedrooms', _maxBeds,
+                              (value) => setState(() => _maxBeds = value))),
+                    ]),
+                    const SizedBox(height: 18),
+                    Text('Must-have amenities',
+                        style: Theme.of(context).textTheme.labelLarge),
+                    const SizedBox(height: 9),
+                    FutureBuilder<RecommendationOptions>(
+                      future: _options,
+                      builder: (context, snapshot) => Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: (snapshot.data?.amenities ?? const [])
+                            .map((amenity) => FilterChip(
+                                  label: Text(amenity.name),
+                                  selected: _amenities.contains(amenity.key),
+                                  onSelected: (selected) => setState(() =>
+                                      selected
+                                          ? _amenities.add(amenity.key)
+                                          : _amenities.remove(amenity.key)),
+                                ))
+                            .toList(),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 10, 10),
+                      decoration: BoxDecoration(
+                        color:
+                            Theme.of(context).colorScheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(children: [
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Home alerts for this search',
+                                  style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500)),
+                              SizedBox(height: 3),
+                              Text(
+                                  'Notify me when a newly listed home matches.',
+                                  style: TextStyle(
+                                      color: CupertinoColors.secondaryLabel,
+                                      fontSize: 13)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        CupertinoSwitch(
+                          value: _alertsEnabled,
+                          activeTrackColor:
+                              Theme.of(context).colorScheme.primary,
+                          onChanged: (value) =>
+                              setState(() => _alertsEnabled = value),
+                        ),
+                      ]),
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                        width: double.infinity,
+                        child: CupertinoButton.filled(
+                            onPressed: _submit,
+                            child: const Text('Save Search'))),
+                  ],
                 ),
-                const SizedBox(height: 14),
-                FutureBuilder<RecommendationOptions>(
-                  future: _options,
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const LinearProgressIndicator();
-                    }
-                    return _locationFields(snapshot.data!);
-                  },
-                ),
-                const SizedBox(height: 14),
-                DropdownButtonFormField<String>(
-                  initialValue: _type,
-                  decoration: const InputDecoration(labelText: 'Property type'),
-                  items: const [
-                    'House',
-                    'Apartment',
-                    'Bedsitter',
-                    'Flat',
-                    'Townhouse',
-                    'Villa',
-                    'Other'
-                  ]
-                      .map((value) =>
-                          DropdownMenuItem(value: value, child: Text(value)))
-                      .toList(),
-                  onChanged: (value) => setState(() => _type = value),
-                ),
-                const SizedBox(height: 14),
-                Row(children: [
-                  Expanded(child: _numberField(_minPrice, 'Minimum price')),
-                  const SizedBox(width: 10),
-                  Expanded(child: _numberField(_maxPrice, 'Maximum price')),
-                ]),
-                const SizedBox(height: 14),
-                Row(children: [
-                  Expanded(
-                      child: _bedroomField('Min bedrooms', _minBeds,
-                          (value) => setState(() => _minBeds = value))),
-                  const SizedBox(width: 10),
-                  Expanded(
-                      child: _bedroomField('Max bedrooms', _maxBeds,
-                          (value) => setState(() => _maxBeds = value))),
-                ]),
-                const SizedBox(height: 18),
-                Text('Must-have amenities',
-                    style: Theme.of(context).textTheme.labelLarge),
-                const SizedBox(height: 9),
-                FutureBuilder<RecommendationOptions>(
-                  future: _options,
-                  builder: (context, snapshot) => Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: (snapshot.data?.amenities ?? const [])
-                        .map((amenity) => FilterChip(
-                              label: Text(amenity.name),
-                              selected: _amenities.contains(amenity.key),
-                              onSelected: (selected) => setState(() => selected
-                                  ? _amenities.add(amenity.key)
-                                  : _amenities.remove(amenity.key)),
-                            ))
-                        .toList(),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                SwitchListTile.adaptive(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Home alerts for this search'),
-                  subtitle: const Text(
-                      'Notify me when a newly listed home matches these filters.'),
-                  value: _alertsEnabled,
-                  onChanged: (value) => setState(() => _alertsEnabled = value),
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                        onPressed: _submit,
-                        icon: const Icon(Icons.bookmark_add_outlined),
-                        label: const Text('Save search'))),
-              ],
+              ),
             ),
-          ),
-        ),
-      ),
+          )),
     );
   }
 

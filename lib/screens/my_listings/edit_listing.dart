@@ -15,6 +15,7 @@ import 'package:house_rent/services/recommendation_service.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/listing_form_components.dart';
 import 'package:house_rent/widgets/amenity_icon.dart';
+import 'package:house_rent/widgets/haven_navigation_bar.dart';
 import 'package:image_picker/image_picker.dart';
 
 class EditListingScreen extends StatefulWidget {
@@ -476,19 +477,7 @@ class _EditListingScreenState extends State<EditListingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Edit Listing'),
-            Text('Keep every detail accurate and inviting',
-                style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w400)),
-          ],
-        ),
-      ),
+      appBar: const HavenNavigationBar(title: 'Edit Listing'),
       body: Form(
         key: formKey,
         child: ListView(
@@ -605,7 +594,8 @@ class _EditListingScreenState extends State<EditListingScreen> {
                         .map((item) => DropdownMenuItem(
                             value: item.id, child: Text(item.name)))
                         .toList(),
-                    validator: (value) => value == null ? 'Choose a city' : null,
+                    validator: (value) =>
+                        value == null ? 'Choose a city' : null,
                     onChanged: (value) => setState(() {
                       selectedCityId = value;
                       selectedAreaId = null;
@@ -628,7 +618,8 @@ class _EditListingScreenState extends State<EditListingScreen> {
                         .map((item) => DropdownMenuItem(
                             value: item.id, child: Text(item.name)))
                         .toList(),
-                    validator: (value) => value == null ? 'Choose an area' : null,
+                    validator: (value) =>
+                        value == null ? 'Choose an area' : null,
                     onChanged: selectedCity == null
                         ? null
                         : (value) => setState(() {

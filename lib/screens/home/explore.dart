@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:house_rent/navigation/haven_page_route.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -341,23 +342,25 @@ class _ExploreState extends State<Explore> {
   }
 
   Future<void> _openSearchActions() async {
-    final action = await showModalBottomSheet<String>(
+    final action = await showCupertinoModalPopup<String>(
       context: context,
-      builder: (context) => SafeArea(
-        child: Wrap(children: [
-          ListTile(
-            leading: const Icon(Icons.bookmark_add_outlined),
-            title: const Text('Save this search'),
-            subtitle: const Text('Keep these Explore filters for later'),
-            onTap: () => Navigator.pop(context, 'save'),
+      builder: (context) => CupertinoActionSheet(
+        title: const Text('Explore searches'),
+        message: const Text('Save these filters or open a previous search.'),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(context, 'save'),
+            child: const Text('Save this search'),
           ),
-          ListTile(
-            leading: const Icon(Icons.saved_search_rounded),
-            title: const Text('Open saved searches'),
-            subtitle: const Text('Reuse or manage a search and its alerts'),
-            onTap: () => Navigator.pop(context, 'open'),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(context, 'open'),
+            child: const Text('Open saved searches'),
           ),
-        ]),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
       ),
     );
     if (!mounted || action == null) return;
@@ -403,37 +406,138 @@ class _ExploreState extends State<Explore> {
             ? filters['keyword']!.trim()
             : 'My Explore search');
     var alerts = false;
-    final saved = await showDialog<bool>(
+    final saved = await showCupertinoModalPopup<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Save this search'),
-          content: Column(mainAxisSize: MainAxisSize.min, children: [
-            TextField(
-                controller: name,
-                autofocus: true,
-                decoration: const InputDecoration(labelText: 'Search name')),
-            SwitchListTile.adaptive(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Home alerts'),
-              subtitle: const Text('Notify me about new matching homes'),
-              value: alerts,
-              onChanged: (value) => setDialogState(() => alerts = value),
+        builder: (context, setDialogState) {
+          final colors = CupertinoTheme.of(context);
+          return AnimatedPadding(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOut,
+            padding:
+                EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: colors.scaffoldBackgroundColor,
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(28)),
+                ),
+                padding: EdgeInsets.fromLTRB(
+                    20, 10, 20, 18 + MediaQuery.paddingOf(context).bottom),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Container(
+                    width: 36,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.systemGrey3.resolveFrom(context),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  SizedBox(
+                    height: 52,
+                    child: Stack(alignment: Alignment.center, children: [
+                      const Text('Save Search',
+                          style: TextStyle(
+                              fontSize: 17, fontWeight: FontWeight.w600)),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: CupertinoButton(
+                          padding: EdgeInsets.zero,
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('Cancel'),
+                        ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: CupertinoButton(
+                          padding: EdgeInsets.zero,
+                          onPressed: name.text.trim().isEmpty
+                              ? null
+                              : () => Navigator.pop(context, true),
+                          child: const Text('Save',
+                              style: TextStyle(fontWeight: FontWeight.w600)),
+                        ),
+                      ),
+                    ]),
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('SEARCH NAME',
+                        style: TextStyle(
+                            color: CupertinoColors.secondaryLabel
+                                .resolveFrom(context),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600)),
+                  ),
+                  const SizedBox(height: 7),
+                  CupertinoTextField(
+                    controller: name,
+                    autofocus: true,
+                    clearButtonMode: OverlayVisibilityMode.editing,
+                    placeholder: 'Name this search',
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 13),
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.secondarySystemGroupedBackground
+                          .resolveFrom(context),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    onChanged: (_) => setDialogState(() {}),
+                    onSubmitted: (_) {
+                      if (name.text.trim().isNotEmpty) {
+                        Navigator.pop(context, true);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 10, 10),
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.secondarySystemGroupedBackground
+                          .resolveFrom(context),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(children: [
+                      Expanded(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Home Alerts',
+                                  style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500)),
+                              const SizedBox(height: 2),
+                              Text('Notify me about new matching homes',
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      color: CupertinoColors.secondaryLabel
+                                          .resolveFrom(context))),
+                            ]),
+                      ),
+                      const SizedBox(width: 12),
+                      CupertinoSwitch(
+                        value: alerts,
+                        activeTrackColor: AppColors.primary,
+                        onChanged: (value) =>
+                            setDialogState(() => alerts = value),
+                      ),
+                    ]),
+                  ),
+                  const SizedBox(height: 10),
+                ]),
+              ),
             ),
-          ]),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel')),
-            FilledButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Save')),
-          ],
-        ),
+          );
+        },
       ),
     );
     if (saved != true || name.text.trim().isEmpty) {
-      name.dispose();
+      // CupertinoModalPopup completes before its exit animation has entirely
+      // released the text field. Dispose after that transition, not mid-frame.
+      Timer(const Duration(milliseconds: 500), name.dispose);
       return;
     }
     try {
@@ -451,7 +555,7 @@ class _ExploreState extends State<Explore> {
     } catch (error) {
       if (mounted) AppFeedback.error(error, fallback: 'Could not save search.');
     } finally {
-      name.dispose();
+      Timer(const Duration(milliseconds: 500), name.dispose);
     }
   }
 

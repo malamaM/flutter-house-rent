@@ -12,6 +12,7 @@ class SearchInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final darkMode = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: GlassSurface(
@@ -30,8 +31,10 @@ class SearchInput extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 0, 7, 0),
                 child: Row(
                   children: [
-                    const Icon(Icons.search_rounded,
-                        color: Color(0xFF17211E), size: 23),
+                    Icon(Icons.search_rounded,
+                        color:
+                            darkMode ? Colors.white : const Color(0xFF17211E),
+                        size: 23),
                     const SizedBox(width: 12),
                     Expanded(
                         child: Text(hint,
