@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/services/api_error.dart';
 import 'package:house_rent/services/app_cache.dart';
@@ -14,6 +15,8 @@ class SessionService {
 
   static String get _apiBase => ApiConfig.apiBase;
   static Map<String, dynamic>? _memoryUser;
+  static final ValueNotifier<int> expirationEvents = ValueNotifier<int>(0);
+  static bool _expiring = false;
 
   /// The splash hydrates this before Home is mounted, allowing lightweight
   /// header widgets to render their final values on their very first frame.
@@ -42,8 +45,7 @@ class SessionService {
     try {
       return await _refresh(token, key);
     } on SessionExpiredException {
-      await prefs.remove('access_token');
-      await clear();
+      await expireSession();
       return null;
     } catch (_) {
       if (cached != null) {
@@ -89,9 +91,7 @@ class SessionService {
     try {
       await _refresh(token, key);
     } on SessionExpiredException {
-      final prefs = await SharedPreferences.getInstance();
-      await clear();
-      await prefs.remove('access_token');
+      await expireSession();
     } catch (_) {
       // The cached identity remains available during temporary outages.
     }
@@ -121,6 +121,23 @@ class SessionService {
       OfflineSyncService.instance.clear(),
       RecommendationService.instance.clearQueuedEvents(),
     ]);
+  }
+
+  /// Clears an invalid token and notifies the app root exactly once so every
+  /// screen is removed before the sign-in page is shown.
+  static Future<void> expireSession() async {
+    if (_expiring) return;
+    _expiring = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final hadSession =
+          prefs.containsKey('access_token') || _memoryUser != null;
+      await prefs.remove('access_token');
+      await clear();
+      if (hadSession) expirationEvents.value++;
+    } finally {
+      _expiring = false;
+    }
   }
 }
 

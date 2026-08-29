@@ -15,9 +15,11 @@ class NetworkStatusService with WidgetsBindingObserver {
   final ValueNotifier<NetworkAvailability> availability =
       ValueNotifier(NetworkAvailability.checking);
   Timer? _timer;
+  Timer? _offlineGraceTimer;
   bool _checking = false;
   bool _hasConfirmedConnection = false;
   int _startupFailures = 0;
+  int _consecutiveFailures = 0;
 
   bool get isOnline => availability.value == NetworkAvailability.online;
 
@@ -40,6 +42,8 @@ class NetworkStatusService with WidgetsBindingObserver {
       if (response.statusCode >= 200 && response.statusCode < 500) {
         _hasConfirmedConnection = true;
         _startupFailures = 0;
+        _consecutiveFailures = 0;
+        _offlineGraceTimer?.cancel();
         _set(NetworkAvailability.online);
       } else {
         _handleProbeFailure();
@@ -55,11 +59,13 @@ class NetworkStatusService with WidgetsBindingObserver {
   void reportOnline() {
     _hasConfirmedConnection = true;
     _startupFailures = 0;
+    _consecutiveFailures = 0;
+    _offlineGraceTimer?.cancel();
     _set(NetworkAvailability.online);
   }
 
   void reportOffline() {
-    if (_hasConfirmedConnection) _set(NetworkAvailability.offline);
+    if (_hasConfirmedConnection) _handleProbeFailure();
   }
 
   void _handleProbeFailure() {
@@ -74,7 +80,19 @@ class NetworkStatusService with WidgetsBindingObserver {
       });
       return;
     }
-    _set(NetworkAvailability.offline);
+    _consecutiveFailures++;
+    if (_consecutiveFailures < 2 || _offlineGraceTimer?.isActive == true) {
+      return;
+    }
+    // Slow or lossy mobile links often fail one request while other content is
+    // still arriving. Keep the last confirmed online state briefly and probe
+    // once more before telling the UI that Haven is offline.
+    _offlineGraceTimer = Timer(const Duration(seconds: 5), () async {
+      _offlineGraceTimer = null;
+      if (_consecutiveFailures < 2) return;
+      _set(NetworkAvailability.offline);
+      unawaited(checkNow());
+    });
   }
 
   void _set(NetworkAvailability value) {

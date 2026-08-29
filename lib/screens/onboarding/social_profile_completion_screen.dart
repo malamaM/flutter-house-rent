@@ -87,8 +87,7 @@ class _SocialProfileCompletionScreenState
       }
       await SessionService.currentUser(forceRefresh: true);
       if (!mounted) return;
-      Navigator.pushAndRemoveUntil(
-        context,
+      Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
         HavenPageRoute(builder: (_) => const AppShell()),
         (_) => false,
       );

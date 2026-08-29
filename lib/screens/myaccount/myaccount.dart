@@ -26,7 +26,10 @@ class _MyAccountState extends State<MyAccount> {
   void initState() {
     super.initState();
     _googleConnected = SessionService.cachedUser?['google_id'] != null ||
-        (SessionService.cachedUser?['auth_provider']?.toString().contains('google') ?? false);
+        (SessionService.cachedUser?['auth_provider']
+                ?.toString()
+                .contains('google') ??
+            false);
     _refreshAuthMethods();
   }
 
@@ -47,10 +50,16 @@ class _MyAccountState extends State<MyAccount> {
       context: context,
       builder: (dialogContext) => CupertinoAlertDialog(
         title: const Text('Connect Google sign-in?'),
-        content: const Text('Use the same email as this Haven account. Your password remains available, and Google will only be added after the identity is verified.'),
+        content: const Text(
+            'Use the same email as this Haven account. Your password remains available, and Google will only be added after the identity is verified.'),
         actions: [
-          CupertinoDialogAction(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
-          CupertinoDialogAction(isDefaultAction: true, onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Continue')),
+          CupertinoDialogAction(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel')),
+          CupertinoDialogAction(
+              isDefaultAction: true,
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Continue')),
         ],
       ),
     );
@@ -59,12 +68,28 @@ class _MyAccountState extends State<MyAccount> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('access_token');
-      if (token == null || token.isEmpty) throw const SocialAuthException('Your Haven session has expired. Please sign in again.');
+      if (token == null || token.isEmpty) {
+        throw const SocialAuthException(
+            'Your Haven session has expired. Please sign in again.');
+      }
       await SocialAuthService.connectGoogleFromSettings(accessToken: token);
-      if (mounted) setState(() => _googleConnected = true);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Google sign-in is now connected.')));
+      if (mounted) {
+        setState(() => _googleConnected = true);
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Google sign-in is now connected.')));
+      }
+    } on SocialAuthCanceled catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
     } catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ApiErrorResolver.message(error, fallback: 'Google could not be connected. The Haven account was not changed.'))));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(ApiErrorResolver.message(error,
+                fallback:
+                    'Google could not be connected. The Haven account was not changed.'))));
+      }
     } finally {
       if (mounted) setState(() => _connectingGoogle = false);
     }
@@ -108,11 +133,22 @@ class _MyAccountState extends State<MyAccount> {
             ),
             HavenSettingsRow(
               icon: CupertinoIcons.person_crop_circle_badge_checkmark,
-              title: _googleConnected ? 'Google sign-in connected' : 'Google sign-in',
-              subtitle: _googleConnected ? 'You can use Google or your password' : (_connectingGoogle ? 'Connecting securely…' : 'Add Google as another way to sign in'),
+              title: _googleConnected
+                  ? 'Google sign-in connected'
+                  : 'Google sign-in',
+              subtitle: _googleConnected
+                  ? 'You can use Google or your password'
+                  : (_connectingGoogle
+                      ? 'Connecting securely…'
+                      : 'Add Google as another way to sign in'),
               trailing: _connectingGoogle
                   ? const CupertinoActivityIndicator()
-                  : Icon(_googleConnected ? CupertinoIcons.check_mark_circled : CupertinoIcons.chevron_forward, size: 16, color: Theme.of(context).colorScheme.primary),
+                  : Icon(
+                      _googleConnected
+                          ? CupertinoIcons.check_mark_circled
+                          : CupertinoIcons.chevron_forward,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.primary),
               onTap: _googleConnected ? () {} : _connectGoogle,
             ),
             ListenableBuilder(

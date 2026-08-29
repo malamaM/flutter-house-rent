@@ -23,6 +23,7 @@ class SocialAuthService {
     defaultValue: OAuthConfig.googleIosClientId,
   );
   static Future<void>? _googleInitialization;
+  static bool _googleFlowActive = false;
 
   static Future<SocialAuthResult> signInWithGoogle() async {
     if (_webClientId.isEmpty) {
@@ -36,6 +37,11 @@ class SocialAuthService {
         'Google sign-in needs the iOS OAuth client ID for Haven Zambia.',
       );
     }
+    if (_googleFlowActive) {
+      throw const SocialAuthException(
+          'Google sign-in is already opening. Please wait a moment.');
+    }
+    _googleFlowActive = true;
 
     try {
       final google = GoogleSignIn.instance;
@@ -137,6 +143,8 @@ class SocialAuthService {
             ? error.message!.trim()
             : 'This device could not complete Google sign-in (${error.code}).',
       );
+    } finally {
+      _googleFlowActive = false;
     }
   }
 
@@ -171,6 +179,11 @@ class SocialAuthService {
         'Google sign-in is not configured for this Haven build.',
       );
     }
+    if (_googleFlowActive) {
+      throw const SocialAuthException(
+          'Google sign-in is already opening. Please wait a moment.');
+    }
+    _googleFlowActive = true;
     try {
       final google = GoogleSignIn.instance;
       _googleInitialization ??= google.initialize(
@@ -179,12 +192,14 @@ class SocialAuthService {
       );
       await _googleInitialization;
       if (!google.supportsAuthenticate()) {
-        throw const SocialAuthException('Google sign-in is unavailable on this device.');
+        throw const SocialAuthException(
+            'Google sign-in is unavailable on this device.');
       }
       final account = await google.authenticate();
       final idToken = account.authentication.idToken;
       if (idToken == null || idToken.isEmpty) {
-        throw const SocialAuthException('Google did not return a secure identity token. Try again.');
+        throw const SocialAuthException(
+            'Google did not return a secure identity token. Try again.');
       }
       await linkGoogleToSignedInAccount(
         accessToken: accessToken,
@@ -195,7 +210,10 @@ class SocialAuthService {
       if (error.code == GoogleSignInExceptionCode.canceled) {
         throw const SocialAuthCanceled();
       }
-      throw SocialAuthException(error.description ?? 'Google connection could not be completed.');
+      throw SocialAuthException(
+          error.description ?? 'Google connection could not be completed.');
+    } finally {
+      _googleFlowActive = false;
     }
   }
 }
@@ -222,7 +240,8 @@ class SocialAuthException implements Exception {
 }
 
 class SocialAuthCanceled extends SocialAuthException {
-  const SocialAuthCanceled() : super('Google sign-in was cancelled.');
+  const SocialAuthCanceled()
+      : super('Google sign-in closed before it completed. Please try again.');
 }
 
 class SocialAuthAccountConflict extends SocialAuthException {

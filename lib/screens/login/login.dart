@@ -29,6 +29,7 @@ class _SignInScreenState extends State<SignInScreen> {
   bool loading = false;
   bool obscurePassword = true;
   String? socialLoading;
+  bool _authNavigationCommitted = false;
   RememberedAuthMethod? _lastAuthMethod;
   SocialAuthAccountConflict? _pendingSocialLink;
 
@@ -53,12 +54,13 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   Future<void> _signInWithGoogle() async {
+    if (socialLoading != null || _authNavigationCommitted) return;
     setState(() => socialLoading = 'google');
     try {
       final auth = await SocialAuthService.signInWithGoogle();
       if (mounted) {
-        Navigator.pushAndRemoveUntil(
-          context,
+        _authNavigationCommitted = true;
+        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
           HavenPageRoute(
             builder: (_) => auth.requiresProfileCompletion
                 ? SocialProfileCompletionScreen(auth: auth)
@@ -69,9 +71,8 @@ class _SignInScreenState extends State<SignInScreen> {
       }
     } on SocialAuthAccountConflict catch (conflict) {
       await _handleSocialConflict(conflict);
-    } on SocialAuthCanceled {
-      _showMessage(
-          'Google sign-in was cancelled before Haven received an account.');
+    } on SocialAuthCanceled catch (error) {
+      _showMessage(error.message);
     } catch (error) {
       _showMessage(ApiErrorResolver.message(error,
           fallback: 'Google sign-in could not be completed.'));
@@ -90,6 +91,7 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   Future<void> _signIn() async {
+    if (loading || _authNavigationCommitted) return;
     if (!formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
     setState(() => loading = true);
@@ -130,8 +132,11 @@ class _SignInScreenState extends State<SignInScreen> {
         );
         await SessionService.currentUser(forceRefresh: true);
         if (mounted) {
-          Navigator.pushReplacement(
-              context, HavenPageRoute(builder: (_) => const AppShell()));
+          _authNavigationCommitted = true;
+          Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+            HavenPageRoute(builder: (_) => const AppShell()),
+            (_) => false,
+          );
         }
         return;
       }

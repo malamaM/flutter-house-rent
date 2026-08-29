@@ -125,7 +125,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await prefs.remove('access_token');
     SessionRecommendation.instance.reset();
     if (!mounted) return;
-    Navigator.pushAndRemoveUntil(context,
+    Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
         HavenPageRoute(builder: (_) => const SignInScreen()), (_) => false);
   }
 

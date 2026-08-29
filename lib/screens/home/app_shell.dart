@@ -11,6 +11,7 @@ import 'package:house_rent/models/house.dart';
 import 'package:house_rent/navigation/haven_page_route.dart';
 import 'package:house_rent/services/navigation_warmup_service.dart';
 import 'package:house_rent/services/app_cache.dart';
+import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/widgets/custom_bottom_navigation_bar.dart';
 import 'package:house_rent/widgets/offline_status_pill.dart';
 
@@ -46,6 +47,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   final Set<int> _mountedTabs = {0};
   final List<Timer> _warmupTimers = [];
   Timer? _toursNavSettleTimer;
+  Timer? _sessionValidationTimer;
   bool _toursNavEmphasized = false;
   double _toursBackdropLuminance = .3;
   DateTime? _backgroundedAt;
@@ -78,7 +80,12 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
           const Duration(milliseconds: 10500), () => _queueIdleWarmup(2)));
       _warmupTimers.add(Timer(
           const Duration(milliseconds: 12500), () => _queueIdleWarmup(0)));
+      unawaited(_validateSession());
     });
+    _sessionValidationTimer = Timer.periodic(
+      const Duration(minutes: 5),
+      (_) => unawaited(_validateSession()),
+    );
   }
 
   void _queueIdleWarmup(int index) {
@@ -94,6 +101,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _toursNavSettleTimer?.cancel();
+    _sessionValidationTimer?.cancel();
     for (final timer in _warmupTimers) {
       timer.cancel();
     }
@@ -108,6 +116,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       return;
     }
     if (state != AppLifecycleState.resumed) return;
+    unawaited(_validateSession());
     final backgroundedAt = _backgroundedAt;
     _backgroundedAt = null;
     if (backgroundedAt == null ||
@@ -116,6 +125,10 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       return;
     }
     AppCache.instance.announce('tab-refresh', '$_currentIndex');
+  }
+
+  Future<void> _validateSession() async {
+    await SessionService.currentUser(forceRefresh: true);
   }
 
   void _selectTab(int index) {

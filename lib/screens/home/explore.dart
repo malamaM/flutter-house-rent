@@ -90,7 +90,15 @@ class _ExploreState extends State<Explore> {
     // recommendation menu on the next frame.
     if (!mounted) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) setState(() {});
+      if (!mounted) return;
+      setState(() {});
+      if (_searchFocus.hasFocus && _resultsSheetController.isAttached) {
+        unawaited(_resultsSheetController.animateTo(
+          .48,
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOutCubic,
+        ));
+      }
     });
   }
 
@@ -334,6 +342,7 @@ class _ExploreState extends State<Explore> {
   @override
   Widget build(BuildContext context) {
     final darkMap = Theme.of(context).brightness == Brightness.dark;
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
     return Scaffold(
       extendBody: true,
       body: Stack(
@@ -559,6 +568,7 @@ class _ExploreState extends State<Explore> {
             onRetry: () => _fetch(panToResults: true),
             onLoadMore: _loadMore,
             onOpen: (house) => Navigator.push(context, Details.route(house)),
+            keyboardOpen: keyboardOpen,
           ),
         ],
       ),
@@ -734,6 +744,7 @@ class _ResultsSheet extends StatelessWidget {
   final VoidCallback onLoadMore;
   final VoidCallback onRetry;
   final ValueChanged<House> onOpen;
+  final bool keyboardOpen;
 
   const _ResultsSheet({
     required this.controller,
@@ -745,18 +756,20 @@ class _ResultsSheet extends StatelessWidget {
     required this.onLoadMore,
     required this.onRetry,
     required this.onOpen,
+    required this.keyboardOpen,
   });
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 84),
+        padding: EdgeInsets.only(bottom: keyboardOpen ? 0 : 84),
         child: DraggableScrollableSheet(
           controller: controller,
           initialChildSize: .18,
           minChildSize: .14,
-          maxChildSize: .82,
+          maxChildSize: keyboardOpen ? .68 : .82,
           snap: true,
-          snapSizes: const [.18, .48, .82],
+          snapSizes:
+              keyboardOpen ? const [.18, .48, .68] : const [.18, .48, .82],
           builder: (context, controller) => Material(
             color: Theme.of(context).colorScheme.surface,
             elevation: 12,

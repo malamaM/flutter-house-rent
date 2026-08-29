@@ -37,14 +37,16 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   bool _loading = false;
   bool _obscurePassword = true;
   String? _socialLoading;
+  bool _authNavigationCommitted = false;
 
   Future<void> _continueWithGoogle() async {
+    if (_socialLoading != null || _authNavigationCommitted) return;
     setState(() => _socialLoading = 'google');
     try {
       final auth = await SocialAuthService.signInWithGoogle();
       if (mounted) {
-        Navigator.pushAndRemoveUntil(
-          context,
+        _authNavigationCommitted = true;
+        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
           HavenPageRoute(
             builder: (_) => auth.requiresProfileCompletion
                 ? SocialProfileCompletionScreen(auth: auth)
@@ -59,8 +61,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       if (mounted && choice == SocialAuthConflictChoice.enterPassword) {
         Navigator.pop(context, conflict);
       }
-    } on SocialAuthCanceled {
-      _notice('Google sign-in was cancelled before Haven received an account.');
+    } on SocialAuthCanceled catch (error) {
+      _notice(error.message);
     } catch (error) {
       _notice(ApiErrorResolver.message(error,
           fallback: 'Google account creation could not be completed.'));
@@ -73,6 +75,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       value == null || value.trim().isEmpty ? 'This field is required' : null;
 
   Future<void> _createAccount() async {
+    if (_loading || _authNavigationCommitted) return;
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
     setState(() => _loading = true);
@@ -111,8 +114,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         );
         await SessionService.currentUser(forceRefresh: true);
         if (mounted) {
-          Navigator.pushAndRemoveUntil(
-            context,
+          _authNavigationCommitted = true;
+          Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
             HavenPageRoute(builder: (_) => const AppShell()),
             (_) => false,
           );

@@ -3,6 +3,9 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:house_rent/screens/splash/splash_screen.dart';
+import 'package:house_rent/screens/login/login.dart';
+import 'package:house_rent/navigation/haven_page_route.dart';
+import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/theme/app_theme.dart';
 import 'package:house_rent/services/performance_monitor.dart';
 import 'package:house_rent/theme/theme_controller.dart';
@@ -46,14 +49,51 @@ Future<void> main() async {
   PerformanceMonitor.instance.initialize();
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final _navigatorKey = GlobalKey<NavigatorState>();
+  int _handledExpiration = SessionService.expirationEvents.value;
+
+  @override
+  void initState() {
+    super.initState();
+    SessionService.expirationEvents.addListener(_sessionExpired);
+  }
+
+  void _sessionExpired() {
+    final event = SessionService.expirationEvents.value;
+    if (event == _handledExpiration) return;
+    _handledExpiration = event;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final navigator = _navigatorKey.currentState;
+      if (navigator == null) return;
+      navigator.pushAndRemoveUntil(
+        HavenPageRoute<void>(builder: (_) => const SignInScreen()),
+        (_) => false,
+      );
+      AppFeedback.error(
+          Exception('Your session has expired. Sign in again to continue.'));
+    });
+  }
+
+  @override
+  void dispose() {
+    SessionService.expirationEvents.removeListener(_sessionExpired);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: ThemeController.instance,
       builder: (_, __) => MaterialApp(
+        navigatorKey: _navigatorKey,
         title: 'Haven Zambia',
         debugShowCheckedModeBanner: false,
         scaffoldMessengerKey: AppFeedback.messengerKey,
