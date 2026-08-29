@@ -2,6 +2,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:house_rent/config/api_config.dart';
 
 void main() {
+  test('always targets the live Azure server', () {
+    expect(
+      ApiConfig.origin,
+      'https://haven-c4fga3bbgxgjhyab.southafricanorth-01.azurewebsites.net',
+    );
+    expect(ApiConfig.apiBase, '${ApiConfig.origin}/api');
+  });
+
   test('builds an exact server image variant for Haven storage assets', () {
     final url = ApiConfig.optimizedImageUrl(
       '${ApiConfig.storageBase}/house_images/photo.webp',

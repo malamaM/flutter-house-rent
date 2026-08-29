@@ -92,7 +92,26 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   void _scheduleDraft() {
     _draftDebounce?.cancel();
     _draftDebounce = Timer(const Duration(milliseconds: 700), _saveDraft);
+    if (mounted) setState(() {});
   }
+
+  List<String> get _qualityImprovements => [
+        if (title.text.trim().length < 12)
+          'Use a title with at least 12 characters.',
+        if (description.text.trim().length < 80)
+          'Describe the home and surroundings in at least 80 characters.',
+        if (galleryImages.length < 3) 'Add at least three gallery photos.',
+        if (latitude == null || longitude == null)
+          'Select an approximate map location.',
+        if (selectedCityId == null || selectedAreaId == null)
+          'Choose a recognised city and area.',
+        if ((int.tryParse(rentalPrice.text) ?? 0) < 300)
+          'Confirm a monthly rent of at least K300.',
+        if (coverImage == null) 'Add a cover photo.',
+      ];
+
+  int get _estimatedQualityScore =>
+      (100 - (_qualityImprovements.length * 14)).clamp(0, 100);
 
   Future<void> _restoreDraft() async {
     final draft = await ListingDraftService.instance.load(_draftId);
@@ -761,6 +780,11 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                 'Use bright, recent photos. You can select up to twelve gallery images.',
           ),
           const SizedBox(height: 26),
+          ListingQualityGuide(
+            score: _estimatedQualityScore,
+            improvements: _qualityImprovements,
+          ),
+          const SizedBox(height: 16),
           _PhotoPicker(
             title: 'Cover photo',
             subtitle: 'The first image people see',

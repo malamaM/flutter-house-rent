@@ -316,6 +316,7 @@ class _DetailsState extends State<Details> {
   int _reviewVersion = 0;
   late Future<Map<String, dynamic>> _ownerFuture;
   bool _ownerLoaded = false;
+  bool _canReview = false;
 
   String get _offlineAge {
     final cachedAt = widget.house.cachedAt;
@@ -336,10 +337,25 @@ class _DetailsState extends State<Details> {
     unawaited(PropertyDetailsService.cacheOwnerContact(
         widget.house.id, widget.house.ownerContact));
     if (!widget.isOwnerView) {
+      unawaited(_loadReviewEligibility());
       House.recordView(widget.house.id);
       SessionRecommendation.instance.observe(widget.house, 1.1);
       unawaited(RecommendationService.instance
           .track('details', widget.house.id, surface: 'details'));
+    }
+  }
+
+  Future<void> _loadReviewEligibility() async {
+    if (widget.house.ownerId == null) return;
+    final token =
+        (await SharedPreferences.getInstance()).getString('access_token');
+    if (token == null) return;
+    try {
+      final result = await MarketplaceService.instance
+          .reviewEligibility(widget.house.ownerId!, widget.house.id);
+      if (mounted) setState(() => _canReview = result.eligible);
+    } catch (_) {
+      // Eligibility is fail-closed: no CTA is shown when it cannot be verified.
     }
   }
 
@@ -411,6 +427,7 @@ class _DetailsState extends State<Details> {
         final data = json.decode(response.body);
         await ListerReviewsService.invalidate(widget.house.ownerId!);
         if (mounted) setState(() => _reviewVersion++);
+        if (mounted) setState(() => _canReview = false);
         _notice(data['message'] ?? 'Thanks—your review was received.');
       } else {
         throw HavenApiException.fromResponse(response,
@@ -1015,7 +1032,7 @@ class _DetailsState extends State<Details> {
                               ),
                           ],
                         ),
-                        if (!widget.isOwnerView) ...[
+                        if (_canReview) ...[
                           const SizedBox(height: 14),
                           SizedBox(
                               width: double.infinity,
@@ -1031,7 +1048,7 @@ class _DetailsState extends State<Details> {
                     ListerReviewsSection(
                       key: ValueKey('${widget.house.ownerId}:$_reviewVersion'),
                       listerId: widget.house.ownerId!,
-                      onAddReview: widget.isOwnerView ? null : _showReview,
+                      onAddReview: _canReview ? _showReview : null,
                     ),
                   ],
                 ],

@@ -1,6 +1,81 @@
 import 'package:flutter/material.dart';
 import 'package:house_rent/widgets/glass_surface.dart';
 
+class ListingQualityGuide extends StatelessWidget {
+  final int score;
+  final List<String> improvements;
+
+  const ListingQualityGuide({
+    super.key,
+    required this.score,
+    required this.improvements,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final strong = score >= 80;
+    return ListingSurface(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(
+            width: 52,
+            height: 52,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: strong ? colors.primary : colors.tertiaryContainer,
+              shape: BoxShape.circle,
+            ),
+            child: Text('$score',
+                style: TextStyle(
+                    color:
+                        strong ? colors.onPrimary : colors.onTertiaryContainer,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18)),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Estimated listing quality',
+                  style: TextStyle(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 3),
+              Text(
+                improvements.isEmpty
+                    ? 'Excellent—every quality signal is complete.'
+                    : 'Complete these suggestions to improve visibility.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ]),
+          ),
+        ]),
+        if (improvements.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          ...improvements.map((item) => Padding(
+                padding: const EdgeInsets.only(bottom: 7),
+                child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.arrow_circle_up_rounded,
+                          size: 17, color: colors.primary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                          child: Text(item,
+                              style: Theme.of(context).textTheme.bodySmall)),
+                    ]),
+              )),
+        ],
+        const SizedBox(height: 4),
+        Text('Each completed quality signal adds 14 points.',
+            style: Theme.of(context)
+                .textTheme
+                .labelSmall
+                ?.copyWith(color: colors.onSurfaceVariant)),
+      ]),
+    );
+  }
+}
+
 class ListingSectionHeader extends StatelessWidget {
   final String eyebrow;
   final String title;

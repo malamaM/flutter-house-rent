@@ -116,7 +116,28 @@ class _EditListingScreenState extends State<EditListingScreen> {
   void _scheduleDraft() {
     _draftDebounce?.cancel();
     _draftDebounce = Timer(const Duration(milliseconds: 700), _saveDraft);
+    if (mounted) setState(() {});
   }
+
+  List<String> get _qualityImprovements => [
+        if (title.text.trim().length < 12)
+          'Use a title with at least 12 characters.',
+        if (description.text.trim().length < 80)
+          'Describe the home and surroundings in at least 80 characters.',
+        if (existingGalleryImages.length + newGalleryImages.length < 3)
+          'Keep at least three gallery photos.',
+        if (widget.house.latitude == null || widget.house.longitude == null)
+          'Add an approximate map location.',
+        if (widget.house.cityId == null || widget.house.areaId == null)
+          'Choose a recognised city and area.',
+        if ((int.tryParse(rentalPrice.text) ?? 0) < 300)
+          'Confirm a monthly rent of at least K300.',
+        if (widget.house.imageUrl.isEmpty && newCoverImage == null)
+          'Add a cover photo.',
+      ];
+
+  int get _estimatedQualityScore =>
+      (100 - (_qualityImprovements.length * 14)).clamp(0, 100);
 
   Future<void> _restoreDraft() async {
     final draft = await ListingDraftService.instance.load(_draftId);
@@ -425,6 +446,11 @@ class _EditListingScreenState extends State<EditListingScreen> {
                 description:
                     'Fresh details and strong photos help renters decide with confidence.'),
             const SizedBox(height: 26),
+            ListingQualityGuide(
+              score: _estimatedQualityScore,
+              improvements: _qualityImprovements,
+            ),
+            const SizedBox(height: 16),
             ListingTextField(
                 controller: title, label: 'Listing title', requiredField: true),
             ListingTextField(
