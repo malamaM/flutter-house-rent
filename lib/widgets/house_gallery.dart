@@ -19,8 +19,19 @@ class _HouseGalleryState extends State<HouseGallery> {
   @override
   void initState() {
     super.initState();
-    images = PropertyDetailsService.gallery(widget.houseId);
+    images = _loadImages();
   }
+
+  @override
+  void didUpdateWidget(covariant HouseGallery oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.houseId != widget.houseId) {
+      images = _loadImages();
+    }
+  }
+
+  Future<List<GalleryImageData>> _loadImages() =>
+      PropertyDetailsService.gallery(widget.houseId, forceRefresh: true);
 
   @override
   Widget build(BuildContext context) {
