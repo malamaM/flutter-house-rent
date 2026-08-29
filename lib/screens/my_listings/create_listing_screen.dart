@@ -14,6 +14,7 @@ import 'package:house_rent/services/app_feedback.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/listing_form_components.dart';
 import 'package:house_rent/widgets/map_location_picker.dart';
+import 'package:house_rent/widgets/amenity_icon.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -48,6 +49,8 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   bool gym = false;
   bool pool = false;
   bool garage = false;
+  final Set<int> amenityIds = {};
+  List<RentalAmenity> availableAmenities = const [];
   bool submitting = false;
   double uploadProgress = 0;
   bool preparingVideo = false;
@@ -147,6 +150,11 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       gym = draft['gym'] == true;
       pool = draft['pool'] == true;
       garage = draft['garage'] == true;
+      amenityIds.addAll((draft['amenity_ids'] is List
+              ? draft['amenity_ids'] as List
+              : const [])
+          .map((id) => int.tryParse('$id') ?? 0)
+          .where((id) => id > 0));
       selectedCityId = int.tryParse('${draft['city_id']}');
       selectedAreaId = int.tryParse('${draft['area_id']}');
       latitude = double.tryParse('${draft['latitude']}');
@@ -176,6 +184,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         'gym': gym,
         'pool': pool,
         'garage': garage,
+        'amenity_ids': amenityIds.toList(),
         'city_id': selectedCityId,
         'area_id': selectedAreaId,
         'latitude': latitude,
@@ -186,10 +195,36 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         'videos': videos.map((item) => item.path).toList(),
       });
 
-  Future<RecommendationOptions> _loadLocationOptions() =>
-      RecommendationService.instance
-          .options()
-          .catchError((_) => const RecommendationOptions([], []));
+  Future<RecommendationOptions> _loadLocationOptions() async {
+    try {
+      final options = await RecommendationService.instance.options();
+      availableAmenities = options.amenities;
+      for (final amenity in options.amenities) {
+        if ((amenity.key == 'gym' && gym) ||
+            (amenity.key == 'swimming_pool' && pool) ||
+            (amenity.key == 'garage' && garage)) {
+          amenityIds.add(amenity.id);
+        }
+      }
+      return options;
+    } catch (_) {
+      return const RecommendationOptions([], []);
+    }
+  }
+
+  void _toggleAmenity(RentalAmenity amenity, bool selected) {
+    setState(() {
+      if (selected) {
+        amenityIds.add(amenity.id);
+      } else {
+        amenityIds.remove(amenity.id);
+      }
+      if (amenity.key == 'gym') gym = selected;
+      if (amenity.key == 'swimming_pool') pool = selected;
+      if (amenity.key == 'garage') garage = selected;
+    });
+    _scheduleDraft();
+  }
 
   @override
   void dispose() {
@@ -376,6 +411,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       'swimming_pool': pool ? 1 : 0,
       'garage': garage ? 1 : 0,
       'car_garage': int.tryParse(parking.text) ?? 0,
+      'amenity_ids': amenityIds.toList(),
       'latitude': latitude?.toString() ?? '',
       'longitude': longitude?.toString() ?? '',
     };
@@ -557,23 +593,29 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
           const SizedBox(height: 4),
           Text('Amenities', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 12),
-          AmenityTile(
-              icon: Icons.fitness_center_rounded,
-              label: 'Gym',
-              value: gym,
-              onChanged: (value) => setState(() => gym = value)),
-          const SizedBox(height: 10),
-          AmenityTile(
-              icon: Icons.pool_rounded,
-              label: 'Swimming pool',
-              value: pool,
-              onChanged: (value) => setState(() => pool = value)),
-          const SizedBox(height: 10),
-          AmenityTile(
-              icon: Icons.garage_outlined,
-              label: 'Garage',
-              value: garage,
-              onChanged: (value) => setState(() => garage = value)),
+          FutureBuilder<RecommendationOptions>(
+            future: locationOptions,
+            builder: (context, snapshot) {
+              final amenities = snapshot.data?.amenities ?? const [];
+              if (amenities.isEmpty &&
+                  snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              return Column(
+                children: [
+                  for (final amenity in amenities) ...[
+                    AmenityTile(
+                      icon: amenityIcon(amenity.key),
+                      label: amenity.name,
+                      value: amenityIds.contains(amenity.id),
+                      onChanged: (value) => _toggleAmenity(amenity, value),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                ],
+              );
+            },
+          ),
         ],
       );
 
@@ -697,7 +739,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
               initialValue: selectedAreaId,
               isExpanded: true,
               decoration:
-                  const InputDecoration(labelText: 'Area or neighbourhood'),
+                  const InputDecoration(labelText: 'Area or suburb'),
               hint: Text(selectedCity == null
                   ? 'Choose a city first'
                   : 'Choose the closest area'),

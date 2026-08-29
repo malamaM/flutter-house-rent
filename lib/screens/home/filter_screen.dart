@@ -1,5 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart' show ColorScheme, Theme;
+import 'package:house_rent/models/recommendation.dart';
+import 'package:house_rent/services/recommendation_service.dart';
 
 class FilterScreen extends StatefulWidget {
   final Map<String, String> initialFilters;
@@ -31,14 +33,14 @@ class _FilterScreenState extends State<FilterScreen> {
   final _minPriceController = TextEditingController();
   final _maxPriceController = TextEditingController();
   final _minSizeController = TextEditingController();
+  late final Future<List<RentalAmenity>> _amenities;
+  final Set<String> _selectedAmenities = {};
+  bool _amenitiesCleared = false;
 
   String? _selectedType;
   int _minBedrooms = 0;
   int _minBathrooms = 0;
   String _sort = 'best_match';
-  bool _gym = false;
-  bool _pool = false;
-  bool _garage = false;
   bool _verifiedOnly = false;
   bool _recentlyListed = false;
   bool _recommendedOnly = false;
@@ -58,13 +60,28 @@ class _FilterScreenState extends State<FilterScreen> {
     _sort = _sortOptions.containsKey(filters['sort'])
         ? filters['sort']!
         : 'best_match';
-    _gym = filters['gym'] == '1';
-    _pool = filters['swimming_pool'] == '1';
-    _garage = filters['garage'] == '1';
+    _amenities = _loadAmenities(filters);
     _verifiedOnly = filters['verified'] == '1';
     _recentlyListed = filters['recently_listed'] == '1';
     _recommendedOnly = filters['recommended'] == '1';
     _dealsOnly = filters['deal'] == '1';
+  }
+
+  Future<List<RentalAmenity>> _loadAmenities(
+      Map<String, String> filters) async {
+    final options = await RecommendationService.instance.options();
+    if (!_amenitiesCleared) {
+      final selectedKeys = (filters['amenities'] ?? '')
+          .split(',')
+          .map((key) => key.trim())
+          .where((key) => key.isNotEmpty)
+          .toSet();
+      _selectedAmenities.addAll(options.amenities
+          .where((amenity) =>
+              selectedKeys.contains(amenity.key) || filters[amenity.key] == '1')
+          .map((amenity) => amenity.key));
+    }
+    return options.amenities;
   }
 
   @override
@@ -86,9 +103,8 @@ class _FilterScreenState extends State<FilterScreen> {
       _minBedrooms = 0;
       _minBathrooms = 0;
       _sort = 'best_match';
-      _gym = false;
-      _pool = false;
-      _garage = false;
+      _selectedAmenities.clear();
+      _amenitiesCleared = true;
       _verifiedOnly = false;
       _recentlyListed = false;
       _recommendedOnly = false;
@@ -111,9 +127,10 @@ class _FilterScreenState extends State<FilterScreen> {
     if (_minBedrooms > 0) filters['bedrooms'] = '$_minBedrooms';
     if (_minBathrooms > 0) filters['bathrooms'] = '$_minBathrooms';
     if (_sort != 'best_match') filters['sort'] = _sort;
-    if (_gym) filters['gym'] = '1';
-    if (_pool) filters['swimming_pool'] = '1';
-    if (_garage) filters['garage'] = '1';
+    if (_selectedAmenities.isNotEmpty) {
+      final amenities = _selectedAmenities.toList()..sort();
+      filters['amenities'] = amenities.join(',');
+    }
     if (_verifiedOnly) filters['verified'] = '1';
     if (_recentlyListed) filters['recently_listed'] = '1';
     if (_recommendedOnly) filters['recommended'] = '1';
@@ -283,14 +300,52 @@ class _FilterScreenState extends State<FilterScreen> {
                           suffix: 'm²',
                         ),
                         _divider(divider),
-                        _toggleRow(colors, 'Gym', _gym,
-                            (value) => setState(() => _gym = value)),
-                        _divider(divider),
-                        _toggleRow(colors, 'Swimming pool', _pool,
-                            (value) => setState(() => _pool = value)),
-                        _divider(divider),
-                        _toggleRow(colors, 'Parking or garage', _garage,
-                            (value) => setState(() => _garage = value)),
+                        FutureBuilder<List<RentalAmenity>>(
+                          future: _amenities,
+                          builder: (context, snapshot) {
+                            if (snapshot.hasError) {
+                              return Padding(
+                                padding: const EdgeInsets.all(14),
+                                child: Text(
+                                  'Amenities could not be loaded.',
+                                  style:
+                                      TextStyle(color: colors.onSurfaceVariant),
+                                ),
+                              );
+                            }
+                            final amenities = snapshot.data;
+                            if (amenities == null) {
+                              return const Padding(
+                                padding: EdgeInsets.all(16),
+                                child: CupertinoActivityIndicator(),
+                              );
+                            }
+                            return Column(
+                              children: [
+                                for (var index = 0;
+                                    index < amenities.length;
+                                    index++) ...[
+                                  if (index > 0) _divider(divider),
+                                  _toggleRow(
+                                    colors,
+                                    amenities[index].name,
+                                    _selectedAmenities
+                                        .contains(amenities[index].key),
+                                    (value) => setState(() {
+                                      if (value) {
+                                        _selectedAmenities
+                                            .add(amenities[index].key);
+                                      } else {
+                                        _selectedAmenities
+                                            .remove(amenities[index].key);
+                                      }
+                                    }),
+                                  ),
+                                ],
+                              ],
+                            );
+                          },
+                        ),
                       ]),
                       _sectionLabel('TRUST & DISCOVERY'),
                       _group(colors, divider, [

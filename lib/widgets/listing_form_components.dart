@@ -119,6 +119,7 @@ class ListingTextField extends StatelessWidget {
   final bool numeric;
   final int maxLines;
   final String? suffix;
+  final bool enabled;
 
   const ListingTextField({
     Key? key,
@@ -129,6 +130,7 @@ class ListingTextField extends StatelessWidget {
     this.numeric = false,
     this.maxLines = 1,
     this.suffix,
+    this.enabled = true,
   }) : super(key: key);
 
   @override
@@ -145,6 +147,7 @@ class ListingTextField extends StatelessWidget {
           const SizedBox(height: 8),
           TextFormField(
             controller: controller,
+            enabled: enabled,
             keyboardType: numeric
                 ? const TextInputType.numberWithOptions(decimal: false)
                 : maxLines > 1

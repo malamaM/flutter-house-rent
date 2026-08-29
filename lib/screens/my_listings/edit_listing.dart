@@ -4,14 +4,17 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
+import 'package:house_rent/models/recommendation.dart';
 import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/services/premium_haptics.dart';
 import 'package:house_rent/services/listing_draft_service.dart';
 import 'package:house_rent/services/media_upload_policy.dart';
 import 'package:house_rent/services/video_preparation_service.dart';
 import 'package:house_rent/services/app_feedback.dart';
+import 'package:house_rent/services/recommendation_service.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/listing_form_components.dart';
+import 'package:house_rent/widgets/amenity_icon.dart';
 import 'package:image_picker/image_picker.dart';
 
 class EditListingScreen extends StatefulWidget {
@@ -44,6 +47,11 @@ class _EditListingScreenState extends State<EditListingScreen> {
   late bool gym;
   late bool pool;
   late bool garage;
+  final Set<int> amenityIds = {};
+  late final Future<List<RentalAmenity>> amenityOptions;
+  late final Future<RecommendationOptions> locationOptions;
+  int? selectedCityId;
+  int? selectedAreaId;
   File? newCoverImage;
   File? newReelVideo;
   final List<File> newGalleryImages = [];
@@ -101,6 +109,11 @@ class _EditListingScreenState extends State<EditListingScreen> {
     gym = house.gym == 1;
     pool = house.swimmingPool == 1;
     garage = house.garage == 1;
+    amenityIds.addAll(house.amenities.map((amenity) => amenity.id));
+    amenityOptions = _loadAmenities();
+    locationOptions = RecommendationService.instance.options();
+    selectedCityId = house.cityId;
+    selectedAreaId = house.areaId;
     for (final controller in _controllers) {
       controller.addListener(_scheduleDraft);
     }
@@ -111,6 +124,35 @@ class _EditListingScreenState extends State<EditListingScreen> {
 
   String _option(String? value, List<String> values, String fallback) {
     return values.contains(value) ? value! : fallback;
+  }
+
+  Future<List<RentalAmenity>> _loadAmenities() async {
+    final amenities =
+        (await RecommendationService.instance.options()).amenities;
+    if (amenityIds.isEmpty) {
+      for (final amenity in amenities) {
+        if ((amenity.key == 'gym' && gym) ||
+            (amenity.key == 'swimming_pool' && pool) ||
+            (amenity.key == 'garage' && garage)) {
+          amenityIds.add(amenity.id);
+        }
+      }
+    }
+    return amenities;
+  }
+
+  void _toggleAmenity(RentalAmenity amenity, bool selected) {
+    setState(() {
+      if (selected) {
+        amenityIds.add(amenity.id);
+      } else {
+        amenityIds.remove(amenity.id);
+      }
+      if (amenity.key == 'gym') gym = selected;
+      if (amenity.key == 'swimming_pool') pool = selected;
+      if (amenity.key == 'garage') garage = selected;
+    });
+    _scheduleDraft();
   }
 
   void _scheduleDraft() {
@@ -174,6 +216,13 @@ class _EditListingScreenState extends State<EditListingScreen> {
       gym = draft['gym'] == true;
       pool = draft['pool'] == true;
       garage = draft['garage'] == true;
+      if (draft['amenity_ids'] is List) {
+        amenityIds
+          ..clear()
+          ..addAll((draft['amenity_ids'] as List)
+              .map((id) => int.tryParse('$id') ?? 0)
+              .where((id) => id > 0));
+      }
       newCoverImage = file('cover');
       newReelVideo = file('reel_video');
       newGalleryImages.addAll(files('gallery'));
@@ -209,6 +258,7 @@ class _EditListingScreenState extends State<EditListingScreen> {
         'gym': gym,
         'pool': pool,
         'garage': garage,
+        'amenity_ids': amenityIds.toList(),
         'cover': newCoverImage?.path,
         'reel_video': newReelVideo?.path,
         'gallery': newGalleryImages.map((item) => item.path).toList(),
@@ -373,6 +423,8 @@ class _EditListingScreenState extends State<EditListingScreen> {
       'country': country.text.trim(),
       'province': province.text.trim(),
       'district': district.text.trim(),
+      if (selectedCityId != null) 'city_id': selectedCityId,
+      if (selectedAreaId != null) 'area_id': selectedAreaId,
       'house_number': houseNumber.text.trim(),
       'type': propertyType,
       'price_rental':
@@ -381,6 +433,8 @@ class _EditListingScreenState extends State<EditListingScreen> {
       'swimming_pool': pool ? 1 : 0,
       'garage': garage ? 1 : 0,
       'car_garage': int.tryParse(parking.text) ?? widget.house.carGarage,
+      'amenity_ids': amenityIds.toList(),
+      'amenity_ids_present': 1,
     };
     try {
       await House.updateHouse(
@@ -505,28 +559,93 @@ class _EditListingScreenState extends State<EditListingScreen> {
                   child: ListingTextField(
                       controller: parking, label: 'Parking', numeric: true)),
             ]),
-            AmenityTile(
-                icon: Icons.fitness_center_rounded,
-                label: 'Gym',
-                value: gym,
-                onChanged: (value) => setState(() => gym = value)),
-            const SizedBox(height: 10),
-            AmenityTile(
-                icon: Icons.pool_rounded,
-                label: 'Swimming pool',
-                value: pool,
-                onChanged: (value) => setState(() => pool = value)),
-            const SizedBox(height: 10),
-            AmenityTile(
-                icon: Icons.garage_outlined,
-                label: 'Garage',
-                value: garage,
-                onChanged: (value) => setState(() => garage = value)),
+            FutureBuilder<List<RentalAmenity>>(
+              future: amenityOptions,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final amenities = snapshot.data ?? widget.house.amenities;
+                return Column(
+                  children: [
+                    for (final amenity in amenities) ...[
+                      AmenityTile(
+                        icon: amenityIcon(amenity.key),
+                        label: amenity.name,
+                        value: amenityIds.contains(amenity.id),
+                        onChanged: (value) => _toggleAmenity(amenity, value),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                  ],
+                );
+              },
+            ),
             _section('Location', 'Help people understand the neighbourhood'),
+            FutureBuilder<RecommendationOptions>(
+              future: locationOptions,
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                final options = snapshot.data!;
+                final selectedCity = options.cities
+                    .where((item) => item.id == selectedCityId)
+                    .firstOrNull;
+                return Column(children: [
+                  DropdownButtonFormField<int>(
+                    initialValue: selectedCityId,
+                    isExpanded: true,
+                    decoration:
+                        const InputDecoration(labelText: 'City or town'),
+                    items: options.cities
+                        .map((item) => DropdownMenuItem(
+                            value: item.id, child: Text(item.name)))
+                        .toList(),
+                    validator: (value) => value == null ? 'Choose a city' : null,
+                    onChanged: (value) => setState(() {
+                      selectedCityId = value;
+                      selectedAreaId = null;
+                      final selected = options.cities
+                          .where((item) => item.id == value)
+                          .firstOrNull;
+                      city.text = selected?.name ?? '';
+                      province.text = selected?.province ?? '';
+                      district.clear();
+                    }),
+                  ),
+                  const SizedBox(height: 14),
+                  DropdownButtonFormField<int>(
+                    key: ValueKey('edit-area:$selectedCityId:$selectedAreaId'),
+                    initialValue: selectedAreaId,
+                    isExpanded: true,
+                    decoration:
+                        const InputDecoration(labelText: 'Area or suburb'),
+                    items: (selectedCity?.areas ?? const <RentalArea>[])
+                        .map((item) => DropdownMenuItem(
+                            value: item.id, child: Text(item.name)))
+                        .toList(),
+                    validator: (value) => value == null ? 'Choose an area' : null,
+                    onChanged: selectedCity == null
+                        ? null
+                        : (value) => setState(() {
+                              selectedAreaId = value;
+                              district.text = selectedCity.areas
+                                      .where((item) => item.id == value)
+                                      .firstOrNull
+                                      ?.name ??
+                                  '';
+                            }),
+                  ),
+                  const SizedBox(height: 14),
+                ]);
+              },
+            ),
             ListingTextField(
-                controller: city, label: 'City or town', requiredField: true),
-            ListingTextField(controller: district, label: 'District'),
-            ListingTextField(controller: province, label: 'Province'),
+                controller: province, label: 'Province', enabled: false),
             ListingTextField(
                 controller: country, label: 'Country', requiredField: true),
             ListingTextField(

@@ -8,6 +8,7 @@ import 'package:house_rent/models/house.dart';
 import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/services/app_feedback.dart';
 import 'package:house_rent/services/current_location_service.dart';
+import 'package:house_rent/services/marketplace_service.dart';
 import 'package:house_rent/services/recommendation_service.dart';
 import 'package:house_rent/services/cached_map_tile_provider.dart';
 import 'package:house_rent/screens/details/details.dart';
@@ -92,13 +93,6 @@ class _ExploreState extends State<Explore> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       setState(() {});
-      if (_searchFocus.hasFocus && _resultsSheetController.isAttached) {
-        unawaited(_resultsSheetController.animateTo(
-          .18,
-          duration: const Duration(milliseconds: 260),
-          curve: Curves.easeOutCubic,
-        ));
-      }
     });
   }
 
@@ -286,6 +280,28 @@ class _ExploreState extends State<Explore> {
     }
   }
 
+  void _updateSearchDraft(String value) {
+    // Suggestions update as the user types, but the map and its results do not
+    // change until the keyboard's search action is submitted.
+    _searchDebounce?.cancel();
+    setState(() {});
+  }
+
+  void _submitSearch(String value) {
+    _searchFocus.unfocus();
+    _search(value, immediate: true);
+  }
+
+  void _clearSearch() {
+    _searchDebounce?.cancel();
+    _searchController.clear();
+    if (_searchFocus.hasFocus) {
+      setState(() {});
+    } else {
+      _search('', immediate: true);
+    }
+  }
+
   void _loadMore() {
     if (!loading && !_loadingMore && _hasMore) {
       _fetch(showLoading: false, reset: false);
@@ -301,6 +317,141 @@ class _ExploreState extends State<Explore> {
       _searchController.text = result['keyword'] ?? '';
       setState(() => filters = result);
       _fetch(panToResults: result.isNotEmpty);
+    }
+  }
+
+  Map<String, dynamic> get _savedSearchCriteria {
+    int? number(String key) => int.tryParse(filters[key] ?? '');
+    return {
+      if ((filters['keyword'] ?? '').trim().isNotEmpty)
+        'keyword': filters['keyword']!.trim(),
+      if ((filters['type'] ?? '').isNotEmpty) 'type': filters['type'],
+      if (number('min_price') != null) 'min_price': number('min_price'),
+      if (number('max_price') != null) 'max_price': number('max_price'),
+      if (number('bedrooms') != null) 'min_bedrooms': number('bedrooms'),
+      if (number('bathrooms') != null) 'min_bathrooms': number('bathrooms'),
+      if (number('min_size') != null) 'min_size': number('min_size'),
+      if ((filters['amenities'] ?? '').isNotEmpty)
+        'amenities': filters['amenities']!
+            .split(',')
+            .map((key) => key.trim())
+            .where((key) => key.isNotEmpty)
+            .toList(),
+    };
+  }
+
+  Future<void> _openSearchActions() async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(children: [
+          ListTile(
+            leading: const Icon(Icons.bookmark_add_outlined),
+            title: const Text('Save this search'),
+            subtitle: const Text('Keep these Explore filters for later'),
+            onTap: () => Navigator.pop(context, 'save'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.saved_search_rounded),
+            title: const Text('Open saved searches'),
+            subtitle: const Text('Reuse or manage a search and its alerts'),
+            onTap: () => Navigator.pop(context, 'open'),
+          ),
+        ]),
+      ),
+    );
+    if (!mounted || action == null) return;
+    if (action == 'open') {
+      final selected = await Navigator.push<Map<String, dynamic>>(
+        context,
+        HavenPageRoute(
+          builder: (_) => const MarketplaceHubScreen(
+              initialTab: 3, selectSavedSearch: true),
+        ),
+      );
+      if (!mounted || selected == null) return;
+      final next = <String, String>{};
+      for (final entry in selected.entries) {
+        if (entry.key == 'amenities' && entry.value is List) {
+          next['amenities'] = (entry.value as List).join(',');
+        } else if (entry.key == 'area_ids' && entry.value is List) {
+          next['area_ids'] = (entry.value as List).join(',');
+        } else if (entry.key == 'min_bedrooms') {
+          next['bedrooms'] = '${entry.value}';
+        } else if (entry.key == 'min_bathrooms') {
+          next['bathrooms'] = '${entry.value}';
+        } else if (entry.value != null) {
+          next[entry.key] = '${entry.value}';
+        }
+      }
+      _searchController.text = next['keyword'] ?? '';
+      setState(() => filters = next);
+      _fetch(panToResults: true);
+      return;
+    }
+    await _saveCurrentSearch();
+  }
+
+  Future<void> _saveCurrentSearch() async {
+    if (_savedSearchCriteria.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Enter a search or choose filters before saving.')));
+      return;
+    }
+    final name = TextEditingController(
+        text: (filters['keyword'] ?? '').trim().isNotEmpty
+            ? filters['keyword']!.trim()
+            : 'My Explore search');
+    var alerts = false;
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Save this search'),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(
+                controller: name,
+                autofocus: true,
+                decoration: const InputDecoration(labelText: 'Search name')),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Home alerts'),
+              subtitle: const Text('Notify me about new matching homes'),
+              value: alerts,
+              onChanged: (value) => setDialogState(() => alerts = value),
+            ),
+          ]),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel')),
+            FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Save')),
+          ],
+        ),
+      ),
+    );
+    if (saved != true || name.text.trim().isEmpty) {
+      name.dispose();
+      return;
+    }
+    try {
+      await MarketplaceService.instance.createSavedSearch(
+        name: name.text,
+        criteria: _savedSearchCriteria,
+        alertsEnabled: alerts,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(alerts
+                ? 'Search saved with home alerts on.'
+                : 'Search saved.')));
+      }
+    } catch (error) {
+      if (mounted) AppFeedback.error(error, fallback: 'Could not save search.');
+    } finally {
+      name.dispose();
     }
   }
 
@@ -343,7 +494,7 @@ class _ExploreState extends State<Explore> {
   @override
   Widget build(BuildContext context) {
     final darkMap = Theme.of(context).brightness == Brightness.dark;
-    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final searchActive = _searchFocus.hasFocus;
     return Scaffold(
       // AppShell already resizes its body around the keyboard. Resizing this
       // nested scaffold as well applies the inset twice and leaves a strip of
@@ -480,7 +631,6 @@ class _ExploreState extends State<Explore> {
                 onTapOutside: (_) {
                   if (_searchFocus.hasFocus) {
                     _searchFocus.unfocus();
-                    if (mounted) setState(() {});
                   }
                 },
                 child: Column(
@@ -496,19 +646,11 @@ class _ExploreState extends State<Explore> {
                         _refreshSuggestions();
                       },
                       filterCount: filters.length,
-                      onChanged: (value) {
-                        setState(() {});
-                        _search(value);
-                      },
-                      onSubmitted: (value) => _search(value, immediate: true),
+                      onChanged: _updateSearchDraft,
+                      onSubmitted: _submitSearch,
+                      onClear: _clearSearch,
                       onFilters: _openFilters,
-                      onSavedSearches: () => Navigator.push(
-                        context,
-                        HavenPageRoute(
-                          builder: (_) =>
-                              const MarketplaceHubScreen(initialTab: 3),
-                        ),
-                      ),
+                      onSavedSearches: _openSearchActions,
                     ),
                     if (_searchFocus.hasFocus && _areaOptions.isNotEmpty)
                       _AreaSuggestions(
@@ -521,22 +663,23 @@ class _ExploreState extends State<Explore> {
               ),
             ),
           ),
-          SafeArea(
-            child: Align(
-              alignment: Alignment.topRight,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 72, right: 16),
-                child: FloatingActionButton.small(
-                  heroTag: 'map-current-location',
-                  tooltip: 'Centre on my location',
-                  onPressed: () => _loadCurrentLocation(refresh: true),
-                  backgroundColor: Theme.of(context).colorScheme.surface,
-                  foregroundColor: Theme.of(context).colorScheme.primary,
-                  child: const Icon(Icons.my_location_rounded),
+          if (!searchActive)
+            SafeArea(
+              child: Align(
+                alignment: Alignment.topRight,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 72, right: 16),
+                  child: FloatingActionButton.small(
+                    heroTag: 'map-current-location',
+                    tooltip: 'Centre on my location',
+                    onPressed: () => _loadCurrentLocation(refresh: true),
+                    backgroundColor: Theme.of(context).colorScheme.surface,
+                    foregroundColor: Theme.of(context).colorScheme.primary,
+                    child: const Icon(Icons.my_location_rounded),
+                  ),
                 ),
               ),
             ),
-          ),
           Positioned(
             right: 12,
             bottom: 238,
@@ -560,21 +703,22 @@ class _ExploreState extends State<Explore> {
               ),
             ),
           ),
-          _ResultsSheet(
-            controller: _resultsSheetController,
-            houses: houses,
-            loading: loading,
-            loadingMore: _loadingMore,
-            errorMessage: _resultsError == null
-                ? null
-                : AppFeedback.messageFor(_resultsError!,
-                    fallback: 'Haven could not load homes for this map area.'),
-            hasFilters: filters.isNotEmpty,
-            onRetry: () => _fetch(panToResults: true),
-            onLoadMore: _loadMore,
-            onOpen: (house) => Navigator.push(context, Details.route(house)),
-            keyboardOpen: keyboardOpen,
-          ),
+          if (!searchActive)
+            _ResultsSheet(
+              controller: _resultsSheetController,
+              houses: houses,
+              loading: loading,
+              loadingMore: _loadingMore,
+              errorMessage: _resultsError == null
+                  ? null
+                  : AppFeedback.messageFor(_resultsError!,
+                      fallback:
+                          'Haven could not load homes for this map area.'),
+              hasFilters: filters.isNotEmpty,
+              onRetry: () => _fetch(panToResults: true),
+              onLoadMore: _loadMore,
+              onOpen: (house) => Navigator.push(context, Details.route(house)),
+            ),
         ],
       ),
     );
@@ -588,6 +732,7 @@ class _MapSearchBar extends StatelessWidget {
   final int filterCount;
   final ValueChanged<String> onChanged;
   final ValueChanged<String> onSubmitted;
+  final VoidCallback onClear;
   final VoidCallback onFilters;
   final VoidCallback onSavedSearches;
 
@@ -598,6 +743,7 @@ class _MapSearchBar extends StatelessWidget {
     required this.filterCount,
     required this.onChanged,
     required this.onSubmitted,
+    required this.onClear,
     required this.onFilters,
     required this.onSavedSearches,
   });
@@ -623,11 +769,26 @@ class _MapSearchBar extends StatelessWidget {
                 textInputAction: TextInputAction.search,
                 decoration: const InputDecoration(
                   hintText: 'Search an area',
+                  filled: false,
                   border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
                   isDense: true,
                 ),
               ),
             ),
+            if (controller.text.isNotEmpty)
+              IconButton(
+                tooltip: 'Clear search',
+                onPressed: onClear,
+                visualDensity: VisualDensity.compact,
+                icon: Icon(
+                  Icons.close_rounded,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  size: 20,
+                ),
+              ),
             Stack(alignment: Alignment.topRight, children: [
               IconButton(
                 onPressed: onFilters,
@@ -749,7 +910,6 @@ class _ResultsSheet extends StatelessWidget {
   final VoidCallback onLoadMore;
   final VoidCallback onRetry;
   final ValueChanged<House> onOpen;
-  final bool keyboardOpen;
 
   const _ResultsSheet({
     required this.controller,
@@ -761,20 +921,18 @@ class _ResultsSheet extends StatelessWidget {
     required this.onLoadMore,
     required this.onRetry,
     required this.onOpen,
-    required this.keyboardOpen,
   });
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: EdgeInsets.only(bottom: keyboardOpen ? 0 : 84),
+        padding: const EdgeInsets.only(bottom: 84),
         child: DraggableScrollableSheet(
           controller: controller,
           initialChildSize: .18,
           minChildSize: .14,
-          maxChildSize: keyboardOpen ? .42 : .82,
+          maxChildSize: .82,
           snap: true,
-          snapSizes:
-              keyboardOpen ? const [.18, .30, .42] : const [.18, .48, .82],
+          snapSizes: const [.18, .48, .82],
           builder: (context, controller) => Material(
             color: Theme.of(context).colorScheme.surface,
             elevation: 12,

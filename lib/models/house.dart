@@ -8,6 +8,7 @@ import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/services/media_upload_policy.dart';
 import 'package:house_rent/services/offline_sync_service.dart';
 import 'package:house_rent/services/performance_monitor.dart';
+import 'package:house_rent/models/recommendation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -62,6 +63,7 @@ class House {
   int gym;
   int swimmingPool;
   int garage;
+  List<RentalAmenity> amenities;
   int views;
   String? demandLabel;
   double? latitude;
@@ -118,6 +120,7 @@ class House {
     this.gym = 0,
     this.swimmingPool = 0,
     this.garage = 0,
+    this.amenities = const [],
     this.views = 0,
     this.demandLabel,
     this.latitude,
@@ -199,6 +202,12 @@ class House {
       gym: _parseInt(map['gym']),
       swimmingPool: _parseInt(map['swimming_pool']),
       garage: _parseInt(map['garage']),
+      amenities: (map['amenities'] is List
+              ? map['amenities'] as List
+              : const [])
+          .whereType<Map>()
+          .map((item) => RentalAmenity.fromMap(Map<String, dynamic>.from(item)))
+          .toList(),
       views: _parseInt(map['views']),
       demandLabel: map['demand_label']?.toString(),
       latitude: _parseDouble(map['latitude']),
@@ -273,6 +282,14 @@ class House {
         'gym': gym,
         'swimming_pool': swimmingPool,
         'garage': garage,
+        'amenities': amenities
+            .map((amenity) => {
+                  'id': amenity.id,
+                  'key': amenity.key,
+                  'name': amenity.name,
+                  'icon': amenity.icon,
+                })
+            .toList(),
         'views': views,
         'demand_label': demandLabel,
         'recommendation_score': recommendationScore,
@@ -792,7 +809,7 @@ class House {
         onProgress,
       )..headers.addAll(_headers(token));
       request.fields['_method'] = 'PUT';
-      data.forEach((key, value) => request.fields[key] = value.toString());
+      _addMultipartFields(request, data);
       if (coverImagePath != null) {
         request.files.add(
           await http.MultipartFile.fromPath('image_cover', coverImagePath),
@@ -860,7 +877,7 @@ class House {
         Uri.parse('$_apiBase/houses'),
         onProgress,
       )..headers.addAll(_headers(token));
-      data.forEach((key, value) => request.fields[key] = value.toString());
+      _addMultipartFields(request, data);
       request.files.add(
         await http.MultipartFile.fromPath('image_cover', coverImagePath),
       );
@@ -900,6 +917,22 @@ class House {
     return HavenApiException.fromResponse(response,
             operation: 'accept this listing upload')
         .message;
+  }
+
+  static void _addMultipartFields(
+      http.MultipartRequest request, Map<String, dynamic> data) {
+    for (final entry in data.entries) {
+      final value = entry.value;
+      if (value is Iterable) {
+        var index = 0;
+        for (final item in value) {
+          request.fields['${entry.key}[$index]'] = item.toString();
+          index++;
+        }
+      } else {
+        request.fields[entry.key] = value.toString();
+      }
+    }
   }
 
   static Future<void> invalidatePropertyData({int? id}) async {

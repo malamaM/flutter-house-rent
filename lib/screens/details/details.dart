@@ -19,6 +19,7 @@ import 'package:house_rent/widgets/content_intro.dart';
 import 'package:house_rent/widgets/details_app_bar.dart';
 import 'package:house_rent/widgets/house_gallery.dart';
 import 'package:house_rent/widgets/house_info.dart';
+import 'package:house_rent/widgets/house_amenities.dart';
 import 'package:house_rent/widgets/house_location_map.dart';
 import 'package:house_rent/widgets/glass_surface.dart';
 import 'package:house_rent/widgets/lister_reviews_section.dart';
@@ -974,6 +975,14 @@ class _DetailsState extends State<Details> {
                   ],
                   const SizedBox(height: 24),
                   HouseInfo(house: widget.house),
+                  if (widget.house.amenities.isNotEmpty ||
+                      widget.house.gym == 1 ||
+                      widget.house.swimmingPool == 1 ||
+                      widget.house.garage == 1 ||
+                      widget.house.carGarage > 0) ...[
+                    const SizedBox(height: 24),
+                    HouseAmenities(house: widget.house),
+                  ],
                   const SizedBox(height: 28),
                   HouseGallery(houseId: widget.house.id),
                   const SizedBox(height: 30),

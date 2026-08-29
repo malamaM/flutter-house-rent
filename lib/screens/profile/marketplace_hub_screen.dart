@@ -13,7 +13,9 @@ import 'package:house_rent/widgets/screen_state.dart';
 
 class MarketplaceHubScreen extends StatefulWidget {
   final int initialTab;
-  const MarketplaceHubScreen({super.key, this.initialTab = 0});
+  final bool selectSavedSearch;
+  const MarketplaceHubScreen(
+      {super.key, this.initialTab = 0, this.selectSavedSearch = false});
 
   @override
   State<MarketplaceHubScreen> createState() => _MarketplaceHubScreenState();
@@ -102,6 +104,12 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
             TextButton(
               onPressed: _markAllRead,
               child: const Text('Read all'),
+            ),
+          if (_tabs.index == 3)
+            IconButton(
+              tooltip: 'Home alert settings',
+              onPressed: _configureHomeAlerts,
+              icon: const Icon(Icons.notifications_active_outlined),
             ),
         ],
         bottom: PreferredSize(
@@ -334,6 +342,9 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
 
   Widget _savedSearch(BuildContext context, SavedSearchSummary item) {
     return _HavenCard(
+      onTap: widget.selectSavedSearch
+          ? () => Navigator.pop(context, item.criteria)
+          : null,
       child: Row(
         children: [
           const _IconDisc(icon: Icons.saved_search_rounded),
@@ -421,11 +432,46 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
     );
     if (criteria == null) return;
     await _perform(
-      () => MarketplaceService.instance
-          .createSavedSearch(name: criteria.name, criteria: criteria.criteria),
-      success: 'Search saved. Matching-home alerts are on.',
+      () => MarketplaceService.instance.createSavedSearch(
+          name: criteria.name,
+          criteria: criteria.criteria,
+          alertsEnabled: criteria.alertsEnabled),
+      success: criteria.alertsEnabled
+          ? 'Search saved. Home alerts are on.'
+          : 'Search saved.',
     );
     if (mounted) await _refresh(3);
+  }
+
+  Future<void> _configureHomeAlerts() async {
+    try {
+      final enabled =
+          await MarketplaceService.instance.recommendationAlertsEnabled();
+      if (!mounted) return;
+      final selected = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Very good match alerts'),
+          content: const Text(
+              'Get a home alert when a newly listed property is a very strong match for your Haven preferences. Saved-search alerts remain controlled separately on each search.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text(enabled ? 'Turn off' : 'Keep off')),
+            FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text(enabled ? 'Keep on' : 'Turn on')),
+          ],
+        ),
+      );
+      if (selected == null || selected == enabled) return;
+      await MarketplaceService.instance.setRecommendationAlerts(selected);
+      if (mounted) {
+        _notice('Very good match alerts ${selected ? 'on' : 'off'}.');
+      }
+    } on MarketplaceException catch (error) {
+      if (mounted) _notice(error.message);
+    }
   }
 
   Future<void> _perform(Future<void> Function() operation,
@@ -619,6 +665,7 @@ class _SavedSearchSheetState extends State<_SavedSearchSheet> {
   int? _minBeds;
   int? _maxBeds;
   final Set<String> _amenities = {};
+  bool _alertsEnabled = false;
 
   @override
   void initState() {
@@ -646,10 +693,10 @@ class _SavedSearchSheetState extends State<_SavedSearchSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Create a home alert',
+                Text('Save this search',
                     style: Theme.of(context).textTheme.headlineMedium),
                 const SizedBox(height: 6),
-                Text('We’ll let you know when a new rental fits this search.',
+                Text('Reuse these filters anytime. Home alerts are optional.',
                     style: Theme.of(context).textTheme.bodyMedium),
                 const SizedBox(height: 20),
                 TextFormField(
@@ -710,31 +757,38 @@ class _SavedSearchSheetState extends State<_SavedSearchSheet> {
                 Text('Must-have amenities',
                     style: Theme.of(context).textTheme.labelLarge),
                 const SizedBox(height: 9),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: const {
-                    'gym': 'Gym',
-                    'swimming_pool': 'Pool',
-                    'garage': 'Garage'
-                  }
-                      .entries
-                      .map((entry) => FilterChip(
-                            label: Text(entry.value),
-                            selected: _amenities.contains(entry.key),
-                            onSelected: (selected) => setState(() => selected
-                                ? _amenities.add(entry.key)
-                                : _amenities.remove(entry.key)),
-                          ))
-                      .toList(),
+                FutureBuilder<RecommendationOptions>(
+                  future: _options,
+                  builder: (context, snapshot) => Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: (snapshot.data?.amenities ?? const [])
+                        .map((amenity) => FilterChip(
+                              label: Text(amenity.name),
+                              selected: _amenities.contains(amenity.key),
+                              onSelected: (selected) => setState(() => selected
+                                  ? _amenities.add(amenity.key)
+                                  : _amenities.remove(amenity.key)),
+                            ))
+                        .toList(),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Home alerts for this search'),
+                  subtitle: const Text(
+                      'Notify me when a newly listed home matches these filters.'),
+                  value: _alertsEnabled,
+                  onChanged: (value) => setState(() => _alertsEnabled = value),
                 ),
                 const SizedBox(height: 24),
                 SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
                         onPressed: _submit,
-                        icon: const Icon(Icons.notifications_active_outlined),
-                        label: const Text('Turn on matching-home alerts'))),
+                        icon: const Icon(Icons.bookmark_add_outlined),
+                        label: const Text('Save search'))),
               ],
             ),
           ),
@@ -828,7 +882,7 @@ class _SavedSearchSheetState extends State<_SavedSearchSheet> {
     }
     Navigator.pop(
         context,
-        _SavedSearchDraft(_name.text.trim(), {
+        _SavedSearchDraft(_name.text.trim(), _alertsEnabled, {
           if (_cityId != null) 'city_id': _cityId,
           if (_areaIds.isNotEmpty) 'area_ids': _areaIds.toList(),
           if (_type != null) 'type': _type,
@@ -843,8 +897,9 @@ class _SavedSearchSheetState extends State<_SavedSearchSheet> {
 
 class _SavedSearchDraft {
   final String name;
+  final bool alertsEnabled;
   final Map<String, dynamic> criteria;
-  const _SavedSearchDraft(this.name, this.criteria);
+  const _SavedSearchDraft(this.name, this.alertsEnabled, this.criteria);
 }
 
 class _MarketplaceList<T> extends StatelessWidget {

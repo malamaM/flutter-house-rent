@@ -46,6 +46,8 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
   DateTime _shownAt = DateTime.now();
   int _loadGeneration = 0;
   int _backdropGeneration = 0;
+  int _mediaResetGeneration = 0;
+  bool _resettingPosition = false;
   final Map<String, double> _backdropLuminanceCache = {};
 
   @override
@@ -58,6 +60,24 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
 
   void _handleTabRefresh() {
     final event = AppCache.instance.refreshes.value;
+    if (mounted && event?.resource == 'tours-reset') {
+      setState(() {
+        activeIndex = 0;
+        _mediaResetGeneration++;
+        _shownAt = DateTime.now();
+      });
+      if (_pageController.hasClients) {
+        _resettingPosition = true;
+        _pageController.jumpToPage(0);
+        _resettingPosition = false;
+      }
+      if (houses.isNotEmpty) {
+        unawaited(_warmAround(0));
+        unawaited(RecommendationService.instance
+            .track('impression', houses.first.id));
+      }
+      return;
+    }
     if (!mounted ||
         event?.resource != 'tab-refresh' ||
         event?.logicalKey != '2') {
@@ -195,7 +215,8 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
     // A refresh deliberately clears the buffer before its replacement arrives.
     // PageController.jumpToPage can synchronously emit one final change event
     // from the old viewport, so never read from an empty/stale list here.
-    if (!mounted ||
+    if (_resettingPosition ||
+        !mounted ||
         houses.isEmpty ||
         activeIndex < 0 ||
         activeIndex >= houses.length ||
@@ -349,7 +370,6 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
                 : Stack(children: [
                     PageView.builder(
                       controller: _pageController,
-                      key: const PageStorageKey('tours-pages'),
                       scrollDirection: Axis.vertical,
                       allowImplicitScrolling: true,
                       itemCount: houses.length,
@@ -369,6 +389,7 @@ class _ReelsScreenState extends State<ReelsScreen> with WidgetsBindingObserver {
                           onSignal: (event, weight) =>
                               _learn(houses[index], event, weight),
                           onBackdropChanged: _adaptNavigationTo,
+                          resetGeneration: _mediaResetGeneration,
                         ),
                       ),
                     ),
@@ -409,12 +430,14 @@ class _ReelCard extends StatefulWidget {
   final bool muted;
   final void Function(String event, double weight) onSignal;
   final ValueChanged<String> onBackdropChanged;
+  final int resetGeneration;
   const _ReelCard({
     required this.house,
     required this.active,
     required this.muted,
     required this.onSignal,
     required this.onBackdropChanged,
+    required this.resetGeneration,
   });
 
   @override
@@ -476,6 +499,15 @@ class _ReelCardState extends State<_ReelCard> {
   @override
   void didUpdateWidget(covariant _ReelCard oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.resetGeneration != widget.resetGeneration) {
+      photoIndex = 0;
+      autoAdvancePausedUntil = null;
+      if (photos.hasClients) photos.jumpToPage(0);
+      _schedule();
+      if (widget.active) {
+        _announceCurrentBackdrop();
+      }
+    }
     if (oldWidget.active != widget.active) {
       _schedule();
       if (widget.active) {

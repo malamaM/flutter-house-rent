@@ -97,6 +97,7 @@ class _MyAccountState extends State<MyAccount> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: const HavenNavigationBar(title: 'Account settings'),
       body: ListView(
@@ -109,8 +110,8 @@ class _MyAccountState extends State<MyAccount> {
                 borderRadius: BorderRadius.circular(18)),
             child: Row(
               children: [
-                Icon(Icons.shield_outlined,
-                    color: Theme.of(context).colorScheme.primary, size: 28),
+                Icon(CupertinoIcons.shield,
+                    color: colors.primary, size: 28),
                 const SizedBox(width: 14),
                 Expanded(
                     child: Text(
@@ -128,6 +129,7 @@ class _MyAccountState extends State<MyAccount> {
               icon: CupertinoIcons.person,
               title: 'Personal information',
               subtitle: 'Name, email, phone and profile photo',
+              iconColor: colors.primary,
               onTap: () => Navigator.push(context,
                   HavenPageRoute(builder: (_) => const EditProfileScreen())),
             ),
@@ -141,6 +143,7 @@ class _MyAccountState extends State<MyAccount> {
                   : (_connectingGoogle
                       ? 'Connecting securely…'
                       : 'Add Google as another way to sign in'),
+              iconColor: const Color(0xFF4285F4),
               trailing: _connectingGoogle
                   ? const CupertinoActivityIndicator()
                   : Icon(
@@ -157,6 +160,7 @@ class _MyAccountState extends State<MyAccount> {
                 icon: CupertinoIcons.moon,
                 title: 'Dark mode',
                 subtitle: 'Automatic, on or off',
+                iconColor: const Color(0xFF8E62C7),
                 trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                   Text(ThemeController.instance.preferenceLabel,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -173,6 +177,7 @@ class _MyAccountState extends State<MyAccount> {
               icon: CupertinoIcons.lock,
               title: 'Password',
               subtitle: 'Update your account password',
+              iconColor: const Color(0xFFE08A2E),
               onTap: () => Navigator.push(context,
                   HavenPageRoute(builder: (_) => const ChangePassword())),
             ),

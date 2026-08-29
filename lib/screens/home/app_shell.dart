@@ -15,6 +15,11 @@ import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/widgets/custom_bottom_navigation_bar.dart';
 import 'package:house_rent/widgets/offline_status_pill.dart';
 
+const toursResumeWindow = Duration(minutes: 2);
+
+bool shouldResetTours(DateTime? leftAt, DateTime now) =>
+    leftAt != null && now.difference(leftAt) >= toursResumeWindow;
+
 /// Keeps every primary tab and its nested navigation stack alive.
 class AppShell extends StatefulWidget {
   const AppShell({
@@ -51,6 +56,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   bool _toursNavEmphasized = false;
   double _toursBackdropLuminance = .3;
   DateTime? _backgroundedAt;
+  DateTime? _toursLeftAt;
 
   @override
   void initState() {
@@ -135,6 +141,14 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     if (index < 0 || index >= _navigatorKeys.length) return;
     final changedTab = index != _currentIndex;
     if (changedTab) {
+      final previousIndex = _currentIndex;
+      final resetTours =
+          index == 2 && shouldResetTours(_toursLeftAt, DateTime.now());
+      if (previousIndex == 2) {
+        _toursLeftAt = DateTime.now();
+      } else if (index == 2) {
+        _toursLeftAt = null;
+      }
       setState(() {
         _mountedTabs.add(index);
         _currentIndex = index;
@@ -142,6 +156,9 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       });
       if (index == 2) {
         _scheduleToursNavSettle();
+        if (resetTours) {
+          AppCache.instance.announce('tours-reset', 'expired');
+        }
       } else {
         _toursNavSettleTimer?.cancel();
       }

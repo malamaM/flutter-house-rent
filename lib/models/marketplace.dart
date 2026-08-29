@@ -132,6 +132,8 @@ class SavedSearchSummary {
 
   String get description {
     final parts = <String>[];
+    final keyword = _nullableText(criteria['keyword']);
+    if (keyword != null) parts.add(keyword);
     final type = _nullableText(criteria['type']);
     if (type != null) parts.add(type);
     final minBeds = _nullableInteger(criteria['min_bedrooms']);
@@ -144,7 +146,11 @@ class SavedSearchSummary {
     final min = _nullableInteger(criteria['min_price']);
     final max = _nullableInteger(criteria['max_price']);
     if (min != null || max != null) parts.add('K${min ?? 0}–${max ?? 'any'}');
-    return parts.isEmpty ? 'Custom rental alert' : parts.join(' · ');
+    final amenities = criteria['amenities'] is List
+        ? (criteria['amenities'] as List).length
+        : 0;
+    if (amenities > 0) parts.add('$amenities amenities');
+    return parts.isEmpty ? 'Saved Explore filters' : parts.join(' · ');
   }
 
   factory SavedSearchSummary.fromMap(Map<String, dynamic> map) =>

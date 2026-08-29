@@ -17,6 +17,7 @@ import 'package:house_rent/theme/app_theme.dart';
 import 'package:house_rent/theme/haven_responsive_media.dart';
 import 'package:house_rent/widgets/custom_app_bar.dart';
 import 'package:house_rent/widgets/house_info.dart';
+import 'package:house_rent/widgets/house_amenities.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -61,6 +62,28 @@ void main() {
 
     expect(staleBadge.isVerified, isFalse);
     expect(verifiedOwner.isVerified, isTrue);
+  });
+
+  testWidgets('house amenities are parsed and shown as detail cards',
+      (tester) async {
+    final house = House.fromMap({
+      'id': 7,
+      'title': 'Garden home',
+      'amenities': [
+        {'id': 4, 'key': 'security', 'name': 'Security'},
+        {'id': 10, 'key': 'garden', 'name': 'Garden'},
+      ],
+    });
+
+    await tester.pumpWidget(MaterialApp(
+        theme: AppTheme.lightTheme,
+        home: Scaffold(body: HouseAmenities(house: house))));
+
+    expect(house.amenities.map((amenity) => amenity.key),
+        containsAll(['security', 'garden']));
+    expect(find.text('Amenities'), findsOneWidget);
+    expect(find.text('Security'), findsOneWidget);
+    expect(find.text('Garden'), findsOneWidget);
   });
 
   Widget app(Widget child) =>

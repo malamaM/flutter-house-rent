@@ -59,6 +59,17 @@ class MarketplaceService {
     return _directItems(json).map(SavedSearchSummary.fromMap).toList();
   }
 
+  Future<bool> recommendationAlertsEnabled({bool refresh = false}) async {
+    final json = await _cachedGet(
+        'marketplace:saved-searches:v2', 'saved-searches',
+        refresh: refresh);
+    final alerts = json['home_alerts'] is Map
+        ? Map<String, dynamic>.from(json['home_alerts'] as Map)
+        : const <String, dynamic>{};
+    return alerts['recommendation_matches_enabled'] == true ||
+        alerts['recommendation_matches_enabled'] == 1;
+  }
+
   Future<List<ChatMessage>> messages(int conversationId,
       {bool refresh = false}) async {
     final json = await _cachedGet(
@@ -146,11 +157,19 @@ class MarketplaceService {
   Future<void> createSavedSearch({
     required String name,
     required Map<String, dynamic> criteria,
+    bool alertsEnabled = false,
   }) async {
     await _send('POST', 'saved-searches', {
       'name': name.trim(),
-      'alerts_enabled': true,
+      'alerts_enabled': alertsEnabled,
       'criteria': criteria,
+    });
+    await _invalidate('marketplace:saved-searches:v2');
+  }
+
+  Future<void> setRecommendationAlerts(bool enabled) async {
+    await _send('PATCH', 'saved-searches/home-alerts', {
+      'recommendation_matches_enabled': enabled,
     });
     await _invalidate('marketplace:saved-searches:v2');
   }

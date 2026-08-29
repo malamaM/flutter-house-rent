@@ -2,8 +2,17 @@ class RentalCity {
   final int id;
   final String name;
   final String province;
+  final int? districtId;
+  final String districtName;
   final List<RentalArea> areas;
-  const RentalCity(this.id, this.name, this.province, this.areas);
+  const RentalCity(
+    this.id,
+    this.name,
+    this.province,
+    this.areas, {
+    this.districtId,
+    this.districtName = '',
+  });
   factory RentalCity.fromMap(Map<String, dynamic> map) => RentalCity(
         _int(map['id']),
         map['name']?.toString() ?? '',
@@ -12,8 +21,14 @@ class RentalCity {
             .whereType<Map>()
             .map((item) => RentalArea.fromMap(Map<String, dynamic>.from(item)))
             .toList(),
+        districtId: _nullableInt(map['district_id']),
+        districtName: map['district'] is Map
+            ? map['district']['name']?.toString() ?? ''
+            : '',
       );
 }
+
+int? _nullableInt(dynamic value) => value == null ? null : _int(value);
 
 class RentalArea {
   final int id;
