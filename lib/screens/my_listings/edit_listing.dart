@@ -207,9 +207,6 @@ class _EditListingScreenState extends State<EditListingScreen> {
       if (amenity.key == 'swimming_pool') pool = selected;
       if (amenity.key == 'garage') garage = selected;
       if (amenity.key == 'self_contained_bedrooms') {
-        selfContainedBedrooms.text = selected ? '1' : '0';
-      }
-      if (amenity.key == 'self_contained_bedrooms') {
         selfContainedBedrooms.text = selected
             ? ((int.tryParse(selfContainedBedrooms.text) ?? 0) == 0
                 ? '1'

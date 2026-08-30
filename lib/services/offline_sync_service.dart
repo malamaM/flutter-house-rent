@@ -165,9 +165,9 @@ class OfflineSyncService with WidgetsBindingObserver {
           if (response.statusCode >= 200 && response.statusCode < 300) {
             if (action['type'] == 'contact_message') {
               final key = await AppCache.instance
-                  .privateKey('marketplace:conversations:v2');
+                  .privateKey('marketplace:conversations:v3');
               await AppCache.instance.remove(key);
-              AppCache.instance.announce('marketplace:conversations:v2', key);
+              AppCache.instance.announce('marketplace:conversations:v3', key);
             }
             synced++;
           } else if (response.statusCode == 401 ||

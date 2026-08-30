@@ -232,6 +232,7 @@ class ChatMessage {
   final String body;
   final bool isMine;
   final DateTime? createdAt;
+  final DateTime? deliveredAt;
   final DateTime? readAt;
 
   const ChatMessage(
@@ -239,6 +240,7 @@ class ChatMessage {
       required this.body,
       required this.isMine,
       this.createdAt,
+      this.deliveredAt,
       this.readAt});
 
   factory ChatMessage.fromMap(Map<String, dynamic> map) => ChatMessage(
@@ -246,6 +248,7 @@ class ChatMessage {
         body: _text(map['body']),
         isMine: _boolean(map['is_mine'] ?? map['isMine']),
         createdAt: _date(map['created_at']),
+        deliveredAt: _date(map['delivered_at']) ?? _date(map['created_at']),
         readAt: _date(map['read_at']),
       );
 }

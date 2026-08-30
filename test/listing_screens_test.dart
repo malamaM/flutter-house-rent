@@ -71,6 +71,7 @@ void main() {
       'body': 'See you then',
       'is_mine': true,
       'created_at': '2026-08-29T10:00:00Z',
+      'delivered_at': '2026-08-29T10:00:01Z',
       'read_at': '2026-08-29T10:01:00Z',
     });
     final incoming = ChatMessage.fromMap({
@@ -96,6 +97,7 @@ void main() {
     });
 
     expect(message.readAt, isNotNull);
+    expect(message.deliveredAt, isNotNull);
     expect(message.isMine, isTrue);
     expect(incoming.isMine, isFalse);
     expect(viewing.imagePath, 'houses/cover.webp');
@@ -193,6 +195,28 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Gym'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('zero self-contained bedrooms stay hidden from property details',
+      (tester) async {
+    final house = House.fromMap({
+      'id': 80,
+      'title': 'Standard bedroom home',
+      'bedrooms': 2,
+      'self_contained_bedrooms': 0,
+      'bathrooms': 1,
+      'type': 'House',
+    });
+
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.lightTheme,
+      home: Scaffold(body: HouseInfo(house: house)),
+    ));
+
+    expect(find.text('Self-contained bedrooms'), findsNothing);
+    await tester.tap(find.text('See more'));
+    await tester.pumpAndSettle();
+    expect(find.text('Self-contained bedrooms'), findsNothing);
   });
 
   testWidgets('additional amenities open in a complete bottom sheet',

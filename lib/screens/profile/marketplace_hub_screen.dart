@@ -763,18 +763,24 @@ class ConversationScreen extends StatefulWidget {
   State<ConversationScreen> createState() => _ConversationScreenState();
 }
 
-class _ConversationScreenState extends State<ConversationScreen> {
+class _ConversationScreenState extends State<ConversationScreen>
+    with WidgetsBindingObserver {
   final _text = TextEditingController();
   final _scroll = ScrollController();
+  Timer? _receiptTimer;
   List<ChatMessage> _messages = const [];
   bool _loading = true;
   bool _sending = false;
+  bool _refreshing = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    WidgetsBinding.instance.addObserver(this);
+    _load(refresh: true);
+    _receiptTimer =
+        Timer.periodic(const Duration(seconds: 15), (_) => _refreshReceipts());
   }
 
   Future<void> _load({bool refresh = false}) async {
@@ -793,14 +799,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
         _loading = false;
       });
       _scrollToBottom();
-      // A fresh cache is enough to render immediately. Only revisit the
-      // server when cached messages contain unread incoming messages, so the
-      // read receipt is recorded without reloading every chat on every open.
-      if (!refresh &&
-          messages
-              .any((message) => !message.isMine && message.readAt == null)) {
-        unawaited(_load(refresh: true));
-      }
+      unawaited(_markConversationRead());
     } on MarketplaceException catch (error) {
       if (mounted) {
         setState(() {
@@ -808,6 +807,39 @@ class _ConversationScreenState extends State<ConversationScreen> {
           _loading = false;
         });
       }
+    }
+  }
+
+  Future<void> _markConversationRead() async {
+    try {
+      await MarketplaceService.instance
+          .markConversationRead(widget.conversationId);
+    } catch (_) {
+      // The next refresh/resume retries the receipt when connectivity returns.
+    }
+  }
+
+  Future<void> _refreshReceipts() async {
+    if (!mounted || _loading || _refreshing || _sending) return;
+    _refreshing = true;
+    try {
+      final messages = await MarketplaceService.instance
+          .messages(widget.conversationId, refresh: true);
+      if (mounted) {
+        setState(() => _messages = messages);
+        unawaited(_markConversationRead());
+      }
+    } catch (_) {
+      // Keep the current conversation visible during temporary outages.
+    } finally {
+      _refreshing = false;
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_refreshReceipts());
     }
   }
 
@@ -845,6 +877,8 @@ class _ConversationScreenState extends State<ConversationScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _receiptTimer?.cancel();
     _text.dispose();
     _scroll.dispose();
     super.dispose();
@@ -1869,10 +1903,17 @@ class _MessageBubble extends StatelessWidget {
                 if (message.isMine) ...[
                   const SizedBox(width: 5),
                   Icon(
-                    message.readAt != null ? Icons.done_all : Icons.done,
+                    message.readAt != null
+                        ? Icons.done_all
+                        : message.deliveredAt != null
+                            ? Icons.done
+                            : Icons.schedule,
                     size: 14,
-                    semanticLabel:
-                        message.readAt != null ? 'Read' : 'Delivered',
+                    semanticLabel: message.readAt != null
+                        ? 'Read'
+                        : message.deliveredAt != null
+                            ? 'Delivered'
+                            : 'Sending',
                     color: message.readAt != null
                         ? colors.primary
                         : colors.onPrimaryContainer.withValues(alpha: .68),

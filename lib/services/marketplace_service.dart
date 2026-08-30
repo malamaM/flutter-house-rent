@@ -86,6 +86,14 @@ class MarketplaceService {
     return _pageItems(json).map(ChatMessage.fromMap).toList().reversed.toList();
   }
 
+  Future<void> markConversationRead(int conversationId) async {
+    await _send('PATCH', 'conversations/$conversationId/read');
+    await Future.wait([
+      _invalidate('marketplace:conversation:$conversationId:messages:v3'),
+      _invalidate('marketplace:conversations:v3'),
+    ]);
+  }
+
   Future<int> startConversation(int houseId) async {
     final json = await _send('POST', 'houses/$houseId/conversation');
     await _invalidate('marketplace:conversations:v3');
