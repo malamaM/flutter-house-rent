@@ -35,10 +35,14 @@ enum ViewingRole { renter, lister }
 
 class ViewingSummary {
   final int id;
+  final int? houseId;
   final String title;
   final String location;
   final String? imagePath;
   final String? otherPartyName;
+  final String? otherPartyEmail;
+  final String? otherPartyPhone;
+  final String? otherPartyWhatsApp;
   final String status;
   final ViewingRole role;
   final DateTime? requestedAt;
@@ -49,10 +53,14 @@ class ViewingSummary {
 
   const ViewingSummary({
     required this.id,
+    this.houseId,
     required this.title,
     required this.location,
     this.imagePath,
     this.otherPartyName,
+    this.otherPartyEmail,
+    this.otherPartyPhone,
+    this.otherPartyWhatsApp,
     required this.status,
     required this.role,
     this.requestedAt,
@@ -64,6 +72,13 @@ class ViewingSummary {
 
   bool get isOpen => status == 'pending' || status == 'confirmed';
 
+  bool get isPast =>
+      requestedAt != null && requestedAt!.isBefore(DateTime.now());
+
+  bool get isArchived =>
+      requestedAt != null &&
+      requestedAt!.add(const Duration(days: 3)).isBefore(DateTime.now());
+
   factory ViewingSummary.fromMap(Map<String, dynamic> map) {
     final house = _map(map['house']);
     final district = _text(house['district']);
@@ -74,13 +89,23 @@ class ViewingSummary {
     final renter = _map(map['renter']);
     final lister = _map(map['lister']);
     final otherParty = role == ViewingRole.lister ? renter : lister;
+    final contact = _map(otherParty['contact']);
     return ViewingSummary(
       id: _integer(map['id']),
+      houseId: _nullableInteger(house['id'] ?? map['house_id']),
       title: _text(house['title'], fallback: 'Rental home'),
       location: [district, city].where((part) => part.isNotEmpty).join(', '),
       imagePath: _nullableText(house['image-cover']),
-      otherPartyName: _nullableText(
-          '${_text(otherParty['first_name'])} ${_text(otherParty['last_name'])}'),
+      otherPartyName: _personName(otherParty),
+      otherPartyEmail: _nullableText(otherParty['email'] ?? contact['email']),
+      otherPartyPhone: _nullableText(otherParty['phone_number'] ??
+          otherParty['phone'] ??
+          contact['phone_number'] ??
+          contact['phone']),
+      otherPartyWhatsApp: _nullableText(otherParty['whatsapp_number'] ??
+          otherParty['whatsapp'] ??
+          contact['whatsapp_number'] ??
+          contact['whatsapp']),
       status: _text(map['status'], fallback: 'pending'),
       role: role,
       requestedAt: _date(map['requested_at']),
@@ -227,6 +252,17 @@ String _text(dynamic value, {String fallback = ''}) {
 String? _nullableText(dynamic value) {
   final result = _text(value);
   return result.isEmpty ? null : result;
+}
+
+String? _personName(Map<String, dynamic> person) {
+  final first = _text(person['first_name']);
+  final last = _text(person['last_name']);
+  if (first.isEmpty && last.isEmpty) {
+    return _nullableText(person['name'] ?? person['company']);
+  }
+  if (first.isEmpty) return last;
+  if (last.isEmpty || first.toLowerCase() == last.toLowerCase()) return first;
+  return '$first $last';
 }
 
 DateTime? _date(dynamic value) =>

@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:house_rent/navigation/haven_page_route.dart';
 import 'package:house_rent/config/api_config.dart';
+import 'package:house_rent/models/house.dart';
 import 'package:house_rent/models/marketplace.dart';
+import 'package:house_rent/screens/details/details.dart';
 import 'package:house_rent/models/recommendation.dart';
 import 'package:house_rent/services/marketplace_service.dart';
 import 'package:house_rent/services/app_feedback.dart';
@@ -11,6 +15,7 @@ import 'package:house_rent/services/recommendation_service.dart';
 import 'package:house_rent/widgets/glass_surface.dart';
 import 'package:house_rent/widgets/haven_navigation_bar.dart';
 import 'package:house_rent/widgets/screen_state.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class MarketplaceHubScreen extends StatefulWidget {
   final int initialTab;
@@ -30,6 +35,7 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
   late Future<List<ViewingSummary>> _viewings;
   late Future<NotificationInbox> _notifications;
   late Future<List<SavedSearchSummary>> _searches;
+  final Set<int> _expandedViewings = <int>{};
 
   @override
   void initState() {
@@ -64,19 +70,31 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
     switch (tab) {
       case 0:
         final future = MarketplaceService.instance.conversations(refresh: true);
-        setState(() => _inbox = future);
+        if (!mounted) return;
+        setState(() {
+          _inbox = future;
+        });
         await future;
       case 1:
         final future = MarketplaceService.instance.viewings(refresh: true);
-        setState(() => _viewings = future);
+        if (!mounted) return;
+        setState(() {
+          _viewings = future;
+        });
         await future;
       case 2:
         final future = MarketplaceService.instance.notifications(refresh: true);
-        setState(() => _notifications = future);
+        if (!mounted) return;
+        setState(() {
+          _notifications = future;
+        });
         await future;
       case 3:
         final future = MarketplaceService.instance.savedSearches(refresh: true);
-        setState(() => _searches = future);
+        if (!mounted) return;
+        setState(() {
+          _searches = future;
+        });
         await future;
     }
   }
@@ -143,13 +161,10 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
             emptyBody: 'Message a lister from a home you like.',
             itemBuilder: _conversation,
           ),
-          _MarketplaceList<ViewingSummary>(
+          _ViewingList(
             future: _viewings,
             onRefresh: () => _refresh(1),
             onRetry: () => _refresh(1),
-            emptyIcon: Icons.calendar_month_outlined,
-            emptyTitle: 'No viewings yet',
-            emptyBody: 'Request a viewing from a property page.',
             itemBuilder: _viewing,
           ),
           _NotificationList(
@@ -187,7 +202,9 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
           builder: (_) =>
               ConversationScreen(conversationId: item.id, title: item.title),
         ),
-      ).then((_) => _refresh(0)),
+      ).then<void>((_) {
+        unawaited(_refresh(0));
+      }),
       child: Row(
         children: [
           _PropertyAvatar(imagePath: item.imagePath, icon: Icons.home_outlined),
@@ -222,37 +239,49 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
   }
 
   Widget _viewing(BuildContext context, ViewingSummary item) {
+    final expanded = _expandedViewings.contains(item.id);
     return _HavenCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              _PropertyAvatar(
-                  imagePath: item.imagePath, icon: Icons.home_outlined),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(item.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: 3),
-                    Text(
-                        item.role == ViewingRole.lister
-                            ? 'Viewing request from ${item.otherPartyName ?? 'renter'}'
-                            : 'Viewing request to ${item.otherPartyName ?? 'lister'}',
+          InkWell(
+            onTap: item.houseId == null ? null : () => _openViewingHouse(item),
+            borderRadius: BorderRadius.circular(16),
+            child: Row(
+              children: [
+                _PropertyAvatar(
+                    imagePath: item.imagePath, icon: Icons.home_outlined),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(item.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 3),
+                      Text(
+                        item.otherPartyName ??
+                            (item.role == ViewingRole.lister
+                                ? 'Viewing requester'
+                                : 'Property lister'),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall),
-                  ],
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              _StatusPill(status: item.status),
-            ],
+                const SizedBox(width: 8),
+                _StatusPill(status: item.status),
+                if (item.houseId != null)
+                  const Padding(
+                    padding: EdgeInsets.only(left: 4),
+                    child: Icon(Icons.chevron_right_rounded),
+                  ),
+              ],
+            ),
           ),
           if (item.location.isNotEmpty) ...[
             const SizedBox(height: 7),
@@ -266,7 +295,7 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
                       style: Theme.of(context).textTheme.bodySmall)),
             ]),
           ],
-          const SizedBox(height: 9),
+          const SizedBox(height: 8),
           Row(children: [
             Icon(Icons.schedule_rounded,
                 size: 17, color: Theme.of(context).colorScheme.primary),
@@ -276,7 +305,56 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
                   style: Theme.of(context).textTheme.bodyMedium),
             ),
           ]),
-          const SizedBox(height: 7),
+          if (item.isPast && !item.isArchived) ...[
+            const SizedBox(height: 7),
+            Text(
+              item.status == 'confirmed'
+                  ? 'Viewing time has passed · update the outcome'
+                  : 'Viewing time has passed',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 260),
+            sizeCurve: Curves.easeOutCubic,
+            crossFadeState:
+                expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            firstChild: const SizedBox(width: double.infinity),
+            secondChild: _viewingExpandedDetails(item),
+          ),
+          Center(
+            child: TextButton.icon(
+              onPressed: () => setState(() {
+                expanded
+                    ? _expandedViewings.remove(item.id)
+                    : _expandedViewings.add(item.id);
+              }),
+              icon: Icon(expanded
+                  ? Icons.keyboard_arrow_up_rounded
+                  : Icons.keyboard_arrow_down_rounded),
+              label: Text(expanded ? 'Show less' : 'See details'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _viewingExpandedDetails(ViewingSummary item) {
+    final actions = _viewingActions(item);
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _ViewingDetail(
+            label: item.role == ViewingRole.lister ? 'Requester' : 'Lister',
+            value: item.otherPartyName ??
+                (item.role == ViewingRole.lister
+                    ? 'Renter details unavailable'
+                    : 'Lister details unavailable'),
+          ),
+          const SizedBox(height: 8),
           Text(_viewingStatusDescription(item),
               style: Theme.of(context).textTheme.bodySmall),
           if (item.note != null) ...[
@@ -293,27 +371,106 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
             Text('Responded ${_relativeTime(item.respondedAt!)}',
                 style: Theme.of(context).textTheme.bodySmall),
           ],
-          if (item.status == 'pending' ||
-              (item.status == 'confirmed' &&
-                  item.role == ViewingRole.lister)) ...[
+          const SizedBox(height: 11),
+          Text(
+              item.role == ViewingRole.lister
+                  ? 'Requester contact'
+                  : 'Lister contact',
+              style: Theme.of(context).textTheme.labelLarge),
+          const SizedBox(height: 7),
+          if (_hasContact(item)) ...[
+            if (item.otherPartyPhone != null)
+              _ContactValue(
+                  icon: Icons.phone_outlined, value: item.otherPartyPhone!),
+            if (item.otherPartyWhatsApp != null)
+              _ContactValue(
+                  icon: Icons.chat_outlined, value: item.otherPartyWhatsApp!),
+            if (item.otherPartyEmail != null)
+              _ContactValue(
+                  icon: Icons.email_outlined, value: item.otherPartyEmail!),
+            const SizedBox(height: 7),
+            _ContactActionRow(actions: _contactActions(item)),
+          ] else
+            Text('No direct contact details shared',
+                style: Theme.of(context).textTheme.bodySmall),
+          if (actions.isNotEmpty) ...[
             const SizedBox(height: 13),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _viewingActions(item),
-            ),
+            Wrap(spacing: 8, runSpacing: 8, children: actions),
           ],
         ],
       ),
     );
   }
 
+  bool _hasContact(ViewingSummary item) =>
+      item.otherPartyPhone != null ||
+      item.otherPartyWhatsApp != null ||
+      item.otherPartyEmail != null;
+
+  List<Widget> _contactActions(ViewingSummary item) => [
+        if (item.otherPartyPhone != null)
+          OutlinedButton.icon(
+            onPressed: () => _launchContact('tel:${item.otherPartyPhone}'),
+            style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                visualDensity: VisualDensity.compact),
+            icon: const Icon(Icons.call_outlined, size: 17),
+            label: const Text('Call', style: TextStyle(fontSize: 12)),
+          ),
+        if (item.otherPartyWhatsApp != null)
+          OutlinedButton.icon(
+            onPressed: () => _launchContact(
+                'https://wa.me/${item.otherPartyWhatsApp!.replaceAll(RegExp(r'[^0-9+]'), '').replaceFirst('+', '')}'),
+            style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 5),
+                visualDensity: VisualDensity.compact),
+            icon: const Icon(Icons.chat_outlined, size: 17),
+            label: const Text('WhatsApp', style: TextStyle(fontSize: 11)),
+          ),
+        if (item.otherPartyEmail != null)
+          OutlinedButton.icon(
+            onPressed: () => _launchContact('mailto:${item.otherPartyEmail}'),
+            style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                visualDensity: VisualDensity.compact),
+            icon: const Icon(Icons.email_outlined, size: 17),
+            label: const Text('Email', style: TextStyle(fontSize: 12)),
+          ),
+      ];
+
+  Future<void> _launchContact(String rawUrl) async {
+    final uri = Uri.parse(rawUrl);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) &&
+        mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('This contact option is unavailable.')));
+    }
+  }
+
+  Future<void> _openViewingHouse(ViewingSummary item) async {
+    try {
+      final house = await House.fetchHouse(item.houseId!);
+      if (!mounted) return;
+      await Navigator.push(context,
+          Details.route(house, isOwnerView: item.role == ViewingRole.lister));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('This property is unavailable offline.')));
+    }
+  }
+
   String _viewingStatusDescription(ViewingSummary item) {
+    if (item.isArchived) {
+      return 'This viewing is archived. Its details remain available for reference.';
+    }
     return switch (item.status) {
       'pending' => item.role == ViewingRole.lister
           ? 'Choose a response to this request.'
           : 'Waiting for the lister to respond.',
-      'confirmed' => 'Viewing confirmed. Please arrive at the agreed time.',
+      'confirmed' => item.isPast
+          ? 'The scheduled time has passed. Mark the viewing complete, record a no-show, or cancel it.'
+          : 'Viewing confirmed. Both parties have been notified.',
       'declined' => 'The lister declined this viewing request.',
       'cancelled' => 'This viewing request was cancelled.',
       'completed' => 'This viewing was marked as completed.',
@@ -323,7 +480,9 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
   }
 
   List<Widget> _viewingActions(ViewingSummary item) {
+    if (item.isArchived) return [];
     if (item.role == ViewingRole.renter) {
+      if (item.status != 'pending' && item.status != 'confirmed') return [];
       return [
         OutlinedButton(
             onPressed: () => _updateViewing(item.id, 'cancelled'),
@@ -340,13 +499,19 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
             child: const Text('Decline')),
       ];
     }
+    if (item.status != 'confirmed') return [];
     return [
-      FilledButton.tonal(
-          onPressed: () => _updateViewing(item.id, 'completed'),
-          child: const Text('Mark complete')),
+      if (item.isPast)
+        FilledButton.tonal(
+            onPressed: () => _updateViewing(item.id, 'completed'),
+            child: const Text('Mark complete')),
+      if (item.isPast)
+        TextButton(
+            onPressed: () => _updateViewing(item.id, 'no_show'),
+            child: const Text('No-show')),
       TextButton(
-          onPressed: () => _updateViewing(item.id, 'no_show'),
-          child: const Text('No-show')),
+          onPressed: () => _updateViewing(item.id, 'cancelled'),
+          child: const Text('Cancel viewing')),
     ];
   }
 
@@ -582,10 +747,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
   @override
   void initState() {
     super.initState();
-    // Opening a conversation must reach the server once so incoming messages
-    // can be marked read and the sender can receive a read receipt. The
-    // service still falls back to cached messages when the device is offline.
-    _load(refresh: true);
+    _load();
   }
 
   Future<void> _load({bool refresh = false}) async {
@@ -604,6 +766,14 @@ class _ConversationScreenState extends State<ConversationScreen> {
         _loading = false;
       });
       _scrollToBottom();
+      // A fresh cache is enough to render immediately. Only revisit the
+      // server when cached messages contain unread incoming messages, so the
+      // read receipt is recorded without reloading every chat on every open.
+      if (!refresh &&
+          messages
+              .any((message) => !message.isMine && message.readAt == null)) {
+        unawaited(_load(refresh: true));
+      }
     } on MarketplaceException catch (error) {
       if (mounted) {
         setState(() {
@@ -980,6 +1150,83 @@ class _SavedSearchDraft {
   const _SavedSearchDraft(this.name, this.alertsEnabled, this.criteria);
 }
 
+class _ViewingList extends StatelessWidget {
+  final Future<List<ViewingSummary>> future;
+  final Future<void> Function() onRefresh;
+  final VoidCallback onRetry;
+  final Widget Function(BuildContext, ViewingSummary) itemBuilder;
+
+  const _ViewingList({
+    required this.future,
+    required this.onRefresh,
+    required this.onRetry,
+    required this.itemBuilder,
+  });
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<List<ViewingSummary>>(
+        future: future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              !snapshot.hasData) {
+            return const _MarketplaceSkeleton();
+          }
+          if (snapshot.hasError && !snapshot.hasData) {
+            return ScreenState(
+                icon: Icons.cloud_off_outlined,
+                title: 'Couldn’t load viewings',
+                message: AppFeedback.messageFor(snapshot.error!,
+                    fallback: 'Haven could not load your viewing requests.'),
+                actionLabel: 'Try again',
+                onAction: onRetry);
+          }
+          final items = snapshot.data ?? const <ViewingSummary>[];
+          if (items.isEmpty) {
+            return const ScreenState(
+                icon: Icons.calendar_month_outlined,
+                title: 'No viewings yet',
+                message: 'Request a viewing from a property page.');
+          }
+          final active = items.where((item) => !item.isArchived).toList();
+          final archived = items.where((item) => item.isArchived).toList();
+          return RefreshIndicator(
+            onRefresh: onRefresh,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 104),
+              children: [
+                ...active.expand((item) => [
+                      itemBuilder(context, item),
+                      const SizedBox(height: 10),
+                    ]),
+                if (active.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Text('No active viewing requests',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium),
+                  ),
+                if (archived.isNotEmpty)
+                  ExpansionTile(
+                    tilePadding: const EdgeInsets.symmetric(horizontal: 4),
+                    childrenPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.archive_outlined),
+                    title: Text('Archived (${archived.length})'),
+                    subtitle: const Text('Viewings older than three days'),
+                    children: archived
+                        .expand((item) => [
+                              itemBuilder(context, item),
+                              const SizedBox(height: 10),
+                            ])
+                        .toList(),
+                  ),
+              ],
+            ),
+          );
+        },
+      );
+}
+
 class _MarketplaceList<T> extends StatelessWidget {
   final Future<List<T>> future;
   final Future<void> Function() onRefresh;
@@ -1212,6 +1459,48 @@ class _ViewingDetail extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ContactValue extends StatelessWidget {
+  final IconData icon;
+  final String value;
+
+  const _ContactValue({required this.icon, required this.value});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 5),
+        child: Row(
+          children: [
+            Icon(icon, size: 17, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 8),
+            Expanded(
+                child:
+                    Text(value, style: Theme.of(context).textTheme.bodyMedium)),
+          ],
+        ),
+      );
+}
+
+class _ContactActionRow extends StatelessWidget {
+  final List<Widget> actions;
+
+  const _ContactActionRow({required this.actions});
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          for (var index = 0; index < actions.length; index++) ...[
+            if (index > 0) const SizedBox(width: 6),
+            Expanded(
+              child: ButtonTheme(
+                alignedDropdown: true,
+                child: actions[index],
+              ),
+            ),
+          ],
+        ],
+      );
 }
 
 class _UnreadDot extends StatelessWidget {

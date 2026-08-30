@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/models/house.dart';
+import 'package:house_rent/models/marketplace.dart';
 import 'package:house_rent/navigation/haven_page_route.dart';
 import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/services/api_error.dart';
@@ -316,6 +317,7 @@ class Details extends StatefulWidget {
 class _DetailsState extends State<Details> {
   int _reviewVersion = 0;
   late Future<Map<String, dynamic>> _ownerFuture;
+  late Future<List<ViewingSummary>> _ownerViewingsFuture;
   bool _ownerLoaded = false;
   bool _canReview = false;
 
@@ -335,6 +337,9 @@ class _DetailsState extends State<Details> {
     // Owner details are only needed when the contact sheet opens. Deferring
     // this request keeps the route's first frames free for the transition.
     _ownerFuture = Future.value(widget.house.ownerContact);
+    _ownerViewingsFuture = widget.isOwnerView
+        ? MarketplaceService.instance.viewings()
+        : Future.value(const <ViewingSummary>[]);
     unawaited(PropertyDetailsService.cacheOwnerContact(
         widget.house.id, widget.house.ownerContact));
     if (!widget.isOwnerView) {
@@ -973,6 +978,11 @@ class _DetailsState extends State<Details> {
                       ]),
                     ),
                   ],
+                  if (widget.isOwnerView) ...[
+                    const SizedBox(height: 14),
+                    _PendingViewingsBanner(
+                        houseId: widget.house.id, future: _ownerViewingsFuture),
+                  ],
                   const SizedBox(height: 24),
                   HouseInfo(house: widget.house),
                   if (widget.house.amenities.isNotEmpty ||
@@ -1142,6 +1152,72 @@ class _DetailsState extends State<Details> {
                 ),
               ),
             ),
+    );
+  }
+}
+
+class _PendingViewingsBanner extends StatelessWidget {
+  final int houseId;
+  final Future<List<ViewingSummary>> future;
+
+  const _PendingViewingsBanner({required this.houseId, required this.future});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<ViewingSummary>>(
+      future: future,
+      builder: (context, snapshot) {
+        final pending = (snapshot.data ?? const <ViewingSummary>[])
+            .where((item) =>
+                item.houseId == houseId &&
+                item.role == ViewingRole.lister &&
+                item.status == 'pending')
+            .length;
+        if (pending == 0) return const SizedBox.shrink();
+        final label = pending == 1
+            ? '1 pending viewing request'
+            : '$pending pending viewing requests';
+        final colors = Theme.of(context).colorScheme;
+        return Material(
+          color: colors.primaryContainer.withValues(alpha: .72),
+          borderRadius: BorderRadius.circular(18),
+          child: InkWell(
+            onTap: () => Navigator.push(
+              context,
+              HavenPageRoute(
+                  builder: (_) => const MarketplaceHubScreen(initialTab: 1)),
+            ),
+            borderRadius: BorderRadius.circular(18),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  Icon(Icons.calendar_month_rounded,
+                      color: colors.onPrimaryContainer),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(label,
+                            style: TextStyle(
+                                color: colors.onPrimaryContainer,
+                                fontWeight: FontWeight.w800)),
+                        const SizedBox(height: 3),
+                        Text(
+                            'Review and respond to your request${pending == 1 ? '' : 's'}',
+                            style: TextStyle(color: colors.onPrimaryContainer)),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded,
+                      color: colors.onPrimaryContainer),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

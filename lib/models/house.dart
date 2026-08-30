@@ -498,6 +498,39 @@ class House {
     );
   }
 
+  static Future<House> fetchHouse(int id, {bool forceRefresh = false}) async {
+    final token = await _token();
+    final scope = token == null
+        ? AppCache.instance.publicKey('house:$id')
+        : await AppCache.instance.privateKey('house:$id');
+    final key = scope;
+    final cached = await AppCache.instance.read(key);
+    if (!forceRefresh && cached != null && !cached.isExpired) {
+      return House.fromMap(Map<String, dynamic>.from(cached.value),
+          fromCache: true, cachedAt: cached.storedAt);
+    }
+
+    try {
+      final response = await http
+          .get(Uri.parse('$_apiBase/houses/$id'), headers: _headers(token))
+          .timeout(const Duration(seconds: 12));
+      if (response.statusCode != 200) {
+        throw HavenApiException.fromResponse(response,
+            operation: 'load this property');
+      }
+      final value = Map<String, dynamic>.from(json.decode(response.body));
+      await AppCache.instance
+          .write(key, value, freshFor: _feedFreshFor, keepFor: _feedKeepFor);
+      return House.fromMap(value);
+    } catch (_) {
+      if (cached != null) {
+        return House.fromMap(Map<String, dynamic>.from(cached.value),
+            fromCache: true, cachedAt: cached.storedAt);
+      }
+      rethrow;
+    }
+  }
+
   static Future<List<House>> fetchSavedHouses(
       {bool forceRefresh = false}) async {
     final token = await _requiredToken();

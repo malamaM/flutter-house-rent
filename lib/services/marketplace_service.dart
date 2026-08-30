@@ -35,7 +35,7 @@ class MarketplaceService {
   }
 
   Future<List<ViewingSummary>> viewings({bool refresh = false}) async {
-    final json = await _cachedGet('marketplace:viewings:v2', 'viewings',
+    final json = await _cachedGet('marketplace:viewings:v3', 'viewings',
         refresh: refresh);
     return _pageItems(json).map(ViewingSummary.fromMap).toList();
   }
@@ -78,7 +78,7 @@ class MarketplaceService {
   Future<List<ChatMessage>> messages(int conversationId,
       {bool refresh = false}) async {
     final json = await _cachedGet(
-      'marketplace:conversation:$conversationId:messages:v2',
+      'marketplace:conversation:$conversationId:messages:v3',
       'conversations/$conversationId/messages',
       refresh: refresh,
       freshFor: const Duration(seconds: 20),
@@ -97,7 +97,7 @@ class MarketplaceService {
     final json = await _send('POST', 'conversations/$conversationId/messages',
         {'body': body.trim()});
     await Future.wait([
-      _invalidate('marketplace:conversation:$conversationId:messages:v2'),
+      _invalidate('marketplace:conversation:$conversationId:messages:v3'),
       _invalidate('marketplace:conversations:v2'),
       _invalidate('marketplace:notifications:v2'),
     ]);
@@ -111,14 +111,14 @@ class MarketplaceService {
       'requested_at': requestedAt.toUtc().toIso8601String(),
       if (note?.trim().isNotEmpty == true) 'note': note!.trim(),
     });
-    await _invalidate('marketplace:viewings:v2');
+    await _invalidate('marketplace:viewings:v3');
     return json['message']?.toString() ?? 'Viewing request sent.';
   }
 
   Future<void> updateViewing(int id, String status) async {
     await _send('PATCH', 'viewings/$id', {'status': status});
     await Future.wait([
-      _invalidate('marketplace:viewings:v2'),
+      _invalidate('marketplace:viewings:v3'),
       _invalidate('marketplace:notifications:v2'),
     ]);
   }
