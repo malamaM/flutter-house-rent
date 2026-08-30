@@ -39,6 +39,7 @@ class _FilterScreenState extends State<FilterScreen> {
 
   String? _selectedType;
   int _minBedrooms = 0;
+  int _minSelfContainedBedrooms = 0;
   int _minBathrooms = 0;
   String _sort = 'best_match';
   bool _verifiedOnly = false;
@@ -56,6 +57,8 @@ class _FilterScreenState extends State<FilterScreen> {
     _minSizeController.text = filters['min_size'] ?? '';
     _selectedType = filters['type']?.isEmpty == true ? null : filters['type'];
     _minBedrooms = int.tryParse(filters['bedrooms'] ?? '0') ?? 0;
+    _minSelfContainedBedrooms =
+        int.tryParse(filters['self_contained_bedrooms'] ?? '0') ?? 0;
     _minBathrooms = int.tryParse(filters['bathrooms'] ?? '0') ?? 0;
     _sort = _sortOptions.containsKey(filters['sort'])
         ? filters['sort']!
@@ -101,6 +104,7 @@ class _FilterScreenState extends State<FilterScreen> {
       _minSizeController.clear();
       _selectedType = null;
       _minBedrooms = 0;
+      _minSelfContainedBedrooms = 0;
       _minBathrooms = 0;
       _sort = 'best_match';
       _selectedAmenities.clear();
@@ -125,6 +129,9 @@ class _FilterScreenState extends State<FilterScreen> {
     addText('min_size', _minSizeController);
     if (_selectedType != null) filters['type'] = _selectedType!;
     if (_minBedrooms > 0) filters['bedrooms'] = '$_minBedrooms';
+    if (_minSelfContainedBedrooms > 0) {
+      filters['self_contained_bedrooms'] = '$_minSelfContainedBedrooms';
+    }
     if (_minBathrooms > 0) filters['bathrooms'] = '$_minBathrooms';
     if (_sort != 'best_match') filters['sort'] = _sort;
     if (_selectedAmenities.isNotEmpty) {
@@ -255,6 +262,18 @@ class _FilterScreenState extends State<FilterScreen> {
                               ? null
                               : () => setState(() => _minBedrooms--),
                           onPlus: () => setState(() => _minBedrooms++),
+                        ),
+                        _divider(divider),
+                        _stepperRow(
+                          colors,
+                          title: 'Self-contained bedrooms',
+                          value: _minSelfContainedBedrooms,
+                          onMinus: _minSelfContainedBedrooms == 0
+                              ? null
+                              : () =>
+                                  setState(() => _minSelfContainedBedrooms--),
+                          onPlus: () =>
+                              setState(() => _minSelfContainedBedrooms++),
                         ),
                         _divider(divider),
                         _stepperRow(

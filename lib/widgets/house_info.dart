@@ -12,6 +12,8 @@ class HouseInfo extends StatelessWidget {
     final facts = [
       _FactData(Icons.bed_outlined, '${house.bedrooms}', 'Bedrooms'),
       _FactData(Icons.bathtub_outlined, '${house.bathrooms}', 'Bathrooms'),
+      _FactData(Icons.bedroom_parent_outlined, '${house.selfContainedBedrooms}',
+          'Self-contained bedrooms'),
       _FactData(Icons.home_work_outlined, house.type ?? 'Not specified',
           'Property type'),
       _FactData(Icons.directions_car_outlined, '${house.carGarage}', 'Parking'),
@@ -24,7 +26,7 @@ class HouseInfo extends StatelessWidget {
           Text('Property details',
               style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 12),
-          _FactGrid(facts: facts.take(2).toList()),
+          _FactGrid(facts: facts.take(3).toList()),
           const SizedBox(height: 2),
           Center(
             child: TextButton.icon(

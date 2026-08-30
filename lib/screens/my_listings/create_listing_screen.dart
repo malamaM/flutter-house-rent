@@ -41,6 +41,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   final houseNumber = TextEditingController();
   final rentalPrice = TextEditingController();
   final bedrooms = TextEditingController();
+  final selfContainedBedrooms = TextEditingController(text: '0');
   final bathrooms = TextEditingController();
   final size = TextEditingController();
   final parking = TextEditingController();
@@ -59,6 +60,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   File? coverImage;
   File? reelVideo;
   final List<File> galleryImages = [];
+  final Map<String, String> galleryImageTypes = {};
   final List<File> videos = [];
   double? latitude;
   double? longitude;
@@ -88,6 +90,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         houseNumber,
         rentalPrice,
         bedrooms,
+        selfContainedBedrooms,
         bathrooms,
         size,
         parking,
@@ -133,6 +136,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     text(houseNumber, 'house_number');
     text(rentalPrice, 'price');
     text(bedrooms, 'bedrooms');
+    text(selfContainedBedrooms, 'self_contained_bedrooms');
     text(bathrooms, 'bathrooms');
     text(size, 'size');
     text(parking, 'parking');
@@ -163,6 +167,11 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       coverImage = file('cover');
       reelVideo = file('reel_video');
       galleryImages.addAll(files('gallery'));
+      final savedTypes = draft['gallery_types'];
+      if (savedTypes is Map) {
+        galleryImageTypes.addAll(savedTypes
+            .map((key, value) => MapEntry(key.toString(), value.toString())));
+      }
       videos.addAll(files('videos'));
     });
     _message('Your listing draft was restored.');
@@ -178,6 +187,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         'house_number': houseNumber.text,
         'price': rentalPrice.text,
         'bedrooms': bedrooms.text,
+        'self_contained_bedrooms': selfContainedBedrooms.text,
         'bathrooms': bathrooms.text,
         'size': size.text,
         'parking': parking.text,
@@ -193,6 +203,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         'cover': coverImage?.path,
         'reel_video': reelVideo?.path,
         'gallery': galleryImages.map((item) => item.path).toList(),
+        'gallery_types': galleryImageTypes,
         'videos': videos.map((item) => item.path).toList(),
       });
 
@@ -223,6 +234,16 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       if (amenity.key == 'gym') gym = selected;
       if (amenity.key == 'swimming_pool') pool = selected;
       if (amenity.key == 'garage') garage = selected;
+      if (amenity.key == 'self_contained_bedrooms') {
+        selfContainedBedrooms.text = selected ? '1' : '0';
+      }
+      if (amenity.key == 'self_contained_bedrooms') {
+        selfContainedBedrooms.text = selected
+            ? ((int.tryParse(selfContainedBedrooms.text) ?? 0) == 0
+                ? '1'
+                : selfContainedBedrooms.text)
+            : '0';
+      }
     });
     _scheduleDraft();
   }
@@ -242,6 +263,12 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     FocusScope.of(context).unfocus();
     final state = formKeys[step].currentState;
     if (state != null && !state.validate()) return;
+    if (step == 1 &&
+        (int.tryParse(selfContainedBedrooms.text) ?? 0) >
+            (int.tryParse(bedrooms.text) ?? 0)) {
+      _message('Self-contained bedrooms cannot exceed total bedrooms.');
+      return;
+    }
     if (step == 3) {
       if (coverImage == null || galleryImages.isEmpty) {
         _message('Add a cover photo and at least one gallery photo.');
@@ -292,6 +319,9 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
             ListingDraftService.instance.retainMedia(_draftId, image.path)));
         setState(() {
           galleryImages.addAll(retained);
+          for (final image in retained) {
+            galleryImageTypes[image.path] = 'other';
+          }
           if (galleryImages.length > 12) {
             galleryImages.removeRange(12, galleryImages.length);
           }
@@ -406,6 +436,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
           houseNumber.text.trim().isEmpty ? 'N/A' : houseNumber.text.trim(),
       'price_rental': int.tryParse(rentalPrice.text) ?? 0,
       'bedrooms': int.tryParse(bedrooms.text) ?? 0,
+      'self_contained_bedrooms': int.tryParse(selfContainedBedrooms.text) ?? 0,
       'bathrooms': int.tryParse(bathrooms.text) ?? 0,
       'size': int.tryParse(size.text) ?? 0,
       'gym': gym ? 1 : 0,
@@ -421,6 +452,9 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         payload,
         coverImage!.path,
         galleryImages.map((image) => image.path).toList(),
+        galleryImageTypes: galleryImages
+            .map((image) => galleryImageTypes[image.path] ?? 'other')
+            .toList(),
         videoPaths: videos.map((video) => video.path).toList(),
         reelVideoPath: reelVideo?.path,
         onProgress: (value) {
@@ -560,6 +594,13 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                       requiredField: true)),
             ],
           ),
+          ListingTextField(
+            controller: selfContainedBedrooms,
+            label: 'Self-contained bedrooms',
+            hint: 'Bedrooms with their own bathroom',
+            numeric: true,
+            requiredField: true,
+          ),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -615,6 +656,16 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                 'The public map uses an approximate point to protect the exact address.',
           ),
           const SizedBox(height: 26),
+          const ListingSurface(
+            child: Row(children: [
+              Icon(Icons.location_city_outlined),
+              SizedBox(width: 12),
+              Expanded(
+                  child: Text(
+                      'Select a city and area below. Both are required before publishing.')),
+            ]),
+          ),
+          const SizedBox(height: 14),
           _canonicalLocationFields(),
           ListingTextField(
               controller: province, label: 'Province', hint: 'Lusaka Province'),
@@ -846,8 +897,13 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                     children: galleryImages
                         .map((image) => _ImageThumb(
                               image: image,
-                              onRemove: () =>
-                                  setState(() => galleryImages.remove(image)),
+                              type: galleryImageTypes[image.path] ?? 'other',
+                              onTypeChanged: (type) => setState(
+                                  () => galleryImageTypes[image.path] = type),
+                              onRemove: () => setState(() {
+                                galleryImages.remove(image);
+                                galleryImageTypes.remove(image.path);
+                              }),
                             ))
                         .toList(),
                   ),
@@ -1067,34 +1123,47 @@ class _PhotoPicker extends StatelessWidget {
 
 class _ImageThumb extends StatelessWidget {
   final File image;
+  final String type;
+  final ValueChanged<String> onTypeChanged;
   final VoidCallback onRemove;
 
-  const _ImageThumb({required this.image, required this.onRemove});
+  const _ImageThumb(
+      {required this.image,
+      required this.type,
+      required this.onTypeChanged,
+      required this.onRemove});
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.file(image, width: 82, height: 82, fit: BoxFit.cover)),
-        Positioned(
-          right: -7,
-          top: -7,
-          child: Material(
-            color: AppColors.surfaceDark,
-            shape: const CircleBorder(),
-            child: InkWell(
-                onTap: onRemove,
-                customBorder: const CircleBorder(),
-                child: const Padding(
-                    padding: EdgeInsets.all(5),
-                    child: Icon(Icons.close_rounded,
-                        color: Colors.white, size: 15))),
-          ),
-        ),
-      ],
+    return SizedBox(
+      width: 132,
+      child: Column(
+        children: [
+          Stack(clipBehavior: Clip.none, children: [
+            ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.file(image,
+                    width: 82, height: 82, fit: BoxFit.cover)),
+            Positioned(
+              right: -7,
+              top: -7,
+              child: Material(
+                color: AppColors.surfaceDark,
+                shape: const CircleBorder(),
+                child: InkWell(
+                    onTap: onRemove,
+                    customBorder: const CircleBorder(),
+                    child: const Padding(
+                        padding: EdgeInsets.all(5),
+                        child: Icon(Icons.close_rounded,
+                            color: Colors.white, size: 15))),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 7),
+          ListingPhotoTypePicker(value: type, onChanged: onTypeChanged)
+        ],
+      ),
     );
   }
 }

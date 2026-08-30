@@ -28,6 +28,7 @@ class _RentalPreferencesScreenState extends State<RentalPreferencesScreen> {
   final Set<int> areaIds = {};
   final Set<int> amenityIds = {};
   int bedroomStart = 1;
+  int selfContainedStart = 0;
   int minMonthlyPrice = 3000;
   int maxMonthlyPrice = 6000;
   String areaSearch = '';
@@ -58,6 +59,8 @@ class _RentalPreferencesScreenState extends State<RentalPreferencesScreen> {
             .map((item) => int.tryParse('${item['id']}'))
             .whereType<int>());
         bedroomStart = int.tryParse('${profile['min_bedrooms']}') ?? 1;
+        selfContainedStart =
+            int.tryParse('${profile['min_self_contained_bedrooms']}') ?? 0;
         minMonthlyPrice =
             int.tryParse('${profile['min_monthly_price']}') ?? 3000;
         maxMonthlyPrice =
@@ -100,6 +103,13 @@ class _RentalPreferencesScreenState extends State<RentalPreferencesScreen> {
         areaIds: areaIds,
         minBedrooms: bedroomStart,
         maxBedrooms: bedroomStart + 1,
+        minSelfContainedBedrooms:
+            selfContainedStart == 0 ? null : selfContainedStart,
+        maxSelfContainedBedrooms: selfContainedStart == 0
+            ? null
+            : selfContainedStart == 4
+                ? 10
+                : selfContainedStart + 1,
         minMonthlyPrice: minMonthlyPrice,
         maxMonthlyPrice: maxMonthlyPrice,
         amenityIds: amenityIds,
@@ -212,8 +222,11 @@ class _RentalPreferencesScreenState extends State<RentalPreferencesScreen> {
                         ),
                         _BedroomStep(
                             value: bedroomStart,
+                            selfContainedValue: selfContainedStart,
                             onChanged: (value) =>
-                                setState(() => bedroomStart = value)),
+                                setState(() => bedroomStart = value),
+                            onSelfContainedChanged: (value) =>
+                                setState(() => selfContainedStart = value)),
                         _BudgetStep(
                           minimum: minMonthlyPrice,
                           maximum: maxMonthlyPrice,
@@ -375,8 +388,15 @@ class _AreaStep extends StatelessWidget {
 
 class _BedroomStep extends StatelessWidget {
   final int value;
+  final int selfContainedValue;
   final ValueChanged<int> onChanged;
-  const _BedroomStep({required this.value, required this.onChanged});
+  final ValueChanged<int> onSelfContainedChanged;
+  const _BedroomStep({
+    required this.value,
+    required this.selfContainedValue,
+    required this.onChanged,
+    required this.onSelfContainedChanged,
+  });
   @override
   Widget build(BuildContext context) => Column(children: [
         const _Heading('Your ideal space', 'How many bedrooms?',
@@ -384,19 +404,44 @@ class _BedroomStep extends StatelessWidget {
         Expanded(
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 22),
-            children: List.generate(5, (index) {
-              final start = index + 1;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _ChoiceCard(
-                  active: value == start,
-                  onTap: () => onChanged(start),
-                  icon: Icons.bed_rounded,
-                  title: '$start–${start + 1} bedrooms',
-                  subtitle: start == 1 ? 'Compact and comfortable' : null,
-                ),
-              );
-            }),
+            children: [
+              ...List.generate(5, (index) {
+                final start = index + 1;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _ChoiceCard(
+                    active: value == start,
+                    onTap: () => onChanged(start),
+                    icon: Icons.bed_rounded,
+                    title: '$start–${start + 1} bedrooms',
+                    subtitle: start == 1 ? 'Compact and comfortable' : null,
+                  ),
+                );
+              }),
+              const SizedBox(height: 8),
+              Text('Self-contained bedrooms',
+                  style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 6),
+              Text('How many should have their own bathroom?',
+                  style: Theme.of(context).textTheme.bodyMedium),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: List.generate(
+                    5,
+                    (index) => ChoiceChip(
+                          label: Text(index == 0
+                              ? 'Not required'
+                              : index == 4
+                                  ? '4+'
+                                  : '$index'),
+                          selected: selfContainedValue == index,
+                          onSelected: (_) => onSelfContainedChanged(index),
+                        )),
+              ),
+              const SizedBox(height: 24),
+            ],
           ),
         ),
       ]);
@@ -583,6 +628,7 @@ class _RetryState extends StatelessWidget {
 }
 
 IconData _amenityIcon(String key) => switch (key) {
+      'self_contained_bedrooms' => Icons.bedroom_parent_outlined,
       'gym' => Icons.fitness_center_rounded,
       'swimming_pool' => Icons.pool_rounded,
       'garage' => Icons.garage_rounded,

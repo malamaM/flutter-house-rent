@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 IconData amenityIcon(String key) => switch (key) {
+      'self_contained_bedrooms' => Icons.bedroom_parent_outlined,
       'gym' => Icons.fitness_center_rounded,
       'swimming_pool' => Icons.pool_rounded,
       'garage' => Icons.garage_rounded,

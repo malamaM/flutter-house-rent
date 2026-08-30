@@ -38,6 +38,7 @@ class House {
   String thumbnailUrl;
   int id;
   int bedrooms;
+  int selfContainedBedrooms;
   int bathrooms;
   int size;
   int carGarage;
@@ -95,6 +96,7 @@ class House {
     this.id = 0,
     String? thumbnailUrl,
     this.bedrooms = 0,
+    this.selfContainedBedrooms = 0,
     this.bathrooms = 0,
     this.size = 0,
     this.carGarage = 0,
@@ -174,6 +176,7 @@ class House {
           : ApiConfig.storageUrl(map['thumbnail-cover']),
       id: _parseInt(map['id']),
       bedrooms: _parseInt(map['bedrooms']),
+      selfContainedBedrooms: _parseInt(map['self_contained_bedrooms']),
       bathrooms: _parseInt(map['bathrooms']),
       size: _parseInt(map['size']),
       carGarage: _parseInt(map['car_garage']),
@@ -257,6 +260,7 @@ class House {
             ? thumbnailUrl.substring('$_storageBase/'.length)
             : thumbnailUrl,
         'bedrooms': bedrooms,
+        'self_contained_bedrooms': selfContainedBedrooms,
         'bathrooms': bathrooms,
         'size': size,
         'car_garage': carGarage,
@@ -829,6 +833,8 @@ class House {
     Map<String, dynamic> data, {
     String? coverImagePath,
     List<String>? galleryImagePaths,
+    List<String>? galleryImageTypes,
+    Map<int, String>? existingImageTypes,
     List<int>? deletedImageIds,
     List<String>? videoPaths,
     String? reelVideoPath,
@@ -860,6 +866,14 @@ class House {
           'images[$i]',
           galleryImagePaths![i],
         ));
+        final type = i < (galleryImageTypes?.length ?? 0)
+            ? galleryImageTypes![i]
+            : 'other';
+        request.fields['types[$i]'] = type;
+      }
+      for (final entry
+          in (existingImageTypes ?? const <int, String>{}).entries) {
+        request.fields['existing_image_types[${entry.key}]'] = entry.value;
       }
       for (var i = 0; i < (deletedImageIds?.length ?? 0); i++) {
         request.fields['deleted_images[$i]'] = deletedImageIds![i].toString();
@@ -902,6 +916,7 @@ class House {
   static Future<bool> createHouse(Map<String, dynamic> data,
       String coverImagePath, List<String> galleryImagePaths,
       {List<String> videoPaths = const [],
+      List<String> galleryImageTypes = const [],
       String? reelVideoPath,
       void Function(double progress)? onProgress}) async {
     try {
@@ -921,8 +936,11 @@ class House {
       request.files.add(
         await http.MultipartFile.fromPath('image_cover', coverImagePath),
       );
-      for (final path in galleryImagePaths) {
-        request.files.add(await http.MultipartFile.fromPath('images[]', path));
+      for (var i = 0; i < galleryImagePaths.length; i++) {
+        request.files.add(await http.MultipartFile.fromPath(
+            'images[$i]', galleryImagePaths[i]));
+        request.fields['types[$i]'] =
+            i < galleryImageTypes.length ? galleryImageTypes[i] : 'other';
       }
       for (final path in videoPaths) {
         request.files.add(await http.MultipartFile.fromPath('videos[]', path));

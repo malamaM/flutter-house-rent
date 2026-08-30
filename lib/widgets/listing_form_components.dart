@@ -1,6 +1,48 @@
 import 'package:flutter/material.dart';
 import 'package:house_rent/widgets/glass_surface.dart';
 
+const listingPhotoTypes = <String, String>{
+  'exterior': 'Exterior',
+  'living_room': 'Living room',
+  'kitchen': 'Kitchen',
+  'bedroom': 'Bedroom',
+  'bathroom': 'Bathroom',
+  'dining_room': 'Dining room',
+  'other': 'Other',
+};
+
+class ListingPhotoTypePicker extends StatelessWidget {
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  const ListingPhotoTypePicker({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) => DropdownButtonFormField<String>(
+        initialValue: listingPhotoTypes.containsKey(value) ? value : 'other',
+        isExpanded: true,
+        decoration: const InputDecoration(
+          labelText: 'Room tag',
+          isDense: true,
+          contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        ),
+        items: listingPhotoTypes.entries
+            .map((entry) => DropdownMenuItem(
+                  value: entry.key,
+                  child: Text(entry.value,
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                ))
+            .toList(),
+        onChanged: (next) {
+          if (next != null) onChanged(next);
+        },
+      );
+}
+
 class ListingQualityGuide extends StatelessWidget {
   final int score;
   final List<String> improvements;

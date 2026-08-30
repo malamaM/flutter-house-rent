@@ -138,6 +138,7 @@ void main() {
       'id': 8,
       'title': 'Complete home',
       'bedrooms': 3,
+      'self_contained_bedrooms': 2,
       'bathrooms': 2,
       'size': 140,
       'car_garage': 1,
@@ -177,6 +178,8 @@ void main() {
     expect(find.text('Property details'), findsOneWidget);
     expect(find.text('All property details'), findsOneWidget);
     expect(find.text('Bathrooms'), findsNWidgets(2));
+    expect(house.selfContainedBedrooms, 2);
+    expect(find.text('Self-contained bedrooms'), findsNWidgets(2));
     expect(find.text('Apartment'), findsOneWidget);
     expect(find.text('Property type'), findsOneWidget);
     expect(find.text('Parking'), findsOneWidget);

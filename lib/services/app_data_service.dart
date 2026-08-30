@@ -328,6 +328,7 @@ class PropertyDetailsService {
             ? ApiConfig.storageUrl(map['image'])
             : ApiConfig.storageUrl(map['thumbnail']),
         caption: map['caption'] ?? '',
+        type: map['type']?.toString() ?? 'other',
         fromCache: fromCache,
       );
     }).toList();
@@ -347,6 +348,7 @@ class GalleryImageData {
   final String url;
   final String thumbnailUrl;
   final String caption;
+  final String type;
   final bool fromCache;
 
   const GalleryImageData({
@@ -354,6 +356,7 @@ class GalleryImageData {
     required this.url,
     required this.thumbnailUrl,
     required this.caption,
+    this.type = 'other',
     this.fromCache = false,
   });
 }

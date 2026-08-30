@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/models/recommendation.dart';
+import 'package:house_rent/navigation/haven_page_route.dart';
 import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/services/premium_haptics.dart';
 import 'package:house_rent/services/listing_draft_service.dart';
@@ -16,7 +17,9 @@ import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/listing_form_components.dart';
 import 'package:house_rent/widgets/amenity_icon.dart';
 import 'package:house_rent/widgets/haven_navigation_bar.dart';
+import 'package:house_rent/widgets/map_location_picker.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:latlong2/latlong.dart';
 
 class EditListingScreen extends StatefulWidget {
   final House house;
@@ -35,6 +38,7 @@ class _EditListingScreenState extends State<EditListingScreen> {
   late final TextEditingController city;
   late final TextEditingController description;
   late final TextEditingController bedrooms;
+  late final TextEditingController selfContainedBedrooms;
   late final TextEditingController bathrooms;
   late final TextEditingController size;
   late final TextEditingController country;
@@ -50,12 +54,15 @@ class _EditListingScreenState extends State<EditListingScreen> {
   late bool garage;
   final Set<int> amenityIds = {};
   late final Future<List<RentalAmenity>> amenityOptions;
-  late final Future<RecommendationOptions> locationOptions;
+  late Future<RecommendationOptions> locationOptions;
   int? selectedCityId;
   int? selectedAreaId;
+  double? latitude;
+  double? longitude;
   File? newCoverImage;
   File? newReelVideo;
   final List<File> newGalleryImages = [];
+  final Map<String, String> newGalleryImageTypes = {};
   final List<File> newVideos = [];
   final List<Map<String, dynamic>> existingGalleryImages = [];
   final List<ListingMediaData> existingMedia = [];
@@ -77,6 +84,7 @@ class _EditListingScreenState extends State<EditListingScreen> {
         city,
         description,
         bedrooms,
+        selfContainedBedrooms,
         bathrooms,
         size,
         country,
@@ -95,6 +103,8 @@ class _EditListingScreenState extends State<EditListingScreen> {
     city = TextEditingController(text: house.address);
     description = TextEditingController(text: house.description ?? '');
     bedrooms = TextEditingController(text: house.bedrooms.toString());
+    selfContainedBedrooms =
+        TextEditingController(text: house.selfContainedBedrooms.toString());
     bathrooms = TextEditingController(text: house.bathrooms.toString());
     size = TextEditingController(text: house.size.toString());
     country = TextEditingController(text: house.country ?? '');
@@ -112,9 +122,11 @@ class _EditListingScreenState extends State<EditListingScreen> {
     garage = house.garage == 1;
     amenityIds.addAll(house.amenities.map((amenity) => amenity.id));
     amenityOptions = _loadAmenities();
-    locationOptions = RecommendationService.instance.options();
     selectedCityId = house.cityId;
     selectedAreaId = house.areaId;
+    latitude = house.latitude;
+    longitude = house.longitude;
+    locationOptions = _loadLocationOptions();
     for (final controller in _controllers) {
       controller.addListener(_scheduleDraft);
     }
@@ -127,6 +139,46 @@ class _EditListingScreenState extends State<EditListingScreen> {
     return values.contains(value) ? value! : fallback;
   }
 
+  Future<RecommendationOptions> _loadLocationOptions() async {
+    final options = await RecommendationService.instance.options();
+    if (!options.cities.any((item) => item.id == selectedCityId)) {
+      selectedCityId = options.cities
+          .where((item) => item.name.toLowerCase() == city.text.toLowerCase())
+          .firstOrNull
+          ?.id;
+    }
+    final selectedCity =
+        options.cities.where((item) => item.id == selectedCityId).firstOrNull;
+    if (selectedCity?.areas.any((item) => item.id == selectedAreaId) != true) {
+      selectedAreaId = selectedCity?.areas
+          .where(
+              (item) => item.name.toLowerCase() == district.text.toLowerCase())
+          .firstOrNull
+          ?.id;
+    }
+    return options;
+  }
+
+  Future<void> _selectMapLocation() async {
+    final result = await Navigator.push<LatLng>(
+      context,
+      HavenPageRoute(
+        builder: (_) => MapLocationPicker(
+          initialLocation: latitude == null || longitude == null
+              ? null
+              : LatLng(latitude!, longitude!),
+        ),
+      ),
+    );
+    if (result != null && mounted) {
+      setState(() {
+        latitude = result.latitude;
+        longitude = result.longitude;
+      });
+      unawaited(_saveDraft());
+    }
+  }
+
   Future<List<RentalAmenity>> _loadAmenities() async {
     final amenities =
         (await RecommendationService.instance.options()).amenities;
@@ -134,7 +186,9 @@ class _EditListingScreenState extends State<EditListingScreen> {
       for (final amenity in amenities) {
         if ((amenity.key == 'gym' && gym) ||
             (amenity.key == 'swimming_pool' && pool) ||
-            (amenity.key == 'garage' && garage)) {
+            (amenity.key == 'garage' && garage) ||
+            (amenity.key == 'self_contained_bedrooms' &&
+                (int.tryParse(selfContainedBedrooms.text) ?? 0) > 0)) {
           amenityIds.add(amenity.id);
         }
       }
@@ -152,6 +206,16 @@ class _EditListingScreenState extends State<EditListingScreen> {
       if (amenity.key == 'gym') gym = selected;
       if (amenity.key == 'swimming_pool') pool = selected;
       if (amenity.key == 'garage') garage = selected;
+      if (amenity.key == 'self_contained_bedrooms') {
+        selfContainedBedrooms.text = selected ? '1' : '0';
+      }
+      if (amenity.key == 'self_contained_bedrooms') {
+        selfContainedBedrooms.text = selected
+            ? ((int.tryParse(selfContainedBedrooms.text) ?? 0) == 0
+                ? '1'
+                : selfContainedBedrooms.text)
+            : '0';
+      }
     });
     _scheduleDraft();
   }
@@ -169,9 +233,9 @@ class _EditListingScreenState extends State<EditListingScreen> {
           'Describe the home and surroundings in at least 80 characters.',
         if (existingGalleryImages.length + newGalleryImages.length < 3)
           'Keep at least three gallery photos.',
-        if (widget.house.latitude == null || widget.house.longitude == null)
+        if (latitude == null || longitude == null)
           'Add an approximate map location.',
-        if (widget.house.cityId == null || widget.house.areaId == null)
+        if (selectedCityId == null || selectedAreaId == null)
           'Choose a recognised city and area.',
         if ((int.tryParse(rentalPrice.text) ?? 0) < 300)
           'Confirm a monthly rent of at least K300.',
@@ -190,6 +254,7 @@ class _EditListingScreenState extends State<EditListingScreen> {
       'city': city,
       'description': description,
       'bedrooms': bedrooms,
+      'self_contained_bedrooms': selfContainedBedrooms,
       'bathrooms': bathrooms,
       'size': size,
       'country': country,
@@ -227,7 +292,16 @@ class _EditListingScreenState extends State<EditListingScreen> {
       newCoverImage = file('cover');
       newReelVideo = file('reel_video');
       newGalleryImages.addAll(files('gallery'));
+      final savedTypes = draft['gallery_types'];
+      if (savedTypes is Map) {
+        newGalleryImageTypes.addAll(savedTypes
+            .map((key, value) => MapEntry(key.toString(), value.toString())));
+      }
       newVideos.addAll(files('videos'));
+      selectedCityId = int.tryParse('${draft['city_id']}') ?? selectedCityId;
+      selectedAreaId = int.tryParse('${draft['area_id']}') ?? selectedAreaId;
+      latitude = double.tryParse('${draft['latitude']}') ?? latitude;
+      longitude = double.tryParse('${draft['longitude']}') ?? longitude;
       deletedImageIds.addAll((draft['deleted_image_ids'] is List
               ? draft['deleted_image_ids'] as List
               : const [])
@@ -247,6 +321,7 @@ class _EditListingScreenState extends State<EditListingScreen> {
         'city': city.text,
         'description': description.text,
         'bedrooms': bedrooms.text,
+        'self_contained_bedrooms': selfContainedBedrooms.text,
         'bathrooms': bathrooms.text,
         'size': size.text,
         'country': country.text,
@@ -260,9 +335,14 @@ class _EditListingScreenState extends State<EditListingScreen> {
         'pool': pool,
         'garage': garage,
         'amenity_ids': amenityIds.toList(),
+        'city_id': selectedCityId,
+        'area_id': selectedAreaId,
+        'latitude': latitude,
+        'longitude': longitude,
         'cover': newCoverImage?.path,
         'reel_video': newReelVideo?.path,
         'gallery': newGalleryImages.map((item) => item.path).toList(),
+        'gallery_types': newGalleryImageTypes,
         'videos': newVideos.map((item) => item.path).toList(),
         'deleted_image_ids': deletedImageIds,
         'deleted_media_ids': deletedMediaIds,
@@ -273,8 +353,11 @@ class _EditListingScreenState extends State<EditListingScreen> {
       final images = await PropertyDetailsService.gallery(widget.house.id);
       if (!mounted) return;
       setState(() {
-        existingGalleryImages
-            .addAll(images.map((image) => {'id': image.id, 'url': image.url}));
+        existingGalleryImages.addAll(images.map((image) => {
+              'id': image.id,
+              'url': image.url,
+              'type': image.type,
+            }));
         loadingImages = false;
       });
     } catch (error) {
@@ -327,6 +410,9 @@ class _EditListingScreenState extends State<EditListingScreen> {
             ListingDraftService.instance.retainMedia(_draftId, image.path)));
         setState(() {
           newGalleryImages.addAll(retained);
+          for (final image in retained) {
+            newGalleryImageTypes[image.path] = 'other';
+          }
           final available = (12 - existingGalleryImages.length).clamp(0, 12);
           if (newGalleryImages.length > available) {
             newGalleryImages.removeRange(available, newGalleryImages.length);
@@ -405,6 +491,11 @@ class _EditListingScreenState extends State<EditListingScreen> {
     if (preparingVideo || saving) return;
     FocusScope.of(context).unfocus();
     if (!formKey.currentState!.validate()) return;
+    if ((int.tryParse(selfContainedBedrooms.text) ?? 0) >
+        (int.tryParse(bedrooms.text) ?? 0)) {
+      _message('Self-contained bedrooms cannot exceed total bedrooms.');
+      return;
+    }
     // Acknowledge the tap straight away; publishing feedback remains separate
     // and is only used once the request actually succeeds.
     PremiumHaptics.action();
@@ -418,6 +509,8 @@ class _EditListingScreenState extends State<EditListingScreen> {
       'address': city.text.trim(),
       'description': description.text.trim(),
       'bedrooms': int.tryParse(bedrooms.text) ?? widget.house.bedrooms,
+      'self_contained_bedrooms': int.tryParse(selfContainedBedrooms.text) ??
+          widget.house.selfContainedBedrooms,
       'bathrooms': int.tryParse(bathrooms.text) ?? widget.house.bathrooms,
       'size': int.tryParse(size.text) ?? widget.house.size,
       'status': 'For Rent',
@@ -436,6 +529,8 @@ class _EditListingScreenState extends State<EditListingScreen> {
       'car_garage': int.tryParse(parking.text) ?? widget.house.carGarage,
       'amenity_ids': amenityIds.toList(),
       'amenity_ids_present': 1,
+      'latitude': latitude?.toString() ?? '',
+      'longitude': longitude?.toString() ?? '',
     };
     try {
       await House.updateHouse(
@@ -445,6 +540,14 @@ class _EditListingScreenState extends State<EditListingScreen> {
         galleryImagePaths: newGalleryImages.isEmpty
             ? null
             : newGalleryImages.map((image) => image.path).toList(),
+        galleryImageTypes: newGalleryImages
+            .map((image) => newGalleryImageTypes[image.path] ?? 'other')
+            .toList(),
+        existingImageTypes: {
+          for (final image in existingGalleryImages)
+            if (image['id'] is int)
+              image['id'] as int: image['type']?.toString() ?? 'other',
+        },
         deletedImageIds: deletedImageIds,
         videoPaths: newVideos.map((video) => video.path).toList(),
         reelVideoPath: newReelVideo?.path,
@@ -535,6 +638,13 @@ class _EditListingScreenState extends State<EditListingScreen> {
                       numeric: true,
                       requiredField: true)),
             ]),
+            ListingTextField(
+              controller: selfContainedBedrooms,
+              label: 'Self-contained bedrooms',
+              hint: 'Bedrooms with their own bathroom',
+              numeric: true,
+              requiredField: true,
+            ),
             Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Expanded(
                   child: ListingTextField(
@@ -571,9 +681,32 @@ class _EditListingScreenState extends State<EditListingScreen> {
               },
             ),
             _section('Location', 'Help people understand the neighbourhood'),
+            const ListingSurface(
+              child: Row(children: [
+                Icon(Icons.location_city_outlined),
+                SizedBox(width: 12),
+                Expanded(
+                    child: Text(
+                        'Select a city and area below. Both are required.')),
+              ]),
+            ),
+            const SizedBox(height: 14),
             FutureBuilder<RecommendationOptions>(
               future: locationOptions,
               builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return ListingSurface(
+                    child: Row(children: [
+                      const Expanded(
+                          child: Text('Locations could not be loaded.')),
+                      TextButton(
+                        onPressed: () => setState(
+                            () => locationOptions = _loadLocationOptions()),
+                        child: const Text('Retry'),
+                      ),
+                    ]),
+                  );
+                }
                 if (!snapshot.hasData) {
                   return const Padding(
                     padding: EdgeInsets.symmetric(vertical: 20),
@@ -641,6 +774,21 @@ class _EditListingScreenState extends State<EditListingScreen> {
                 controller: country, label: 'Country', requiredField: true),
             ListingTextField(
                 controller: houseNumber, label: 'Street or house number'),
+            ListingSurface(
+              child: Row(children: [
+                const Icon(Icons.location_on_outlined),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(latitude == null
+                      ? 'Select an approximate map location'
+                      : 'Map location selected'),
+                ),
+                TextButton(
+                  onPressed: _selectMapLocation,
+                  child: Text(latitude == null ? 'Select' : 'Change'),
+                ),
+              ]),
+            ),
             _section('Photos', 'Keep the presentation bright and current'),
             _coverCard(),
             const SizedBox(height: 16),
@@ -766,6 +914,9 @@ class _EditListingScreenState extends State<EditListingScreen> {
             Wrap(spacing: 9, runSpacing: 9, children: [
               ...existingGalleryImages.map((image) => _NetworkThumb(
                     url: image['url'] as String,
+                    type: image['type']?.toString() ?? 'other',
+                    onTypeChanged: (type) =>
+                        setState(() => image['type'] = type),
                     onRemove: () => setState(() {
                       deletedImageIds.add(image['id'] as int);
                       existingGalleryImages.remove(image);
@@ -773,8 +924,13 @@ class _EditListingScreenState extends State<EditListingScreen> {
                   )),
               ...newGalleryImages.map((image) => _FileThumb(
                   image: image,
-                  onRemove: () =>
-                      setState(() => newGalleryImages.remove(image)))),
+                  type: newGalleryImageTypes[image.path] ?? 'other',
+                  onTypeChanged: (type) =>
+                      setState(() => newGalleryImageTypes[image.path] = type),
+                  onRemove: () => setState(() {
+                        newGalleryImages.remove(image);
+                        newGalleryImageTypes.remove(image.path);
+                      }))),
             ]),
         ]),
       );
@@ -885,12 +1041,20 @@ class _EditVideoRow extends StatelessWidget {
 
 class _NetworkThumb extends StatelessWidget {
   final String url;
+  final String type;
+  final ValueChanged<String> onTypeChanged;
   final VoidCallback onRemove;
-  const _NetworkThumb({required this.url, required this.onRemove});
+  const _NetworkThumb(
+      {required this.url,
+      required this.type,
+      required this.onTypeChanged,
+      required this.onRemove});
 
   @override
   Widget build(BuildContext context) => _ThumbFrame(
         onRemove: onRemove,
+        type: type,
+        onTypeChanged: onTypeChanged,
         child: CachedNetworkImage(
             imageUrl: url,
             memCacheWidth: 264,
@@ -904,37 +1068,56 @@ class _NetworkThumb extends StatelessWidget {
 
 class _FileThumb extends StatelessWidget {
   final File image;
+  final String type;
+  final ValueChanged<String> onTypeChanged;
   final VoidCallback onRemove;
-  const _FileThumb({required this.image, required this.onRemove});
+  const _FileThumb(
+      {required this.image,
+      required this.type,
+      required this.onTypeChanged,
+      required this.onRemove});
 
   @override
   Widget build(BuildContext context) => _ThumbFrame(
       onRemove: onRemove,
+      type: type,
+      onTypeChanged: onTypeChanged,
       child: Image.file(image, width: 88, height: 88, fit: BoxFit.cover));
 }
 
 class _ThumbFrame extends StatelessWidget {
   final Widget child;
   final VoidCallback onRemove;
-  const _ThumbFrame({required this.child, required this.onRemove});
+  final String type;
+  final ValueChanged<String> onTypeChanged;
+  const _ThumbFrame(
+      {required this.child,
+      required this.onRemove,
+      required this.type,
+      required this.onTypeChanged});
 
   @override
-  Widget build(BuildContext context) =>
-      Stack(clipBehavior: Clip.none, children: [
-        ClipRRect(borderRadius: BorderRadius.circular(13), child: child),
-        Positioned(
-          right: -7,
-          top: -7,
-          child: Material(
-              color: AppColors.surfaceDark,
-              shape: const CircleBorder(),
-              child: InkWell(
-                  onTap: onRemove,
-                  customBorder: const CircleBorder(),
-                  child: const Padding(
-                      padding: EdgeInsets.all(5),
-                      child: Icon(Icons.close_rounded,
-                          color: Colors.white, size: 15)))),
-        ),
-      ]);
+  Widget build(BuildContext context) => SizedBox(
+      width: 138,
+      child: Column(children: [
+        Stack(clipBehavior: Clip.none, children: [
+          ClipRRect(borderRadius: BorderRadius.circular(13), child: child),
+          Positioned(
+            right: -7,
+            top: -7,
+            child: Material(
+                color: AppColors.surfaceDark,
+                shape: const CircleBorder(),
+                child: InkWell(
+                    onTap: onRemove,
+                    customBorder: const CircleBorder(),
+                    child: const Padding(
+                        padding: EdgeInsets.all(5),
+                        child: Icon(Icons.close_rounded,
+                            color: Colors.white, size: 15)))),
+          ),
+        ]),
+        const SizedBox(height: 7),
+        ListingPhotoTypePicker(value: type, onChanged: onTypeChanged)
+      ]));
 }

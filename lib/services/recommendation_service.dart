@@ -71,7 +71,7 @@ class RecommendationService with WidgetsBindingObserver {
   }
 
   Future<RecommendationOptions> options() async {
-    final key = AppCache.instance.publicKey('recommendation-options:v1');
+    final key = AppCache.instance.publicKey('recommendation-options:v2');
     final cached = await AppCache.instance.read(key);
     if (cached != null && !cached.isExpired) {
       return RecommendationOptions.fromMap(
@@ -102,6 +102,8 @@ class RecommendationService with WidgetsBindingObserver {
     required Set<int> areaIds,
     required int minBedrooms,
     required int maxBedrooms,
+    int? minSelfContainedBedrooms,
+    int? maxSelfContainedBedrooms,
     required int minMonthlyPrice,
     required int maxMonthlyPrice,
     required Set<int> amenityIds,
@@ -114,6 +116,10 @@ class RecommendationService with WidgetsBindingObserver {
       'area_ids': areaIds.toList(),
       'min_bedrooms': minBedrooms,
       'max_bedrooms': maxBedrooms,
+      if (minSelfContainedBedrooms != null)
+        'min_self_contained_bedrooms': minSelfContainedBedrooms,
+      if (maxSelfContainedBedrooms != null)
+        'max_self_contained_bedrooms': maxSelfContainedBedrooms,
       'min_monthly_price': minMonthlyPrice,
       'max_monthly_price': maxMonthlyPrice,
       'amenity_ids': amenityIds.toList(),
@@ -165,6 +171,10 @@ class RecommendationService with WidgetsBindingObserver {
             'areas': areaIds.map((id) => {'id': id}).toList(),
             'min_bedrooms': minBedrooms,
             'max_bedrooms': maxBedrooms,
+            if (minSelfContainedBedrooms != null)
+              'min_self_contained_bedrooms': minSelfContainedBedrooms,
+            if (maxSelfContainedBedrooms != null)
+              'max_self_contained_bedrooms': maxSelfContainedBedrooms,
             'min_monthly_price': minMonthlyPrice,
             'max_monthly_price': maxMonthlyPrice,
             'amenities': amenityIds.map((id) => {'id': id}).toList(),

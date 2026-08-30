@@ -165,6 +165,14 @@ class _RecommendationHistoryScreenState
                                 ? 'No required amenities'
                                 : amenities),
                         const SizedBox(height: 10),
+                        _Fact(
+                          Icons.bedroom_parent_outlined,
+                          profile['min_self_contained_bedrooms'] == null
+                              ? 'No minimum'
+                              : '${profile['min_self_contained_bedrooms']}–${profile['max_self_contained_bedrooms']} self-contained',
+                          'Bedrooms with their own bathroom',
+                        ),
+                        const SizedBox(height: 10),
                         _Fact(Icons.payments_outlined, _budgetLabel(profile),
                             'Preferred monthly rent'),
                         const SizedBox(height: 10),
