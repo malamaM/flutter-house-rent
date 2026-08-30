@@ -567,7 +567,11 @@ class _DetailsState extends State<Details> {
           HavenPageRoute(
               builder: (_) => ConversationScreen(
                     conversationId: conversationId,
-                    title: widget.house.name,
+                    propertyTitle: widget.house.name,
+                    participantName: widget.house.ownerName ?? 'Property owner',
+                    participantPhone: widget.house.ownerPhone,
+                    participantWhatsApp: widget.house.ownerWhatsApp,
+                    participantEmail: widget.house.ownerEmail,
                   )));
     } on MarketplaceException catch (error) {
       if (!await NetworkStatusService.instance.checkNow()) {

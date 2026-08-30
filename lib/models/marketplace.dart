@@ -1,17 +1,27 @@
 class ConversationSummary {
   final int id;
-  final String title;
-  final String? imagePath;
+  final String propertyTitle;
+  final String? propertyImagePath;
+  final String participantName;
+  final String? participantImagePath;
+  final String? participantEmail;
+  final String? participantPhone;
+  final String? participantWhatsApp;
   final String lastMessage;
   final int unreadCount;
   final DateTime? updatedAt;
 
   const ConversationSummary({
     required this.id,
-    required this.title,
+    required this.propertyTitle,
+    required this.participantName,
     required this.lastMessage,
     required this.unreadCount,
-    this.imagePath,
+    this.propertyImagePath,
+    this.participantImagePath,
+    this.participantEmail,
+    this.participantPhone,
+    this.participantWhatsApp,
     this.updatedAt,
   });
 
@@ -20,10 +30,22 @@ class ConversationSummary {
     final messages = map['messages'] as List? ?? const [];
     final last =
         messages.isEmpty ? const <String, dynamic>{} : _map(messages.first);
+    final role = map['viewer_role'] == 'lister'
+        ? ViewingRole.lister
+        : ViewingRole.renter;
+    final otherParty =
+        role == ViewingRole.lister ? _map(map['renter']) : _map(map['lister']);
     return ConversationSummary(
       id: _integer(map['id']),
-      title: _text(house['title'], fallback: 'Property conversation'),
-      imagePath: house['image-cover']?.toString(),
+      propertyTitle: _text(house['title'], fallback: 'Property conversation'),
+      propertyImagePath: _nullableText(house['image-cover']),
+      participantName: _personName(otherParty) ?? 'Haven member',
+      participantImagePath: _nullableText(otherParty['profile_picture']),
+      participantEmail: _nullableText(otherParty['email']),
+      participantPhone:
+          _nullableText(otherParty['phone_number'] ?? otherParty['phone']),
+      participantWhatsApp: _nullableText(
+          otherParty['whatsapp_number'] ?? otherParty['whatsapp']),
       lastMessage: _text(last['body'], fallback: 'Conversation started'),
       unreadCount: _integer(map['unread_count']),
       updatedAt: _date(map['last_message_at'] ?? map['updated_at']),

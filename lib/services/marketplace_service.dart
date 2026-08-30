@@ -24,7 +24,7 @@ class MarketplaceService {
   Future<List<ConversationSummary>> conversations(
       {bool refresh = false}) async {
     final json = await _cachedGet(
-        'marketplace:conversations:v2', 'conversations',
+        'marketplace:conversations:v3', 'conversations',
         refresh: refresh);
     return _pageItems(json).map(ConversationSummary.fromMap).toList();
   }
@@ -88,7 +88,7 @@ class MarketplaceService {
 
   Future<int> startConversation(int houseId) async {
     final json = await _send('POST', 'houses/$houseId/conversation');
-    await _invalidate('marketplace:conversations:v2');
+    await _invalidate('marketplace:conversations:v3');
     return (Map<String, dynamic>.from(json['conversation'] as Map)['id'] as num)
         .toInt();
   }
@@ -98,7 +98,7 @@ class MarketplaceService {
         {'body': body.trim()});
     await Future.wait([
       _invalidate('marketplace:conversation:$conversationId:messages:v3'),
-      _invalidate('marketplace:conversations:v2'),
+      _invalidate('marketplace:conversations:v3'),
       _invalidate('marketplace:notifications:v2'),
     ]);
     return ChatMessage.fromMap(

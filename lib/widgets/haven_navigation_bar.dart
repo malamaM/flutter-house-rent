@@ -6,9 +6,11 @@ import 'package:flutter/material.dart';
 class HavenNavigationBar extends StatelessWidget
     implements PreferredSizeWidget {
   final String title;
+  final Widget? middle;
   final Widget? trailing;
 
-  const HavenNavigationBar({super.key, required this.title, this.trailing});
+  const HavenNavigationBar(
+      {super.key, required this.title, this.middle, this.trailing});
 
   @override
   Size get preferredSize => const Size.fromHeight(46);
@@ -17,10 +19,11 @@ class HavenNavigationBar extends StatelessWidget
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return CupertinoNavigationBar(
-      middle: Text(title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.titleMedium),
+      middle: middle ??
+          Text(title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleMedium),
       trailing: trailing,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor.withValues(
           alpha: Theme.of(context).brightness == Brightness.dark ? .89 : .87),

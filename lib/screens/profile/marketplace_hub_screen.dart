@@ -199,25 +199,38 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
       onTap: () => Navigator.push(
         context,
         HavenPageRoute(
-          builder: (_) =>
-              ConversationScreen(conversationId: item.id, title: item.title),
+          builder: (_) => ConversationScreen(
+            conversationId: item.id,
+            propertyTitle: item.propertyTitle,
+            participantName: item.participantName,
+            participantImagePath: item.participantImagePath,
+            participantPhone: item.participantPhone,
+            participantWhatsApp: item.participantWhatsApp,
+            participantEmail: item.participantEmail,
+          ),
         ),
       ).then<void>((_) {
         unawaited(_refresh(0));
       }),
       child: Row(
         children: [
-          _PropertyAvatar(imagePath: item.imagePath, icon: Icons.home_outlined),
+          _PropertyAvatar(
+              imagePath: item.propertyImagePath, icon: Icons.home_outlined),
           const SizedBox(width: 13),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.title,
+                Text(item.participantName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 5),
+                const SizedBox(height: 2),
+                Text(item.propertyTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall),
+                const SizedBox(height: 3),
                 Text(item.lastMessage,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -728,9 +741,23 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
 
 class ConversationScreen extends StatefulWidget {
   final int conversationId;
-  final String title;
-  const ConversationScreen(
-      {super.key, required this.conversationId, required this.title});
+  final String propertyTitle;
+  final String participantName;
+  final String? participantImagePath;
+  final String? participantEmail;
+  final String? participantPhone;
+  final String? participantWhatsApp;
+
+  const ConversationScreen({
+    super.key,
+    required this.conversationId,
+    required this.propertyTitle,
+    required this.participantName,
+    this.participantImagePath,
+    this.participantEmail,
+    this.participantPhone,
+    this.participantWhatsApp,
+  });
 
   @override
   State<ConversationScreen> createState() => _ConversationScreenState();
@@ -826,7 +853,15 @@ class _ConversationScreenState extends State<ConversationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: HavenNavigationBar(title: widget.title),
+      appBar: HavenNavigationBar(
+        title: widget.participantName,
+        middle: _ConversationParticipantHeader(
+          name: widget.participantName,
+          propertyTitle: widget.propertyTitle,
+          imagePath: widget.participantImagePath,
+          onTap: _showParticipantProfile,
+        ),
+      ),
       body: Column(
         children: [
           Expanded(child: _messageBody()),
@@ -838,6 +873,21 @@ class _ConversationScreenState extends State<ConversationScreen> {
       ),
     );
   }
+
+  Future<void> _showParticipantProfile() => showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        barrierColor: Colors.black.withValues(alpha: .36),
+        builder: (context) => _ConversationProfileCard(
+          name: widget.participantName,
+          propertyTitle: widget.propertyTitle,
+          imagePath: widget.participantImagePath,
+          email: widget.participantEmail,
+          phone: widget.participantPhone,
+          whatsApp: widget.participantWhatsApp,
+        ),
+      );
 
   Widget _messageBody() {
     if (_loading) return const _MarketplaceSkeleton();
@@ -863,6 +913,264 @@ class _ConversationScreenState extends State<ConversationScreen> {
       itemBuilder: (_, index) => _MessageBubble(message: _messages[index]),
     );
   }
+}
+
+class _ConversationParticipantHeader extends StatelessWidget {
+  final String name;
+  final String propertyTitle;
+  final String? imagePath;
+  final VoidCallback onTap;
+
+  const _ConversationParticipantHeader({
+    required this.name,
+    required this.propertyTitle,
+    required this.imagePath,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: SizedBox(
+          width: 230,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _PersonAvatar(name: name, imagePath: imagePath, radius: 15),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleSmall),
+                    Text(propertyTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelSmall),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.keyboard_arrow_down_rounded,
+                  size: 17,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+            ],
+          ),
+        ),
+      );
+}
+
+class _ConversationProfileCard extends StatelessWidget {
+  final String name;
+  final String propertyTitle;
+  final String? imagePath;
+  final String? email;
+  final String? phone;
+  final String? whatsApp;
+
+  const _ConversationProfileCard({
+    required this.name,
+    required this.propertyTitle,
+    this.imagePath,
+    this.email,
+    this.phone,
+    this.whatsApp,
+  });
+
+  Future<void> _open(BuildContext context, Uri uri) async {
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) &&
+        context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('This contact option is unavailable.')));
+    }
+  }
+
+  String _whatsAppDigits(String value) {
+    var digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.startsWith('0')) digits = '260${digits.substring(1)}';
+    if (digits.length == 9) digits = '260$digits';
+    return digits;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasContact = phone != null || whatsApp != null || email != null;
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+        child: GlassSurface(
+          borderRadius: BorderRadius.circular(28),
+          blur: 24,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 42,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _PersonAvatar(name: name, imagePath: imagePath, radius: 44),
+                const SizedBox(height: 13),
+                Text(name,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.headlineSmall),
+                const SizedBox(height: 4),
+                Text('Conversation about $propertyTitle',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall),
+                const SizedBox(height: 18),
+                if (phone != null)
+                  _ProfileContactLine(
+                      icon: Icons.phone_outlined,
+                      label: 'Phone',
+                      value: phone!),
+                if (whatsApp != null)
+                  _ProfileContactLine(
+                      icon: Icons.chat_outlined,
+                      label: 'WhatsApp',
+                      value: whatsApp!),
+                if (email != null)
+                  _ProfileContactLine(
+                      icon: Icons.email_outlined,
+                      label: 'Email',
+                      value: email!),
+                if (!hasContact)
+                  Text('No direct contact details shared',
+                      style: Theme.of(context).textTheme.bodyMedium),
+                if (hasContact) ...[
+                  const SizedBox(height: 15),
+                  Row(
+                    children: [
+                      if (phone != null)
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () =>
+                                _open(context, Uri(scheme: 'tel', path: phone)),
+                            icon: const Icon(Icons.call_outlined, size: 18),
+                            label: const Text('Call'),
+                          ),
+                        ),
+                      if (phone != null && whatsApp != null)
+                        const SizedBox(width: 8),
+                      if (whatsApp != null)
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _open(
+                                context,
+                                Uri.https(
+                                    'wa.me', '/${_whatsAppDigits(whatsApp!)}')),
+                            icon: const Icon(Icons.chat_outlined, size: 18),
+                            label: const Text('WhatsApp'),
+                          ),
+                        ),
+                    ],
+                  ),
+                  if (email != null) ...[
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () =>
+                            _open(context, Uri(scheme: 'mailto', path: email)),
+                        icon: const Icon(Icons.email_outlined, size: 18),
+                        label: const Text('Email'),
+                      ),
+                    ),
+                  ],
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PersonAvatar extends StatelessWidget {
+  final String name;
+  final String? imagePath;
+  final double radius;
+
+  const _PersonAvatar(
+      {required this.name, required this.imagePath, required this.radius});
+
+  @override
+  Widget build(BuildContext context) {
+    final url = ApiConfig.storageUrl(imagePath);
+    final fallback = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+      child: ClipOval(
+        child: url.isEmpty
+            ? Center(
+                child: Text(fallback,
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w800)))
+            : CachedNetworkImage(
+                imageUrl: url,
+                width: radius * 2,
+                height: radius * 2,
+                fit: BoxFit.cover,
+                errorWidget: (_, __, ___) => Center(
+                    child: Text(fallback,
+                        style: const TextStyle(fontWeight: FontWeight.w800))),
+              ),
+      ),
+    );
+  }
+}
+
+class _ProfileContactLine extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _ProfileContactLine(
+      {required this.icon, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(12)),
+              child: Icon(icon,
+                  size: 19, color: Theme.of(context).colorScheme.primary),
+            ),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: Theme.of(context).textTheme.labelSmall),
+                  const SizedBox(height: 1),
+                  Text(value, style: Theme.of(context).textTheme.bodyMedium),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
 }
 
 class _SavedSearchSheet extends StatefulWidget {
