@@ -71,6 +71,7 @@ class House {
   double? longitude;
   bool isSaved;
   bool isReserved;
+  int reservationSlotsCount;
   int? ownerId;
   String? ownerName;
   String? ownerEmail;
@@ -130,6 +131,7 @@ class House {
     this.longitude,
     this.isSaved = false,
     this.isReserved = false,
+    this.reservationSlotsCount = 0,
     this.ownerId,
     this.ownerName,
     this.ownerEmail,
@@ -219,6 +221,7 @@ class House {
       longitude: _parseDouble(map['longitude']),
       isSaved: map['is_saved'] == true || map['is_saved'] == 1,
       isReserved: map['is_reserved'] == true || map['is_reserved'] == 1,
+      reservationSlotsCount: _parseInt(map['reservation_slots_count']),
       ownerId: user == null ? null : _parseInt(user['id']),
       ownerName: _ownerName(user),
       ownerEmail: user?['email']?.toString(),
@@ -305,6 +308,7 @@ class House {
         'longitude': longitude,
         'is_saved': isSaved,
         'is_reserved': isReserved,
+        'reservation_slots_count': reservationSlotsCount,
         'user': ownerId == null
             ? null
             : {
@@ -589,7 +593,7 @@ class House {
 
   static Future<List<House>> fetchMyHouses({bool forceRefresh = false}) async {
     final token = await _requiredToken();
-    final key = await AppCache.instance.privateKey('my_houses:v2');
+    final key = await AppCache.instance.privateKey('my_houses:v3');
     return _cachedList(
       key: key,
       resource: 'my_houses',

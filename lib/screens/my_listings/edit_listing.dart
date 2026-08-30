@@ -493,6 +493,14 @@ class _EditListingScreenState extends State<EditListingScreen> {
       _message('Self-contained bedrooms cannot exceed total bedrooms.');
       return;
     }
+    if (selectedCityId == null) {
+      _message('Choose a city or town for this listing.');
+      return;
+    }
+    if (selectedAreaId == null) {
+      _message('Choose an area or suburb for this listing.');
+      return;
+    }
     // Acknowledge the tap straight away; publishing feedback remains separate
     // and is only used once the request actually succeeds.
     PremiumHaptics.action();
@@ -715,18 +723,18 @@ class _EditListingScreenState extends State<EditListingScreen> {
                     .where((item) => item.id == selectedCityId)
                     .firstOrNull;
                 return Column(children: [
-                  DropdownButtonFormField<int>(
-                    initialValue: selectedCityId,
-                    isExpanded: true,
-                    decoration:
-                        const InputDecoration(labelText: 'City or town'),
+                  ListingPickerField<int>(
+                    label: 'City or town',
+                    valueLabel: selectedCity?.name ??
+                        (city.text.trim().isEmpty ? null : city.text.trim()),
+                    placeholder: 'Choose a city or town',
                     items: options.cities
-                        .map((item) => DropdownMenuItem(
-                            value: item.id, child: Text(item.name)))
+                        .map((item) => PopupMenuItem<int>(
+                              value: item.id,
+                              child: Text(item.name),
+                            ))
                         .toList(),
-                    validator: (value) =>
-                        value == null ? 'Choose a city' : null,
-                    onChanged: (value) => setState(() {
+                    onSelected: (value) => setState(() {
                       selectedCityId = value;
                       selectedAreaId = null;
                       final selected = options.cities
@@ -738,28 +746,30 @@ class _EditListingScreenState extends State<EditListingScreen> {
                     }),
                   ),
                   const SizedBox(height: 14),
-                  DropdownButtonFormField<int>(
-                    key: ValueKey('edit-area:$selectedCityId:$selectedAreaId'),
-                    initialValue: selectedAreaId,
-                    isExpanded: true,
-                    decoration:
-                        const InputDecoration(labelText: 'Area or suburb'),
+                  ListingPickerField<int>(
+                    label: 'Area or suburb',
+                    valueLabel: selectedCity?.areas
+                        .where((item) => item.id == selectedAreaId)
+                        .firstOrNull
+                        ?.name,
+                    placeholder: selectedCity == null
+                        ? 'Choose a city first'
+                        : 'Choose an area or suburb',
+                    enabled: selectedCity != null,
                     items: (selectedCity?.areas ?? const <RentalArea>[])
-                        .map((item) => DropdownMenuItem(
-                            value: item.id, child: Text(item.name)))
+                        .map((item) => PopupMenuItem<int>(
+                              value: item.id,
+                              child: Text(item.name),
+                            ))
                         .toList(),
-                    validator: (value) =>
-                        value == null ? 'Choose an area' : null,
-                    onChanged: selectedCity == null
-                        ? null
-                        : (value) => setState(() {
-                              selectedAreaId = value;
-                              district.text = selectedCity.areas
-                                      .where((item) => item.id == value)
-                                      .firstOrNull
-                                      ?.name ??
-                                  '';
-                            }),
+                    onSelected: (value) => setState(() {
+                      selectedAreaId = value;
+                      district.text = selectedCity!.areas
+                              .where((item) => item.id == value)
+                              .firstOrNull
+                              ?.name ??
+                          '';
+                    }),
                   ),
                   const SizedBox(height: 14),
                 ]);
@@ -908,27 +918,36 @@ class _EditListingScreenState extends State<EditListingScreen> {
                     style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurfaceVariant)))
           else
-            Wrap(spacing: 9, runSpacing: 9, children: [
-              ...existingGalleryImages.map((image) => _NetworkThumb(
-                    url: image['url'] as String,
-                    type: image['type']?.toString() ?? 'other',
-                    onTypeChanged: (type) =>
-                        setState(() => image['type'] = type),
-                    onRemove: () => setState(() {
-                      deletedImageIds.add(image['id'] as int);
-                      existingGalleryImages.remove(image);
-                    }),
-                  )),
-              ...newGalleryImages.map((image) => _FileThumb(
-                  image: image,
-                  type: newGalleryImageTypes[image.path] ?? 'other',
-                  onTypeChanged: (type) =>
-                      setState(() => newGalleryImageTypes[image.path] = type),
-                  onRemove: () => setState(() {
-                        newGalleryImages.remove(image);
-                        newGalleryImageTypes.remove(image.path);
-                      }))),
-            ]),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final tileWidth = ((constraints.maxWidth - 12) / 2)
+                    .clamp(136.0, 220.0)
+                    .toDouble();
+                return Wrap(spacing: 12, runSpacing: 14, children: [
+                  ...existingGalleryImages.map((image) => _NetworkThumb(
+                        width: tileWidth,
+                        url: image['url'] as String,
+                        type: image['type']?.toString() ?? 'other',
+                        onTypeChanged: (type) =>
+                            setState(() => image['type'] = type),
+                        onRemove: () => setState(() {
+                          deletedImageIds.add(image['id'] as int);
+                          existingGalleryImages.remove(image);
+                        }),
+                      )),
+                  ...newGalleryImages.map((image) => _FileThumb(
+                      width: tileWidth,
+                      image: image,
+                      type: newGalleryImageTypes[image.path] ?? 'other',
+                      onTypeChanged: (type) => setState(
+                          () => newGalleryImageTypes[image.path] = type),
+                      onRemove: () => setState(() {
+                            newGalleryImages.remove(image);
+                            newGalleryImageTypes.remove(image.path);
+                          }))),
+                ]);
+              },
+            ),
         ]),
       );
 
@@ -1037,26 +1056,29 @@ class _EditVideoRow extends StatelessWidget {
 }
 
 class _NetworkThumb extends StatelessWidget {
+  final double width;
   final String url;
   final String type;
   final ValueChanged<String> onTypeChanged;
   final VoidCallback onRemove;
   const _NetworkThumb(
-      {required this.url,
+      {required this.width,
+      required this.url,
       required this.type,
       required this.onTypeChanged,
       required this.onRemove});
 
   @override
   Widget build(BuildContext context) => _ThumbFrame(
+        width: width,
         onRemove: onRemove,
         type: type,
         onTypeChanged: onTypeChanged,
         child: CachedNetworkImage(
             imageUrl: url,
-            memCacheWidth: 264,
-            width: 88,
-            height: 88,
+            memCacheWidth: (width * 2).round(),
+            width: width,
+            height: width * .72,
             fit: BoxFit.cover,
             errorWidget: (_, __, ___) => ColoredBox(
                 color: Theme.of(context).colorScheme.primaryContainer)),
@@ -1064,38 +1086,44 @@ class _NetworkThumb extends StatelessWidget {
 }
 
 class _FileThumb extends StatelessWidget {
+  final double width;
   final File image;
   final String type;
   final ValueChanged<String> onTypeChanged;
   final VoidCallback onRemove;
   const _FileThumb(
-      {required this.image,
+      {required this.width,
+      required this.image,
       required this.type,
       required this.onTypeChanged,
       required this.onRemove});
 
   @override
   Widget build(BuildContext context) => _ThumbFrame(
+      width: width,
       onRemove: onRemove,
       type: type,
       onTypeChanged: onTypeChanged,
-      child: Image.file(image, width: 88, height: 88, fit: BoxFit.cover));
+      child: Image.file(image,
+          width: width, height: width * .72, fit: BoxFit.cover));
 }
 
 class _ThumbFrame extends StatelessWidget {
+  final double width;
   final Widget child;
   final VoidCallback onRemove;
   final String type;
   final ValueChanged<String> onTypeChanged;
   const _ThumbFrame(
-      {required this.child,
+      {required this.width,
+      required this.child,
       required this.onRemove,
       required this.type,
       required this.onTypeChanged});
 
   @override
   Widget build(BuildContext context) => SizedBox(
-      width: 138,
+      width: width,
       child: Column(children: [
         Stack(clipBehavior: Clip.none, children: [
           ClipRRect(borderRadius: BorderRadius.circular(13), child: child),

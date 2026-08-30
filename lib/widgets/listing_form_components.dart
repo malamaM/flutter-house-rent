@@ -22,25 +22,122 @@ class ListingPhotoTypePicker extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => DropdownButtonFormField<String>(
-        initialValue: listingPhotoTypes.containsKey(value) ? value : 'other',
-        isExpanded: true,
-        decoration: const InputDecoration(
-          labelText: 'Room tag',
-          isDense: true,
-          contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final selected = listingPhotoTypes[value] ?? listingPhotoTypes['other']!;
+    return PopupMenuButton<String>(
+      tooltip: 'Change room tag',
+      offset: const Offset(0, 8),
+      position: PopupMenuPosition.under,
+      constraints: const BoxConstraints(maxHeight: 360),
+      onSelected: onChanged,
+      itemBuilder: (_) => listingPhotoTypes.entries
+          .map((entry) => PopupMenuItem<String>(
+                value: entry.key,
+                child: Row(
+                  children: [
+                    Icon(
+                      entry.key == value
+                          ? Icons.check_rounded
+                          : Icons.photo_outlined,
+                      size: 18,
+                      color: entry.key == value
+                          ? colors.primary
+                          : colors.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 10),
+                    Text(entry.value),
+                  ],
+                ),
+              ))
+          .toList(),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: colors.outlineVariant),
         ),
-        items: listingPhotoTypes.entries
-            .map((entry) => DropdownMenuItem(
-                  value: entry.key,
-                  child: Text(entry.value,
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
-                ))
-            .toList(),
-        onChanged: (next) {
-          if (next != null) onChanged(next);
-        },
-      );
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Room tag',
+                      style: TextStyle(
+                          color: colors.primary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 2),
+                  Text(selected,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w700)),
+                ],
+              ),
+            ),
+            Icon(Icons.expand_more_rounded,
+                size: 20, color: colors.onSurfaceVariant),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ListingPickerField<T> extends StatelessWidget {
+  final String label;
+  final String? valueLabel;
+  final String placeholder;
+  final bool enabled;
+  final List<PopupMenuEntry<T>> items;
+  final ValueChanged<T> onSelected;
+
+  const ListingPickerField({
+    super.key,
+    required this.label,
+    required this.valueLabel,
+    required this.items,
+    required this.onSelected,
+    this.placeholder = 'Choose an option',
+    this.enabled = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return PopupMenuButton<T>(
+      enabled: enabled,
+      tooltip: 'Choose $label',
+      offset: const Offset(0, 8),
+      position: PopupMenuPosition.under,
+      constraints: const BoxConstraints(maxHeight: 360),
+      onSelected: onSelected,
+      itemBuilder: (_) => items,
+      child: InputDecorator(
+        isEmpty: valueLabel == null,
+        decoration: InputDecoration(
+          labelText: label,
+          enabled: enabled,
+          suffixIcon: Icon(Icons.expand_more_rounded,
+              color: enabled ? colors.onSurfaceVariant : colors.outline),
+        ),
+        child: Text(
+          valueLabel ?? placeholder,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color:
+                valueLabel == null ? colors.onSurfaceVariant : colors.onSurface,
+            fontWeight: valueLabel == null ? FontWeight.w400 : FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class ListingQualityGuide extends StatelessWidget {

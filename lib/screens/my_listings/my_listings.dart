@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/models/marketplace.dart';
@@ -63,6 +64,7 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
         houseName: house.name,
       ),
     );
+    if (mounted) setState(() => _reload(forceRefresh: true));
   }
 
   Future<void> _renew(House house) async {
@@ -278,6 +280,55 @@ class _ListingLifecycleBar extends StatelessWidget {
             ],
           ),
         ]),
+        const SizedBox(height: 7),
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onReservations,
+            borderRadius: BorderRadius.circular(11),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
+                children: [
+                  Icon(
+                    house.reservationSlotsCount > 0
+                        ? Icons.event_available_rounded
+                        : Icons.event_note_outlined,
+                    size: 17,
+                    color: house.reservationSlotsCount > 0
+                        ? colors.primary
+                        : colors.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      house.reservationSlotsCount > 0
+                          ? '${house.reservationSlotsCount} reservation ${house.reservationSlotsCount == 1 ? 'date' : 'dates'} set'
+                          : 'No reservation dates set',
+                      style: TextStyle(
+                        color: house.reservationSlotsCount > 0
+                            ? colors.primary
+                            : colors.onSurfaceVariant,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    house.reservationSlotsCount > 0 ? 'Manage' : 'Add dates',
+                    style: TextStyle(
+                      color: colors.primary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded,
+                      size: 18, color: colors.primary),
+                ],
+              ),
+            ),
+          ),
+        ),
         if (house.qualityScore > 0 && house.qualityScore < 86) ...[
           const SizedBox(height: 6),
           Row(children: [
@@ -325,22 +376,24 @@ class _ReservationSlotsSheetState extends State<_ReservationSlotsSheet> {
 
   Future<void> _addDate() async {
     final tomorrow = DateTime.now().add(const Duration(days: 1));
-    final day = await showDatePicker(
+    final minimumDate = DateTime(tomorrow.year, tomorrow.month, tomorrow.day);
+    final startsAt = await showModalBottomSheet<DateTime>(
       context: context,
-      firstDate: DateTime(tomorrow.year, tomorrow.month, tomorrow.day),
-      lastDate: DateTime.now().add(const Duration(days: 180)),
-      initialDate: DateTime(tomorrow.year, tomorrow.month, tomorrow.day),
-      helpText: 'Choose a reservation date',
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ReservationDateTimePicker(
+        minimumDate: minimumDate,
+        maximumDate: DateTime.now().add(const Duration(days: 180)),
+        initialDateTime: DateTime(
+          tomorrow.year,
+          tomorrow.month,
+          tomorrow.day,
+          10,
+        ),
+      ),
     );
-    if (day == null || !mounted) return;
-    final time = await showTimePicker(
-      context: context,
-      initialTime: const TimeOfDay(hour: 10, minute: 0),
-      helpText: 'Choose an arrival time',
-    );
-    if (time == null || !mounted) return;
-    final startsAt =
-        DateTime(day.year, day.month, day.day, time.hour, time.minute);
+    if (startsAt == null || !mounted) return;
     if (!startsAt.isAfter(DateTime.now())) {
       _showMessage('Choose a time that is still ahead.');
       return;
@@ -534,6 +587,162 @@ class _ReservationSlotsSheetState extends State<_ReservationSlotsSheet> {
       ),
     );
   }
+}
+
+class _ReservationDateTimePicker extends StatefulWidget {
+  final DateTime minimumDate;
+  final DateTime maximumDate;
+  final DateTime initialDateTime;
+
+  const _ReservationDateTimePicker({
+    required this.minimumDate,
+    required this.maximumDate,
+    required this.initialDateTime,
+  });
+
+  @override
+  State<_ReservationDateTimePicker> createState() =>
+      _ReservationDateTimePickerState();
+}
+
+class _ReservationDateTimePickerState
+    extends State<_ReservationDateTimePicker> {
+  late DateTime _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = widget.initialDateTime;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final pickerTextStyle = TextStyle(
+      color: colors.onSurface,
+      fontSize: 22,
+      fontWeight: FontWeight.w600,
+    );
+    return Material(
+      color: colors.surface,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: colors.outlineVariant,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Add a reservation date',
+                            style: Theme.of(context).textTheme.headlineSmall),
+                        const SizedBox(height: 4),
+                        Text('Choose when customers can arrive',
+                            style: Theme.of(context).textTheme.bodyMedium),
+                      ],
+                    ),
+                  ),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: colors.primaryContainer,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(11),
+                      child: Icon(Icons.event_available_rounded,
+                          color: colors.onPrimaryContainer, size: 22),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: colors.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: colors.outlineVariant),
+                ),
+                child: CupertinoTheme(
+                  data: CupertinoThemeData(
+                    brightness: Theme.of(context).brightness,
+                    primaryColor: colors.primary,
+                    textTheme: CupertinoTextThemeData(
+                      dateTimePickerTextStyle: pickerTextStyle,
+                    ),
+                  ),
+                  child: SizedBox(
+                    height: 190,
+                    child: CupertinoDatePicker(
+                      mode: CupertinoDatePickerMode.dateAndTime,
+                      use24hFormat: false,
+                      minuteInterval: 15,
+                      minimumDate: widget.minimumDate,
+                      maximumDate: widget.maximumDate,
+                      initialDateTime: widget.initialDateTime,
+                      onDateTimeChanged: (value) => setState(() {
+                        _selected = value;
+                      }),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _slotLabelFromDateTime(_selected),
+                      style: TextStyle(
+                        color: colors.primary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  CupertinoButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 2),
+                  CupertinoButton.filled(
+                    onPressed: () => Navigator.pop(context, _selected),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 17, vertical: 9),
+                    child: const Text('Add date'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _slotLabelFromDateTime(DateTime value) {
+  final hour = value.hour % 12 == 0 ? 12 : value.hour % 12;
+  final minute = value.minute.toString().padLeft(2, '0');
+  final period = value.hour >= 12 ? 'PM' : 'AM';
+  return '${_shortDay(value)} · $hour:$minute $period';
 }
 
 class _ReservationEmptyState extends StatelessWidget {
