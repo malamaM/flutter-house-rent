@@ -190,6 +190,29 @@ class _PropertyCardState extends State<PropertyCard> {
                 compact: widget.horizontal,
               ),
             ),
+          if (widget.house.isReserved)
+            Positioned(
+              left: 10,
+              top: 10,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .tertiaryContainer
+                      .withValues(alpha: .94),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  widget.horizontal ? 'Reserved' : 'Reserved · viewings open',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onTertiaryContainer,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
           if (widget.showSave)
             Positioned(
               right: 10,

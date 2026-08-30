@@ -294,6 +294,172 @@ class _ViewingSchedulerSheetState extends State<_ViewingSchedulerSheet> {
   }
 }
 
+class _ReservationSlotSheet extends StatefulWidget {
+  final String propertyName;
+  final List<ReservationSlot> slots;
+
+  const _ReservationSlotSheet({
+    required this.propertyName,
+    required this.slots,
+  });
+
+  @override
+  State<_ReservationSlotSheet> createState() => _ReservationSlotSheetState();
+}
+
+class _ReservationSlotSheetState extends State<_ReservationSlotSheet> {
+  int? _selectedId;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final available = widget.slots
+        .where((slot) => slot.isActive && slot.startsAt.isAfter(DateTime.now()))
+        .toList();
+    return Material(
+      color: colors.surface,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: colors.outlineVariant,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text('Reserve this home',
+                  style: Theme.of(context).textTheme.headlineSmall),
+              const SizedBox(height: 5),
+              Text(
+                'Choose one date offered by the lister for ${widget.propertyName}. You can manage the reservation from Your Haven.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 16),
+              if (available.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: colors.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: colors.outlineVariant),
+                  ),
+                  child: const Text(
+                      'No reservation dates are available right now.'),
+                )
+              else
+                ...available.map((slot) {
+                  final selected = slot.id == _selectedId;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 9),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(18),
+                      onTap: () => setState(() => _selectedId = slot.id),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? colors.primaryContainer
+                              : colors.surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: selected
+                                ? colors.primary
+                                : colors.outlineVariant,
+                            width: selected ? 1.4 : .8,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              selected
+                                  ? Icons.radio_button_checked_rounded
+                                  : Icons.radio_button_off_rounded,
+                              color: selected
+                                  ? colors.primary
+                                  : colors.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 11),
+                            Icon(Icons.calendar_month_outlined,
+                                size: 19, color: colors.primary),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _reservationSlotLabel(slot),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleSmall
+                                    ?.copyWith(fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              const SizedBox(height: 5),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _selectedId == null
+                      ? null
+                      : () => Navigator.pop(context, _selectedId),
+                  icon: const Icon(Icons.lock_outline_rounded, size: 18),
+                  label: const Text('Continue with this date'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _reservationSlotLabel(ReservationSlot slot) {
+  final start = slot.startsAt;
+  final hour = start.hour % 12 == 0 ? 12 : start.hour % 12;
+  final minute = start.minute.toString().padLeft(2, '0');
+  final period = start.hour >= 12 ? 'PM' : 'AM';
+  final end = slot.endsAt;
+  final endLabel = end == null
+      ? ''
+      : ' – ${end.hour % 12 == 0 ? 12 : end.hour % 12}:${end.minute.toString().padLeft(2, '0')} ${end.hour >= 12 ? 'PM' : 'AM'}';
+  return '${_reservationDayLabel(start)} · $hour:$minute $period$endLabel';
+}
+
+String _reservationDayLabel(DateTime value) {
+  const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec'
+  ];
+  return '${weekdays[value.weekday - 1]}, ${value.day} ${months[value.month - 1]}';
+}
+
 class Details extends StatefulWidget {
   final House house;
   final bool isOwnerView;
@@ -318,6 +484,9 @@ class _DetailsState extends State<Details> {
   int _reviewVersion = 0;
   late Future<Map<String, dynamic>> _ownerFuture;
   late Future<List<ViewingSummary>> _ownerViewingsFuture;
+  late Future<ReservationState> _reservationFuture;
+  bool _reservationBusy = false;
+  bool _interestBusy = false;
   bool _ownerLoaded = false;
   bool _canReview = false;
 
@@ -340,6 +509,8 @@ class _DetailsState extends State<Details> {
     _ownerViewingsFuture = widget.isOwnerView
         ? MarketplaceService.instance.viewings()
         : Future.value(const <ViewingSummary>[]);
+    _reservationFuture =
+        MarketplaceService.instance.reservationState(widget.house.id);
     unawaited(PropertyDetailsService.cacheOwnerContact(
         widget.house.id, widget.house.ownerContact));
     if (!widget.isOwnerView) {
@@ -663,6 +834,169 @@ class _DetailsState extends State<Details> {
     }
   }
 
+  Widget _reservationAction() {
+    return FutureBuilder<ReservationState>(
+      future: _reservationFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: null,
+              icon: const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2)),
+              label: const Text('Checking reservation dates'),
+            ),
+          );
+        }
+        final state = snapshot.data;
+        if (state == null) return const SizedBox.shrink();
+        if (state.isReserved) {
+          final banner = Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.tertiaryContainer,
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.verified_outlined,
+                      size: 19,
+                      color: Theme.of(context).colorScheme.onTertiaryContainer),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Text(
+                      state.isMine
+                          ? 'You have reserved this home. Viewings can still be requested.'
+                          : 'This home is currently reserved. Viewings can still be requested.',
+                      style: TextStyle(
+                        color:
+                            Theme.of(context).colorScheme.onTertiaryContainer,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ));
+          if (state.isMine) return banner;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              banner,
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _interestBusy ? null : _toggleReservationInterest,
+                icon: _interestBusy
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : Icon(state.isInterested
+                        ? Icons.notifications_active_outlined
+                        : Icons.notifications_none_outlined),
+                label: Text(state.isInterested
+                    ? 'Turn off availability alerts'
+                    : 'Alert me when available again'),
+              ),
+            ],
+          );
+        }
+        if (state.slots.isEmpty) {
+          return SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _interestBusy ? null : _toggleReservationInterest,
+              icon: _interestBusy
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : Icon(state.isInterested
+                      ? Icons.notifications_active_outlined
+                      : Icons.notifications_none_outlined),
+              label: Text(state.isInterested
+                  ? 'Availability alerts are on'
+                  : 'Alert me when dates open'),
+            ),
+          );
+        }
+        return SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: _reservationBusy ? null : _reserveHome,
+            icon: _reservationBusy
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.lock_outline_rounded),
+            label: const Text('Reserve this home'),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _reserveHome() async {
+    setState(() => _reservationBusy = true);
+    try {
+      final state = await MarketplaceService.instance
+          .reservationState(widget.house.id, refresh: true);
+      if (!mounted) return;
+      final slotId = await showModalBottomSheet<int>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => _ReservationSlotSheet(
+          propertyName: widget.house.name,
+          slots: state.slots,
+        ),
+      );
+      if (slotId == null || !mounted) return;
+      await MarketplaceService.instance.reserveHome(widget.house.id, slotId);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      _notice('Home reserved. You can manage it from Your Haven.');
+      setState(() => _reservationFuture = MarketplaceService.instance
+          .reservationState(widget.house.id, refresh: true));
+    } on MarketplaceException catch (error) {
+      if (mounted) _notice(error.message);
+    } finally {
+      if (mounted) setState(() => _reservationBusy = false);
+    }
+  }
+
+  Future<void> _toggleReservationInterest() async {
+    setState(() => _interestBusy = true);
+    try {
+      final current = await _reservationFuture;
+      if (!mounted) return;
+      if (current.isInterested) {
+        await MarketplaceService.instance
+            .leaveReservationInterest(widget.house.id);
+      } else {
+        await MarketplaceService.instance
+            .joinReservationInterest(widget.house.id);
+      }
+      if (mounted) {
+        setState(() => _reservationFuture = MarketplaceService.instance
+            .reservationState(widget.house.id, refresh: true));
+        _notice(current.isInterested
+            ? 'Availability alerts turned off.'
+            : 'We will notify you when this home is available again.');
+      }
+    } on MarketplaceException catch (error) {
+      if (mounted) _notice(error.message);
+    } finally {
+      if (mounted) setState(() => _interestBusy = false);
+    }
+  }
+
   Future<void> _showSafetyOptions() async {
     await showCupertinoModalPopup<void>(
       context: context,
@@ -896,6 +1230,8 @@ class _DetailsState extends State<Details> {
                           label: const Text('Message in Haven'),
                         ),
                       ),
+                      const SizedBox(height: 8),
+                      _reservationAction(),
                       const SizedBox(height: 8),
                       SizedBox(
                         width: double.infinity,

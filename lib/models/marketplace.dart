@@ -55,6 +55,135 @@ class ConversationSummary {
 
 enum ViewingRole { renter, lister }
 
+class ReservationSlot {
+  final int id;
+  final DateTime startsAt;
+  final DateTime? endsAt;
+  final bool isActive;
+
+  const ReservationSlot({
+    required this.id,
+    required this.startsAt,
+    this.endsAt,
+    required this.isActive,
+  });
+
+  factory ReservationSlot.fromMap(Map<String, dynamic> map) => ReservationSlot(
+        id: _integer(map['id']),
+        startsAt: _date(map['starts_at']) ?? DateTime.now(),
+        endsAt: _date(map['ends_at']),
+        isActive: _boolean(map['is_active'] ?? true),
+      );
+}
+
+enum ReservationRole { customer, lister }
+
+class ReservationSummary {
+  final int id;
+  final int houseId;
+  final int reservationSlotId;
+  final String propertyTitle;
+  final String location;
+  final String? imagePath;
+  final String? otherPartyName;
+  final String status;
+  final ReservationRole role;
+  final DateTime scheduledStart;
+  final DateTime? scheduledEnd;
+  final DateTime? confirmedAt;
+  final DateTime? cancelledAt;
+  final DateTime? expiresAt;
+  final DateTime? expiredAt;
+  final String? cancellationReason;
+
+  const ReservationSummary({
+    required this.id,
+    required this.houseId,
+    required this.reservationSlotId,
+    required this.propertyTitle,
+    required this.location,
+    required this.status,
+    required this.role,
+    required this.scheduledStart,
+    this.imagePath,
+    this.otherPartyName,
+    this.scheduledEnd,
+    this.confirmedAt,
+    this.cancelledAt,
+    this.expiresAt,
+    this.expiredAt,
+    this.cancellationReason,
+  });
+
+  bool get isActive => status == 'confirmed';
+
+  factory ReservationSummary.fromMap(Map<String, dynamic> map) {
+    final house = _map(map['house']);
+    final district = _text(house['district']);
+    final city = _text(house['city']);
+    final role = map['viewer_role'] == 'lister'
+        ? ReservationRole.lister
+        : ReservationRole.customer;
+    final otherParty = role == ReservationRole.lister
+        ? _map(map['customer'])
+        : _map(map['lister']);
+    return ReservationSummary(
+      id: _integer(map['id']),
+      houseId: _nullableInteger(house['id'] ?? map['house_id']) ??
+          _integer(map['house_id']),
+      reservationSlotId: _integer(map['reservation_slot_id']),
+      propertyTitle: _text(house['title'], fallback: 'Rental home'),
+      location: [district, city].where((part) => part.isNotEmpty).join(', '),
+      imagePath: _nullableText(house['image-cover']),
+      otherPartyName: _personName(otherParty),
+      status: _text(map['status'], fallback: 'confirmed'),
+      role: role,
+      scheduledStart: _date(map['scheduled_start']) ?? DateTime.now(),
+      scheduledEnd: _date(map['scheduled_end']),
+      confirmedAt: _date(map['confirmed_at']),
+      cancelledAt: _date(map['cancelled_at']),
+      expiresAt: _date(map['expires_at']),
+      expiredAt: _date(map['expired_at']),
+      cancellationReason: _nullableText(map['cancellation_reason']),
+    );
+  }
+}
+
+class ReservationState {
+  final bool isReserved;
+  final bool isMine;
+  final bool isInterested;
+  final ReservationSummary? reservation;
+  final List<ReservationSlot> slots;
+
+  const ReservationState({
+    required this.isReserved,
+    required this.isMine,
+    required this.isInterested,
+    required this.reservation,
+    required this.slots,
+  });
+
+  factory ReservationState.fromMap(Map<String, dynamic> map) {
+    final rawSlots = map['slots'] as List? ?? const [];
+    final rawReservation = map['reservation'];
+    return ReservationState(
+      isReserved: _boolean(map['is_reserved']),
+      isMine: _boolean(map['is_mine']),
+      isInterested: _boolean(map['is_interested']),
+      reservation: rawReservation is Map
+          ? ReservationSummary.fromMap(
+              Map<String, dynamic>.from(rawReservation))
+          : null,
+      slots: rawSlots
+          .whereType<Map>()
+          .map((slot) =>
+              ReservationSlot.fromMap(Map<String, dynamic>.from(slot)))
+          .toList(),
+    );
+  }
+}
+
 class ViewingSummary {
   final int id;
   final int? houseId;
@@ -148,6 +277,8 @@ class HavenNotification {
   final DateTime? createdAt;
   final int? houseId;
   final int? conversationId;
+  final int? reservationId;
+  final String? viewerRole;
 
   const HavenNotification({
     required this.id,
@@ -158,6 +289,8 @@ class HavenNotification {
     this.createdAt,
     this.houseId,
     this.conversationId,
+    this.reservationId,
+    this.viewerRole,
   });
 
   factory HavenNotification.fromMap(Map<String, dynamic> map) {
@@ -171,6 +304,8 @@ class HavenNotification {
       createdAt: _date(map['created_at']),
       houseId: _nullableInteger(data['house_id']),
       conversationId: _nullableInteger(data['conversation_id']),
+      reservationId: _nullableInteger(data['reservation_id']),
+      viewerRole: _nullableText(data['viewer_role']),
     );
   }
 }

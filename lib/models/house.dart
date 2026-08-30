@@ -70,6 +70,7 @@ class House {
   double? latitude;
   double? longitude;
   bool isSaved;
+  bool isReserved;
   int? ownerId;
   String? ownerName;
   String? ownerEmail;
@@ -128,6 +129,7 @@ class House {
     this.latitude,
     this.longitude,
     this.isSaved = false,
+    this.isReserved = false,
     this.ownerId,
     this.ownerName,
     this.ownerEmail,
@@ -216,6 +218,7 @@ class House {
       latitude: _parseDouble(map['latitude']),
       longitude: _parseDouble(map['longitude']),
       isSaved: map['is_saved'] == true || map['is_saved'] == 1,
+      isReserved: map['is_reserved'] == true || map['is_reserved'] == 1,
       ownerId: user == null ? null : _parseInt(user['id']),
       ownerName: _ownerName(user),
       ownerEmail: user?['email']?.toString(),
@@ -301,6 +304,7 @@ class House {
         'latitude': latitude,
         'longitude': longitude,
         'is_saved': isSaved,
+        'is_reserved': isReserved,
         'user': ownerId == null
             ? null
             : {

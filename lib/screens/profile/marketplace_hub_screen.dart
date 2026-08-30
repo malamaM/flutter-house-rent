@@ -35,21 +35,23 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
   late Future<List<ViewingSummary>> _viewings;
   late Future<NotificationInbox> _notifications;
   late Future<List<SavedSearchSummary>> _searches;
+  late Future<List<ReservationSummary>> _reservations;
   final Set<int> _expandedViewings = <int>{};
 
   @override
   void initState() {
     super.initState();
     _tabs = TabController(
-      length: 4,
+      length: 5,
       vsync: this,
-      initialIndex: widget.initialTab.clamp(0, 3),
+      initialIndex: widget.initialTab.clamp(0, 4),
     )..addListener(_tabChanged);
     _visibleTab = _tabs.index;
     _inbox = _delayedLoad(0, MarketplaceService.instance.conversations);
     _viewings = _delayedLoad(1, MarketplaceService.instance.viewings);
     _notifications = _delayedLoad(2, MarketplaceService.instance.notifications);
     _searches = _delayedLoad(3, MarketplaceService.instance.savedSearches);
+    _reservations = _delayedLoad(4, MarketplaceService.instance.reservations);
   }
 
   Future<T> _delayedLoad<T>(int tab, Future<T> Function() loader) async {
@@ -96,6 +98,13 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
           _searches = future;
         });
         await future;
+      case 4:
+        final future = MarketplaceService.instance.reservations(refresh: true);
+        if (!mounted) return;
+        setState(() {
+          _reservations = future;
+        });
+        await future;
     }
   }
 
@@ -114,7 +123,7 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('Your Haven'),
-            Text('Messages, viewings and home alerts',
+            Text('Messages, viewings, reservations and home alerts',
                 style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
@@ -144,6 +153,7 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
                 Tab(text: 'Viewings'),
                 Tab(text: 'Updates'),
                 Tab(text: 'Saved searches'),
+                Tab(text: 'Reservations'),
               ],
             ),
           ),
@@ -181,6 +191,12 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
             emptyTitle: 'No saved searches',
             emptyBody: 'Save a search to hear when a matching home is listed.',
             itemBuilder: _savedSearch,
+          ),
+          _ReservationList(
+            future: _reservations,
+            onRefresh: () => _refresh(4),
+            onRetry: () => _refresh(4),
+            itemBuilder: _reservation,
           ),
         ],
       ),
@@ -529,8 +545,13 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
   }
 
   Widget _notification(BuildContext context, HavenNotification item) {
+    final reservationNotification = item.kind.startsWith('reservation_');
     return _HavenCard(
-      onTap: item.isRead ? null : () => _readNotification(item.id),
+      onTap: reservationNotification
+          ? () => _openNotification(item)
+          : item.isRead
+              ? null
+              : () => _readNotification(item.id),
       emphasized: !item.isRead,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -563,6 +584,28 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
         ],
       ),
     );
+  }
+
+  Future<void> _openNotification(HavenNotification item) async {
+    if (!item.isRead) await _readNotification(item.id);
+    if (!mounted) return;
+    if (item.viewerRole == 'lister') {
+      await Navigator.push(
+        context,
+        HavenPageRoute(
+          builder: (_) => const MarketplaceHubScreen(initialTab: 4),
+        ),
+      );
+      return;
+    }
+    if (item.houseId == null) return;
+    try {
+      final house = await House.fetchHouse(item.houseId!);
+      if (!mounted) return;
+      await Navigator.push(context, Details.route(house));
+    } catch (_) {
+      if (mounted) _notice('This property is no longer available.');
+    }
   }
 
   Widget _savedSearch(BuildContext context, SavedSearchSummary item) {
@@ -608,6 +651,117 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
     await _perform(() => MarketplaceService.instance.updateViewing(id, status),
         success: 'Viewing updated.');
     if (mounted) await _refresh(1);
+  }
+
+  Widget _reservation(BuildContext context, ReservationSummary item) {
+    final isCustomer = item.role == ReservationRole.customer;
+    return _HavenCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _PropertyAvatar(
+                  imagePath: item.imagePath, icon: Icons.home_outlined),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(item.propertyTitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 3),
+                    Text(
+                      isCustomer
+                          ? 'Your reservation · ${item.otherPartyName ?? 'Lister'}'
+                          : 'Reserved by ${item.otherPartyName ?? 'Haven member'}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              _StatusPill(status: item.status),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(11),
+            decoration: BoxDecoration(
+              color: Theme.of(context)
+                  .colorScheme
+                  .primaryContainer
+                  .withValues(alpha: .38),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.event_available_outlined,
+                    size: 19, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(_friendlyDate(item.scheduledStart),
+                      style: Theme.of(context).textTheme.bodyMedium),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            item.isActive
+                ? isCustomer
+                    ? 'Your reservation is confirmed. Continue any remaining rental steps directly with the lister.'
+                    : 'This home is reserved. Normal viewing requests remain available.'
+                : 'This reservation is closed.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          if (item.cancelledAt != null && item.cancellationReason != null) ...[
+            const SizedBox(height: 6),
+            Text('Cancellation note: ${item.cancellationReason}',
+                style: Theme.of(context).textTheme.bodySmall),
+          ],
+          if (item.isActive) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton(
+                onPressed: () => _cancelReservation(item),
+                child: const Text('Cancel reservation'),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _cancelReservation(ReservationSummary item) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancel reservation?'),
+        content: const Text(
+            'The home will become available for another reservation, and people following it may be notified.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Keep it')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Cancel reservation')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await _perform(
+      () => MarketplaceService.instance.cancelReservation(item.id),
+      success: 'Reservation cancelled. The home is available again.',
+    );
+    if (mounted) await _refresh(4);
   }
 
   Future<void> _readNotification(String id) async {
@@ -734,6 +888,10 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
         'viewing_updated' =>
           Icons.calendar_month_outlined,
         'listing_expiring' => Icons.schedule_rounded,
+        'reservation_created' => Icons.event_available_outlined,
+        'reservation_cancelled' => Icons.event_busy_outlined,
+        'reservation_available' => Icons.notifications_active_outlined,
+        'reservation_expired' => Icons.event_busy_outlined,
         'verification_updated' => Icons.verified_user_outlined,
         _ => Icons.notifications_none_rounded,
       };
@@ -1563,6 +1721,61 @@ class _ViewingList extends StatelessWidget {
                         .toList(),
                   ),
               ],
+            ),
+          );
+        },
+      );
+}
+
+class _ReservationList extends StatelessWidget {
+  final Future<List<ReservationSummary>> future;
+  final Future<void> Function() onRefresh;
+  final VoidCallback onRetry;
+  final Widget Function(BuildContext, ReservationSummary) itemBuilder;
+
+  const _ReservationList({
+    required this.future,
+    required this.onRefresh,
+    required this.onRetry,
+    required this.itemBuilder,
+  });
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<List<ReservationSummary>>(
+        future: future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              !snapshot.hasData) {
+            return const _MarketplaceSkeleton();
+          }
+          if (snapshot.hasError && !snapshot.hasData) {
+            return ScreenState(
+              icon: Icons.cloud_off_outlined,
+              title: 'Couldn’t load reservations',
+              message: AppFeedback.messageFor(snapshot.error!,
+                  fallback: 'Haven could not load your reservations.'),
+              actionLabel: 'Try again',
+              onAction: onRetry,
+            );
+          }
+          final items = snapshot.data ?? const <ReservationSummary>[];
+          if (items.isEmpty) {
+            return const ScreenState(
+              icon: Icons.event_available_outlined,
+              title: 'No reservations yet',
+              message:
+                  'When you reserve a home or someone reserves your listing, it will appear here.',
+            );
+          }
+          return RefreshIndicator(
+            onRefresh: onRefresh,
+            child: ListView.separated(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 104),
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (context, index) =>
+                  itemBuilder(context, items[index]),
             ),
           );
         },

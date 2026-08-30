@@ -246,6 +246,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 builder: (_) => const MarketplaceHubScreen(
                                     initialTab: 2)))),
                     HavenSettingsRow(
+                        icon: CupertinoIcons.lock_shield,
+                        title: 'Reservations',
+                        subtitle:
+                            'Homes you reserved and your listing activity',
+                        iconColor: colors.primary,
+                        onTap: () => Navigator.push(
+                            context,
+                            HavenPageRoute(
+                                builder: (_) => const MarketplaceHubScreen(
+                                    initialTab: 4)))),
+                    HavenSettingsRow(
                         icon: CupertinoIcons.cloud_upload,
                         title: 'Offline & sync',
                         subtitle: 'Pending changes and connection status',

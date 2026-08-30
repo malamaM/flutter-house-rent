@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:house_rent/config/api_config.dart';
+import 'package:house_rent/models/house.dart';
 import 'package:house_rent/models/marketplace.dart';
 import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/services/api_error.dart';
@@ -131,6 +132,88 @@ class MarketplaceService {
     ]);
   }
 
+  Future<ReservationState> reservationState(int houseId,
+      {bool refresh = false}) async {
+    final json = await _cachedGet(
+      'marketplace:house:$houseId:reservation:v1',
+      'houses/$houseId/reservation-state',
+      refresh: refresh,
+      freshFor: const Duration(seconds: 30),
+    );
+    return ReservationState.fromMap(json);
+  }
+
+  Future<List<ReservationSummary>> reservations({bool refresh = false}) async {
+    final json = await _cachedGet('marketplace:reservations:v1', 'reservations',
+        refresh: refresh);
+    return _directItems(json).map(ReservationSummary.fromMap).toList();
+  }
+
+  Future<ReservationSummary> reserveHome(int houseId, int slotId) async {
+    final json = await _send('POST', 'houses/$houseId/reservations', {
+      'reservation_slot_id': slotId,
+    });
+    await Future.wait([
+      _invalidate('marketplace:house:$houseId:reservation:v1'),
+      _invalidate('marketplace:reservations:v1'),
+      _invalidate('marketplace:notifications:v2'),
+      House.invalidatePropertyData(id: houseId),
+    ]);
+    return ReservationSummary.fromMap(
+        Map<String, dynamic>.from(json['reservation'] as Map));
+  }
+
+  Future<void> cancelReservation(int reservationId, {String? reason}) async {
+    final json = await _send('PATCH', 'reservations/$reservationId/cancel', {
+      if (reason?.trim().isNotEmpty == true) 'reason': reason!.trim(),
+    });
+    final reservation = json['reservation'];
+    final houseId = reservation is Map ? _asInt(reservation['house_id']) : null;
+    await Future.wait([
+      _invalidate('marketplace:reservations:v1'),
+      _invalidate('marketplace:notifications:v2'),
+      if (houseId != null)
+        _invalidate('marketplace:house:$houseId:reservation:v1'),
+      if (houseId != null) House.invalidatePropertyData(id: houseId),
+    ]);
+  }
+
+  Future<void> joinReservationInterest(int houseId) async {
+    await _send('POST', 'houses/$houseId/reservation-interest');
+    await _invalidate('marketplace:house:$houseId:reservation:v1');
+  }
+
+  Future<void> leaveReservationInterest(int houseId) async {
+    await _send('DELETE', 'houses/$houseId/reservation-interest');
+    await _invalidate('marketplace:house:$houseId:reservation:v1');
+  }
+
+  Future<List<ReservationSlot>> reservationSlots(int houseId,
+      {bool refresh = false}) async {
+    final json = await _cachedGet(
+      'marketplace:my-house:$houseId:reservation-slots:v1',
+      'my-houses/$houseId/reservation-slots',
+      refresh: refresh,
+    );
+    return _directItems(json).map(ReservationSlot.fromMap).toList();
+  }
+
+  Future<ReservationSlot> createReservationSlot(int houseId, DateTime startsAt,
+      {DateTime? endsAt}) async {
+    final json = await _send('POST', 'my-houses/$houseId/reservation-slots', {
+      'starts_at': startsAt.toUtc().toIso8601String(),
+      if (endsAt != null) 'ends_at': endsAt.toUtc().toIso8601String(),
+    });
+    await _invalidate('marketplace:my-house:$houseId:reservation-slots:v1');
+    return ReservationSlot.fromMap(
+        Map<String, dynamic>.from(json['slot'] as Map));
+  }
+
+  Future<void> deleteReservationSlot(int houseId, int slotId) async {
+    await _send('DELETE', 'reservation-slots/$slotId');
+    await _invalidate('marketplace:my-house:$houseId:reservation-slots:v1');
+  }
+
   Future<ReviewEligibility> reviewEligibility(int listerId, int houseId) async {
     final json = await _send(
         'GET', 'users/$listerId/review-eligibility?house_id=$houseId');
@@ -154,7 +237,10 @@ class MarketplaceService {
   Future<void> updateAvailability(int houseId, String status) async {
     await _send('PATCH', 'houses/$houseId/availability',
         {'availability_status': status});
-    await _invalidate('marketplace:viewings:v2');
+    await Future.wait([
+      _invalidate('marketplace:viewings:v2'),
+      House.invalidatePropertyData(id: houseId),
+    ]);
   }
 
   Future<void> markNotificationRead(String id) async {
@@ -276,6 +362,8 @@ class MarketplaceService {
       ));
     }
   }
+
+  int? _asInt(dynamic value) => value == null ? null : int.tryParse('$value');
 
   Iterable<Map<String, dynamic>> _pageItems(Map<String, dynamic> json) {
     final raw = json['data'];
