@@ -247,9 +247,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     initialTab: 2)))),
                     HavenSettingsRow(
                         icon: CupertinoIcons.lock_shield,
-                        title: 'Reservations',
-                        subtitle:
-                            'Homes you reserved and your listing activity',
+                        title: 'Paid reservations',
+                        subtitle: 'Paid homes and your listing activity',
                         iconColor: colors.primary,
                         onTap: () => Navigator.push(
                             context,

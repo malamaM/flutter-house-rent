@@ -123,7 +123,7 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('Your Haven'),
-            Text('Messages, viewings, reservations and home alerts',
+            Text('Messages, viewings, paid reservations and home alerts',
                 style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
@@ -153,7 +153,7 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
                 Tab(text: 'Viewings'),
                 Tab(text: 'Updates'),
                 Tab(text: 'Saved searches'),
-                Tab(text: 'Reservations'),
+                Tab(text: 'Paid reservations'),
               ],
             ),
           ),
@@ -675,8 +675,8 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
                     const SizedBox(height: 3),
                     Text(
                       isCustomer
-                          ? 'Your reservation · ${item.otherPartyName ?? 'Lister'}'
-                          : 'Reserved by ${item.otherPartyName ?? 'Haven member'}',
+                          ? 'Your paid reservation · ${item.otherPartyName ?? 'Lister'}'
+                          : 'Paid reservation by ${item.otherPartyName ?? 'Haven member'}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall,
@@ -711,12 +711,30 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
             ),
           ),
           const SizedBox(height: 7),
+          if (item.reservationAmount != null) ...[
+            Row(
+              children: [
+                Icon(Icons.payments_outlined,
+                    size: 17, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 7),
+                Text(
+                  'Paid down payment · K${item.reservationAmount!.toStringAsFixed(0)}'
+                  '${item.paymentMethod == null ? '' : ' · ${_paymentMethodLabel(item.paymentMethod!)}'}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 7),
+          ],
           Text(
             item.isActive
                 ? isCustomer
-                    ? 'Your reservation is confirmed. Continue any remaining rental steps directly with the lister.'
-                    : 'This home is reserved. Normal viewing requests remain available.'
-                : 'This reservation is closed.',
+                    ? 'Your paid reservation is confirmed. Continue any remaining rental steps directly with the lister.'
+                    : 'This home has a paid reservation. Normal viewing requests remain available.'
+                : 'This paid reservation is closed.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           if (item.cancelledAt != null && item.cancellationReason != null) ...[
@@ -730,7 +748,7 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
               alignment: Alignment.centerRight,
               child: OutlinedButton(
                 onPressed: () => _cancelReservation(item),
-                child: const Text('Cancel reservation'),
+                child: const Text('Cancel paid reservation'),
               ),
             ),
           ],
@@ -739,27 +757,33 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
     );
   }
 
+  String _paymentMethodLabel(String value) => value == 'mtn_money'
+      ? 'MTN Money'
+      : value == 'airtel_money'
+          ? 'Airtel Money'
+          : value;
+
   Future<void> _cancelReservation(ReservationSummary item) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Cancel reservation?'),
+        title: const Text('Cancel paid reservation?'),
         content: const Text(
-            'The home will become available for another reservation, and people following it may be notified.'),
+            'The home will become available for another paid reservation, and people following it may be notified.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
               child: const Text('Keep it')),
           FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Cancel reservation')),
+              child: const Text('Cancel paid reservation')),
         ],
       ),
     );
     if (confirmed != true) return;
     await _perform(
       () => MarketplaceService.instance.cancelReservation(item.id),
-      success: 'Reservation cancelled. The home is available again.',
+      success: 'Paid reservation cancelled. The home is available again.',
     );
     if (mounted) await _refresh(4);
   }

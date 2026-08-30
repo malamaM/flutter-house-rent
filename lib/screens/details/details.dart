@@ -297,10 +297,12 @@ class _ViewingSchedulerSheetState extends State<_ViewingSchedulerSheet> {
 class _ReservationSlotSheet extends StatefulWidget {
   final String propertyName;
   final List<ReservationSlot> slots;
+  final ReservationSettings settings;
 
   const _ReservationSlotSheet({
     required this.propertyName,
     required this.slots,
+    required this.settings,
   });
 
   @override
@@ -338,12 +340,35 @@ class _ReservationSlotSheetState extends State<_ReservationSlotSheet> {
                 ),
               ),
               const SizedBox(height: 18),
-              Text('Reserve this home',
+              Text('Choose a paid reservation date',
                   style: Theme.of(context).textTheme.headlineSmall),
               const SizedBox(height: 5),
               Text(
-                'Choose one date offered by the lister for ${widget.propertyName}. You can manage the reservation from Your Haven.',
+                'Choose one date offered by the lister for ${widget.propertyName}. The down payment is refundable according to Haven’s reservation terms.',
                 style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 13),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(13),
+                decoration: BoxDecoration(
+                  color: colors.primaryContainer.withValues(alpha: .48),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.payments_outlined,
+                        size: 20, color: colors.primary),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        'Refundable down payment · ${widget.settings.downPaymentPercent}% · K${widget.settings.reservationAmount}',
+                        style: TextStyle(
+                            color: colors.primary, fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
               if (available.isEmpty)
@@ -418,7 +443,7 @@ class _ReservationSlotSheetState extends State<_ReservationSlotSheet> {
                       ? null
                       : () => Navigator.pop(context, _selectedId),
                   icon: const Icon(Icons.lock_outline_rounded, size: 18),
-                  label: const Text('Continue with this date'),
+                  label: const Text('Continue to payment'),
                 ),
               ),
             ],
@@ -427,6 +452,168 @@ class _ReservationSlotSheetState extends State<_ReservationSlotSheet> {
       ),
     );
   }
+}
+
+class _MobileMoneyPaymentSheet extends StatefulWidget {
+  final int amount;
+  final List<String> paymentMethods;
+
+  const _MobileMoneyPaymentSheet({
+    required this.amount,
+    required this.paymentMethods,
+  });
+
+  @override
+  State<_MobileMoneyPaymentSheet> createState() =>
+      _MobileMoneyPaymentSheetState();
+}
+
+class _MobileMoneyPaymentSheetState extends State<_MobileMoneyPaymentSheet> {
+  late String _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = widget.paymentMethods.firstOrNull ?? 'airtel_money';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final methods = widget.paymentMethods.isEmpty
+        ? const ['airtel_money', 'mtn_money']
+        : widget.paymentMethods;
+    return Material(
+      color: colors.surface,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                        color: colors.outlineVariant,
+                        borderRadius: BorderRadius.circular(4))),
+              ),
+              const SizedBox(height: 18),
+              Text('Pay the reservation amount',
+                  style: Theme.of(context).textTheme.headlineSmall),
+              const SizedBox(height: 5),
+              Text(
+                  'This down payment is refundable according to Haven’s terms. Choose your mobile-money provider to continue.',
+                  style: Theme.of(context).textTheme.bodyMedium),
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(15),
+                decoration: BoxDecoration(
+                    color: colors.primaryContainer.withValues(alpha: .5),
+                    borderRadius: BorderRadius.circular(18)),
+                child: Row(
+                  children: [
+                    Icon(Icons.payments_rounded,
+                        color: colors.primary, size: 23),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                        child: Text('Refundable reservation amount')),
+                    Text('K${widget.amount}',
+                        style: TextStyle(
+                            color: colors.primary,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 18)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 15),
+              ...methods.map((method) {
+                final selected = method == _selected;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 9),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(17),
+                    onTap: () => setState(() => _selected = method),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 160),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                          color: selected
+                              ? colors.primaryContainer
+                              : colors.surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(17),
+                          border: Border.all(
+                              color: selected
+                                  ? colors.primary
+                                  : colors.outlineVariant,
+                              width: selected ? 1.4 : .8)),
+                      child: Row(
+                        children: [
+                          Icon(
+                              selected
+                                  ? Icons.radio_button_checked_rounded
+                                  : Icons.radio_button_off_rounded,
+                              color: selected
+                                  ? colors.primary
+                                  : colors.onSurfaceVariant),
+                          const SizedBox(width: 11),
+                          Icon(Icons.phone_android_rounded,
+                              color: colors.primary, size: 21),
+                          const SizedBox(width: 9),
+                          Text(_paymentMethodLabel(method),
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+              const SizedBox(height: 4),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(11),
+                decoration: BoxDecoration(
+                    color: colors.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(14)),
+                child: Row(
+                  children: [
+                    Icon(Icons.science_outlined,
+                        size: 18, color: colors.onSurfaceVariant),
+                    const SizedBox(width: 8),
+                    Expanded(
+                        child: Text('Demo checkout · no real money moves yet.',
+                            style: Theme.of(context).textTheme.bodySmall)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () => Navigator.pop(context, _selected),
+                  icon: const Icon(Icons.check_circle_outline_rounded),
+                  label:
+                      Text('Simulate successful payment · K${widget.amount}'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _paymentMethodLabel(String value) => value == 'mtn_money'
+      ? 'MTN Money'
+      : value == 'airtel_money'
+          ? 'Airtel Money'
+          : value;
 }
 
 String _reservationSlotLabel(ReservationSlot slot) {
@@ -872,23 +1059,23 @@ class _DetailsState extends State<Details> {
         final hasDates = !state.isReserved && available.isNotEmpty;
         final isMine = state.isMine && state.isReserved;
         final title = isMine
-            ? 'Your reservation is active'
+            ? 'Your paid reservation is active'
             : state.isReserved
-                ? 'Currently reserved'
+                ? 'Currently held by a paid reservation'
                 : hasDates
-                    ? 'Reserve this home'
-                    : 'Reservation dates coming soon';
+                    ? 'Reserve with a down payment'
+                    : 'Paid reservation dates coming soon';
         final message = isMine
-            ? 'You have reserved this home. Viewings can still be requested.'
+            ? 'You have a paid reservation on this home. Viewings can still be requested.'
             : state.isReserved
-                ? 'This home is currently reserved, but viewing requests remain open.'
+                ? 'This home is currently held by a paid reservation, but viewing requests remain open.'
                 : hasDates
-                    ? 'Choose a date offered by the lister. Normal viewing requests stay open too.'
-                    : 'The lister has not opened a reservation date yet. We can notify you when one becomes available.';
+                    ? 'Pay a refundable K${state.settings.reservationAmount} down payment, then choose a date offered by the lister. Normal viewing requests stay open too.'
+                    : 'The lister has not opened a paid reservation date yet. We can notify you when one becomes available.';
         final label = isMine || state.isReserved
-            ? 'RESERVATION ON HOLD'
+            ? 'PAID RESERVATION ON HOLD'
             : hasDates
-                ? 'RESERVATIONS AVAILABLE'
+                ? 'PAID RESERVATION AVAILABLE'
                 : 'STAY IN THE LOOP';
 
         return Container(
@@ -1003,7 +1190,7 @@ class _DetailsState extends State<Details> {
                             height: 17,
                             child: CircularProgressIndicator(strokeWidth: 2))
                         : const Icon(Icons.lock_outline_rounded, size: 18),
-                    label: const Text('Choose a reservation date'),
+                    label: const Text('Choose a date & payment'),
                   ),
                 )
               else if (isMine)
@@ -1017,7 +1204,7 @@ class _DetailsState extends State<Details> {
                               const MarketplaceHubScreen(initialTab: 1)),
                     ),
                     icon: const Icon(Icons.event_note_outlined, size: 18),
-                    label: const Text('View my reservation'),
+                    label: const Text('View my paid reservation'),
                   ),
                 )
               else
@@ -1061,7 +1248,7 @@ class _DetailsState extends State<Details> {
                   width: 16,
                   height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2)),
-              label: const Text('Checking reservation dates'),
+              label: const Text('Checking paid reservation dates'),
             ),
           );
         }
@@ -1084,8 +1271,8 @@ class _DetailsState extends State<Details> {
                   Expanded(
                     child: Text(
                       state.isMine
-                          ? 'You have reserved this home. Viewings can still be requested.'
-                          : 'This home is currently reserved. Viewings can still be requested.',
+                          ? 'You have a paid reservation on this home. Viewings can still be requested.'
+                          : 'This home is currently held by a paid reservation. Viewings can still be requested.',
                       style: TextStyle(
                         color:
                             Theme.of(context).colorScheme.onTertiaryContainer,
@@ -1149,7 +1336,7 @@ class _DetailsState extends State<Details> {
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.lock_outline_rounded),
-            label: const Text('Reserve this home'),
+            label: const Text('Pay down payment & reserve'),
           ),
         );
       },
@@ -1170,15 +1357,32 @@ class _DetailsState extends State<Details> {
         builder: (_) => _ReservationSlotSheet(
           propertyName: widget.house.name,
           slots: state.slots,
+          settings: state.settings,
         ),
       );
       if (slotId == null || !mounted) return;
-      await MarketplaceService.instance.reserveHome(widget.house.id, slotId);
+      final paymentMethod = await showModalBottomSheet<String>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => _MobileMoneyPaymentSheet(
+          amount: state.settings.reservationAmount,
+          paymentMethods: state.settings.paymentMethods,
+        ),
+      );
+      if (paymentMethod == null || !mounted) return;
+      await Future<void>.delayed(const Duration(milliseconds: 450));
+      if (!mounted) return;
+      await MarketplaceService.instance
+          .reserveHome(widget.house.id, slotId, paymentMethod);
       if (!mounted) return;
       if (closeAfter) Navigator.of(context).pop();
-      _notice('Home reserved. You can manage it from Your Haven.');
-      setState(() => _reservationFuture = MarketplaceService.instance
-          .reservationState(widget.house.id, refresh: true));
+      _notice('Paid reservation confirmed. You can manage it from Your Haven.');
+      setState(() {
+        _reservationFuture = MarketplaceService.instance
+            .reservationState(widget.house.id, refresh: true);
+      });
     } on MarketplaceException catch (error) {
       if (mounted) _notice(error.message);
     } finally {
@@ -1199,8 +1403,10 @@ class _DetailsState extends State<Details> {
             .joinReservationInterest(widget.house.id);
       }
       if (mounted) {
-        setState(() => _reservationFuture = MarketplaceService.instance
-            .reservationState(widget.house.id, refresh: true));
+        setState(() {
+          _reservationFuture = MarketplaceService.instance
+              .reservationState(widget.house.id, refresh: true);
+        });
         _notice(current.isInterested
             ? 'Availability alerts turned off.'
             : 'We will notify you when this home is available again.');

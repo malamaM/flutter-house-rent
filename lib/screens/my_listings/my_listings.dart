@@ -6,6 +6,7 @@ import 'package:house_rent/navigation/haven_page_route.dart';
 import 'package:house_rent/screens/details/details.dart';
 import 'package:house_rent/screens/my_listings/create_listing_screen.dart';
 import 'package:house_rent/screens/my_listings/edit_listing.dart';
+import 'package:house_rent/screens/my_listings/paid_reservation_sheet.dart';
 import 'package:house_rent/widgets/property_card.dart';
 import 'package:house_rent/widgets/screen_state.dart';
 import 'package:house_rent/widgets/haven_navigation_bar.dart';
@@ -59,9 +60,10 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => _ReservationSlotsSheet(
+      builder: (_) => PaidReservationSheet(
         houseId: house.id,
         houseName: house.name,
+        monthlyRent: house.priceRental,
       ),
     );
     if (mounted) setState(() => _reload(forceRefresh: true));
@@ -264,7 +266,7 @@ class _ListingLifecycleBar extends StatelessWidget {
             ),
           IconButton(
             onPressed: onReservations,
-            tooltip: 'Reservation dates',
+            tooltip: 'Paid reservation dates',
             icon: const Icon(Icons.event_available_outlined),
             visualDensity: VisualDensity.compact,
           ),
@@ -303,8 +305,8 @@ class _ListingLifecycleBar extends StatelessWidget {
                   Expanded(
                     child: Text(
                       house.reservationSlotsCount > 0
-                          ? '${house.reservationSlotsCount} reservation ${house.reservationSlotsCount == 1 ? 'date' : 'dates'} set'
-                          : 'No reservation dates set',
+                          ? '${house.reservationSlotsCount} paid reservation ${house.reservationSlotsCount == 1 ? 'date' : 'dates'} set'
+                          : 'No paid reservation dates set',
                       style: TextStyle(
                         color: house.reservationSlotsCount > 0
                             ? colors.primary
@@ -315,7 +317,9 @@ class _ListingLifecycleBar extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    house.reservationSlotsCount > 0 ? 'Manage' : 'Add dates',
+                    house.reservationSlotsCount > 0
+                        ? 'Manage'
+                        : 'Add paid dates',
                     style: TextStyle(
                       color: colors.primary,
                       fontSize: 12,

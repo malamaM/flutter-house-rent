@@ -60,12 +60,14 @@ class ReservationSlot {
   final DateTime startsAt;
   final DateTime? endsAt;
   final bool isActive;
+  final String source;
 
   const ReservationSlot({
     required this.id,
     required this.startsAt,
     this.endsAt,
     required this.isActive,
+    this.source = 'manual',
   });
 
   factory ReservationSlot.fromMap(Map<String, dynamic> map) => ReservationSlot(
@@ -73,7 +75,155 @@ class ReservationSlot {
         startsAt: _date(map['starts_at']) ?? DateTime.now(),
         endsAt: _date(map['ends_at']),
         isActive: _boolean(map['is_active'] ?? true),
+        source: _text(map['source'], fallback: 'manual'),
       );
+}
+
+class ReservationAvailabilityRule {
+  final int id;
+  final int dayOfWeek;
+  final String startsAt;
+  final String endsAt;
+
+  const ReservationAvailabilityRule({
+    required this.id,
+    required this.dayOfWeek,
+    required this.startsAt,
+    required this.endsAt,
+  });
+
+  factory ReservationAvailabilityRule.fromMap(Map<String, dynamic> map) =>
+      ReservationAvailabilityRule(
+        id: _integer(map['id']),
+        dayOfWeek: _integer(map['day_of_week']),
+        startsAt: _time(map['starts_at']),
+        endsAt: _time(map['ends_at']),
+      );
+
+  Map<String, dynamic> toPayload() => {
+        'day_of_week': dayOfWeek,
+        'starts_at': startsAt.substring(0, 5),
+        'ends_at': endsAt.substring(0, 5),
+      };
+}
+
+class ReservationAvailabilityException {
+  final int id;
+  final String kind;
+  final int? dayOfWeek;
+  final String? exceptionDate;
+  final String startsAt;
+  final String endsAt;
+  final String? label;
+
+  const ReservationAvailabilityException({
+    required this.id,
+    required this.kind,
+    this.dayOfWeek,
+    this.exceptionDate,
+    required this.startsAt,
+    required this.endsAt,
+    this.label,
+  });
+
+  factory ReservationAvailabilityException.fromMap(Map<String, dynamic> map) =>
+      ReservationAvailabilityException(
+        id: _integer(map['id']),
+        kind: _text(map['kind'], fallback: 'weekly'),
+        dayOfWeek: _nullableInteger(map['day_of_week']),
+        exceptionDate: _nullableText(map['exception_date']),
+        startsAt: _time(map['starts_at']),
+        endsAt: _time(map['ends_at']),
+        label: _nullableText(map['label']),
+      );
+
+  Map<String, dynamic> toPayload() => {
+        'kind': kind,
+        if (kind == 'weekly') 'day_of_week': dayOfWeek,
+        if (kind == 'date') 'exception_date': exceptionDate,
+        'starts_at': startsAt.substring(0, 5),
+        'ends_at': endsAt.substring(0, 5),
+        if (label?.isNotEmpty == true) 'label': label,
+      };
+}
+
+class ReservationSettings {
+  final int downPaymentPercent;
+  final bool depositRequired;
+  final int depositMonths;
+  final int rentMonthsAdvance;
+  final List<String> paymentMethods;
+  final int baseAmount;
+  final int reservationAmount;
+  final String currency;
+
+  const ReservationSettings({
+    required this.downPaymentPercent,
+    required this.depositRequired,
+    required this.depositMonths,
+    required this.rentMonthsAdvance,
+    required this.paymentMethods,
+    required this.baseAmount,
+    required this.reservationAmount,
+    required this.currency,
+  });
+
+  factory ReservationSettings.fromMap(Map<String, dynamic> map) =>
+      ReservationSettings(
+        downPaymentPercent: _integer(map['down_payment_percent'] ?? 10),
+        depositRequired: _boolean(map['deposit_required']),
+        depositMonths: _integer(map['deposit_months']),
+        rentMonthsAdvance: _integer(map['rent_months_advance'] ?? 1),
+        paymentMethods: (map['payment_methods'] as List? ?? const []).isEmpty
+            ? defaults.paymentMethods
+            : (map['payment_methods'] as List)
+                .map((item) => item.toString())
+                .toList(),
+        baseAmount: _integer(map['base_amount']),
+        reservationAmount: _integer(map['reservation_amount']),
+        currency: _text(map['currency'], fallback: 'ZMW'),
+      );
+
+  static const defaults = ReservationSettings(
+    downPaymentPercent: 10,
+    depositRequired: false,
+    depositMonths: 0,
+    rentMonthsAdvance: 1,
+    paymentMethods: ['airtel_money', 'mtn_money'],
+    baseAmount: 0,
+    reservationAmount: 0,
+    currency: 'ZMW',
+  );
+}
+
+class ReservationAvailabilityConfig {
+  final ReservationSettings settings;
+  final List<ReservationAvailabilityRule> rules;
+  final List<ReservationAvailabilityException> exceptions;
+
+  const ReservationAvailabilityConfig({
+    required this.settings,
+    required this.rules,
+    required this.exceptions,
+  });
+
+  factory ReservationAvailabilityConfig.fromMap(Map<String, dynamic> map) {
+    final rawRules = map['rules'] as List? ?? const [];
+    final rawExceptions = map['exceptions'] as List? ?? const [];
+    return ReservationAvailabilityConfig(
+      settings: ReservationSettings.fromMap(_map(map['settings'])),
+      rules: rawRules
+          .whereType<Map>()
+          .map((item) => ReservationAvailabilityRule.fromMap(
+              Map<String, dynamic>.from(item)))
+          .toList(),
+      exceptions: rawExceptions
+          .whereType<Map>()
+          .map((item) => ReservationAvailabilityException.fromMap(
+              Map<String, dynamic>.from(item)))
+          .toList(),
+    );
+  }
 }
 
 enum ReservationRole { customer, lister }
@@ -95,6 +245,10 @@ class ReservationSummary {
   final DateTime? expiresAt;
   final DateTime? expiredAt;
   final String? cancellationReason;
+  final int? reservationAmount;
+  final String? paymentMethod;
+  final String? paymentStatus;
+  final DateTime? paidAt;
 
   const ReservationSummary({
     required this.id,
@@ -113,6 +267,10 @@ class ReservationSummary {
     this.expiresAt,
     this.expiredAt,
     this.cancellationReason,
+    this.reservationAmount,
+    this.paymentMethod,
+    this.paymentStatus,
+    this.paidAt,
   });
 
   bool get isActive => status == 'confirmed';
@@ -145,6 +303,10 @@ class ReservationSummary {
       expiresAt: _date(map['expires_at']),
       expiredAt: _date(map['expired_at']),
       cancellationReason: _nullableText(map['cancellation_reason']),
+      reservationAmount: _nullableInteger(map['reservation_amount']),
+      paymentMethod: _nullableText(map['payment_method']),
+      paymentStatus: _nullableText(map['payment_status']),
+      paidAt: _date(map['paid_at']),
     );
   }
 }
@@ -155,6 +317,7 @@ class ReservationState {
   final bool isInterested;
   final ReservationSummary? reservation;
   final List<ReservationSlot> slots;
+  final ReservationSettings settings;
 
   const ReservationState({
     required this.isReserved,
@@ -162,6 +325,7 @@ class ReservationState {
     required this.isInterested,
     required this.reservation,
     required this.slots,
+    this.settings = ReservationSettings.defaults,
   });
 
   factory ReservationState.fromMap(Map<String, dynamic> map) {
@@ -180,6 +344,7 @@ class ReservationState {
           .map((slot) =>
               ReservationSlot.fromMap(Map<String, dynamic>.from(slot)))
           .toList(),
+      settings: ReservationSettings.fromMap(_map(map['reservation_settings'])),
     );
   }
 }
@@ -396,14 +561,24 @@ class ReviewEligibility {
 
 Map<String, dynamic> _map(dynamic value) =>
     value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
-int _integer(dynamic value) => int.tryParse('${value ?? 0}') ?? 0;
+int _integer(dynamic value) {
+  if (value is num) return value.round();
+  return int.tryParse('${value ?? 0}') ??
+      double.tryParse('${value ?? 0}')?.round() ??
+      0;
+}
+
 bool _boolean(dynamic value) =>
     value == true ||
     value == 1 ||
     value == '1' ||
     '${value ?? ''}'.toLowerCase() == 'true';
-int? _nullableInteger(dynamic value) =>
-    value == null ? null : int.tryParse('$value');
+int? _nullableInteger(dynamic value) {
+  if (value == null) return null;
+  if (value is num) return value.round();
+  return int.tryParse('$value') ?? double.tryParse('$value')?.round();
+}
+
 String _text(dynamic value, {String fallback = ''}) {
   final result = '${value ?? ''}'.trim();
   return result.isEmpty ? fallback : result;
@@ -427,3 +602,8 @@ String? _personName(Map<String, dynamic> person) {
 
 DateTime? _date(dynamic value) =>
     DateTime.tryParse('${value ?? ''}')?.toLocal();
+
+String _time(dynamic value) {
+  final result = _text(value, fallback: '00:00');
+  return result.length >= 5 ? result.substring(0, 5) : result.padRight(5, '0');
+}

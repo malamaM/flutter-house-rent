@@ -135,7 +135,7 @@ class MarketplaceService {
   Future<ReservationState> reservationState(int houseId,
       {bool refresh = false}) async {
     final json = await _cachedGet(
-      'marketplace:house:$houseId:reservation:v1',
+      'marketplace:house:$houseId:reservation:v2',
       'houses/$houseId/reservation-state',
       refresh: refresh,
       freshFor: const Duration(seconds: 30),
@@ -149,12 +149,14 @@ class MarketplaceService {
     return _directItems(json).map(ReservationSummary.fromMap).toList();
   }
 
-  Future<ReservationSummary> reserveHome(int houseId, int slotId) async {
+  Future<ReservationSummary> reserveHome(
+      int houseId, int slotId, String paymentMethod) async {
     final json = await _send('POST', 'houses/$houseId/reservations', {
       'reservation_slot_id': slotId,
+      'payment_method': paymentMethod,
     });
     await Future.wait([
-      _invalidate('marketplace:house:$houseId:reservation:v1'),
+      _invalidate('marketplace:house:$houseId:reservation:v2'),
       _invalidate('marketplace:reservations:v1'),
       _invalidate('marketplace:notifications:v2'),
       House.invalidatePropertyData(id: houseId),
@@ -173,19 +175,59 @@ class MarketplaceService {
       _invalidate('marketplace:reservations:v1'),
       _invalidate('marketplace:notifications:v2'),
       if (houseId != null)
-        _invalidate('marketplace:house:$houseId:reservation:v1'),
+        _invalidate('marketplace:house:$houseId:reservation:v2'),
       if (houseId != null) House.invalidatePropertyData(id: houseId),
     ]);
   }
 
   Future<void> joinReservationInterest(int houseId) async {
     await _send('POST', 'houses/$houseId/reservation-interest');
-    await _invalidate('marketplace:house:$houseId:reservation:v1');
+    await _invalidate('marketplace:house:$houseId:reservation:v2');
   }
 
   Future<void> leaveReservationInterest(int houseId) async {
     await _send('DELETE', 'houses/$houseId/reservation-interest');
-    await _invalidate('marketplace:house:$houseId:reservation:v1');
+    await _invalidate('marketplace:house:$houseId:reservation:v2');
+  }
+
+  Future<ReservationAvailabilityConfig> reservationAvailability(int houseId,
+      {bool refresh = false}) async {
+    final json = await _cachedGet(
+      'marketplace:my-house:$houseId:reservation-availability:v1',
+      'my-houses/$houseId/reservation-availability',
+      refresh: refresh,
+    );
+    return ReservationAvailabilityConfig.fromMap(json);
+  }
+
+  Future<ReservationAvailabilityConfig> updateReservationAvailability(
+    int houseId, {
+    required int downPaymentPercent,
+    required bool depositRequired,
+    required int depositMonths,
+    required int rentMonthsAdvance,
+    required List<String> paymentMethods,
+    required List<ReservationAvailabilityRule> rules,
+    required List<ReservationAvailabilityException> exceptions,
+  }) async {
+    final json =
+        await _send('PUT', 'my-houses/$houseId/reservation-availability', {
+      'down_payment_percent': downPaymentPercent,
+      'deposit_required': depositRequired,
+      'deposit_months': depositMonths,
+      'rent_months_advance': rentMonthsAdvance,
+      'payment_methods': paymentMethods,
+      'rules': rules.map((rule) => rule.toPayload()).toList(),
+      'exceptions': exceptions.map((item) => item.toPayload()).toList(),
+    });
+    await Future.wait([
+      _invalidate('marketplace:my-house:$houseId:reservation-availability:v1'),
+      _invalidate('marketplace:my-house:$houseId:reservation-slots:v1'),
+      _invalidate('marketplace:house:$houseId:reservation:v2'),
+      _invalidate('marketplace:notifications:v2'),
+      House.invalidatePropertyData(id: houseId),
+    ]);
+    return ReservationAvailabilityConfig.fromMap(json);
   }
 
   Future<List<ReservationSlot>> reservationSlots(int houseId,
