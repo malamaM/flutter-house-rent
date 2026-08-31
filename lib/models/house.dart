@@ -597,7 +597,10 @@ class House {
 
   static Future<List<House>> fetchMyHouses({bool forceRefresh = false}) async {
     final token = await _requiredToken();
-    final key = await AppCache.instance.privateKey('my_houses:v3');
+    // v4 includes the distinct calendar-date count used by the paid
+    // reservation summary. Do not reuse older payloads that only contained
+    // the number of generated time windows.
+    final key = await AppCache.instance.privateKey('my_houses:v4');
     return _cachedList(
       key: key,
       resource: 'my_houses',

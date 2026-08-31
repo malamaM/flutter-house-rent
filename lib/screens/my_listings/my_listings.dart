@@ -221,9 +221,11 @@ class _ListingLifecycleBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final reservationDates = house.reservationDatesCount > 0
-        ? house.reservationDatesCount
-        : house.reservationSlotsCount;
+    // The API exposes distinct calendar dates separately from the number of
+    // one-hour windows. Never fall back to the window count here: a schedule
+    // with several windows on each day would otherwise claim hundreds of
+    // available dates.
+    final reservationDates = house.reservationDatesCount;
     final reservationWindows = house.reservationSlotsCount;
     final urgent = house.isArchived || house.daysUntilExpiry <= 3;
     final label = house.isArchived

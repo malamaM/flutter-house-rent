@@ -273,7 +273,15 @@ class ReservationSummary {
     this.paidAt,
   });
 
-  bool get isActive => status == 'confirmed';
+  bool get isExpired =>
+      status == 'expired' ||
+      (status == 'confirmed' &&
+          expiresAt != null &&
+          !expiresAt!.isAfter(DateTime.now()));
+
+  bool get isActive => status == 'confirmed' && !isExpired;
+
+  String get effectiveStatus => isExpired ? 'expired' : status;
 
   factory ReservationSummary.fromMap(Map<String, dynamic> map) {
     final house = _map(map['house']);
@@ -315,6 +323,7 @@ class ReservationState {
   final bool isReserved;
   final bool isMine;
   final bool isInterested;
+  final bool canAcceptReservations;
   final ReservationSummary? reservation;
   final List<ReservationSlot> slots;
   final ReservationSettings settings;
@@ -323,6 +332,7 @@ class ReservationState {
     required this.isReserved,
     required this.isMine,
     required this.isInterested,
+    this.canAcceptReservations = true,
     required this.reservation,
     required this.slots,
     this.settings = ReservationSettings.defaults,
@@ -335,6 +345,7 @@ class ReservationState {
       isReserved: _boolean(map['is_reserved']),
       isMine: _boolean(map['is_mine']),
       isInterested: _boolean(map['is_interested']),
+      canAcceptReservations: _boolean(map['can_accept_reservations'] ?? true),
       reservation: rawReservation is Map
           ? ReservationSummary.fromMap(
               Map<String, dynamic>.from(rawReservation))

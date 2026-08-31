@@ -19,6 +19,7 @@ import 'package:house_rent/theme/haven_responsive_media.dart';
 import 'package:house_rent/widgets/custom_app_bar.dart';
 import 'package:house_rent/widgets/house_info.dart';
 import 'package:house_rent/widgets/house_amenities.dart';
+import 'package:house_rent/screens/profile/marketplace_hub_screen.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -289,6 +290,48 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Edit Listing'), findsOneWidget);
+  });
+
+  testWidgets(
+      'Haven hub groups related tabs and preserves saved-search deep links',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(app(const MarketplaceHubScreen()));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(find.text('Inbox'), findsOneWidget);
+    expect(find.text('Activity'), findsOneWidget);
+    expect(find.text('Paid'), findsOneWidget);
+    expect(find.text('Messages'), findsOneWidget);
+    expect(find.text('Viewings'), findsOneWidget);
+    expect(find.text('Updates'), findsNothing);
+    expect(find.text('Saved searches'), findsNothing);
+    expect(find.text('Paid reservations'), findsNothing);
+
+    await tester.tap(find.text('Activity'));
+    await tester.pump();
+    expect(find.text('Updates'), findsOneWidget);
+    expect(find.text('Saved searches'), findsOneWidget);
+    expect(find.text('Messages'), findsNothing);
+    expect(find.text('Viewings'), findsNothing);
+    expect(find.text('Paid reservations'), findsNothing);
+
+    await tester.pumpWidget(app(const MarketplaceHubScreen(
+      key: ValueKey('saved-searches-entry'),
+      initialTab: 3,
+      selectSavedSearch: true,
+    )));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.text('Activity'), findsOneWidget);
+    expect(find.text('Saved searches'), findsOneWidget);
+    expect(find.text('Save a search'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('demand badges stay hidden until a listing qualifies',

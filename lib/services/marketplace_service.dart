@@ -26,7 +26,7 @@ class MarketplaceService {
       {bool refresh = false}) async {
     final json = await _cachedGet(
         'marketplace:conversations:v3', 'conversations',
-        refresh: refresh);
+        refresh: refresh, allowStaleOnError: !refresh);
     return _pageItems(json).map(ConversationSummary.fromMap).toList();
   }
 
@@ -37,14 +37,14 @@ class MarketplaceService {
 
   Future<List<ViewingSummary>> viewings({bool refresh = false}) async {
     final json = await _cachedGet('marketplace:viewings:v3', 'viewings',
-        refresh: refresh);
+        refresh: refresh, allowStaleOnError: !refresh);
     return _pageItems(json).map(ViewingSummary.fromMap).toList();
   }
 
   Future<NotificationInbox> notifications({bool refresh = false}) async {
     final json = await _cachedGet(
         'marketplace:notifications:v2', 'notifications',
-        refresh: refresh);
+        refresh: refresh, allowStaleOnError: !refresh);
     return NotificationInbox(
       unreadCount: (json['unread_count'] as num? ?? 0).toInt(),
       items: _pageItems(json['data'] is Map
@@ -61,14 +61,14 @@ class MarketplaceService {
   Future<List<SavedSearchSummary>> savedSearches({bool refresh = false}) async {
     final json = await _cachedGet(
         'marketplace:saved-searches:v2', 'saved-searches',
-        refresh: refresh);
+        refresh: refresh, allowStaleOnError: !refresh);
     return _directItems(json).map(SavedSearchSummary.fromMap).toList();
   }
 
   Future<bool> recommendationAlertsEnabled({bool refresh = false}) async {
     final json = await _cachedGet(
         'marketplace:saved-searches:v2', 'saved-searches',
-        refresh: refresh);
+        refresh: refresh, allowStaleOnError: !refresh);
     final alerts = json['home_alerts'] is Map
         ? Map<String, dynamic>.from(json['home_alerts'] as Map)
         : const <String, dynamic>{};
@@ -83,6 +83,7 @@ class MarketplaceService {
       'conversations/$conversationId/messages',
       refresh: refresh,
       freshFor: const Duration(seconds: 20),
+      allowStaleOnError: !refresh,
     );
     return _pageItems(json).map(ChatMessage.fromMap).toList().reversed.toList();
   }
@@ -102,9 +103,12 @@ class MarketplaceService {
         .toInt();
   }
 
-  Future<ChatMessage> sendMessage(int conversationId, String body) async {
-    final json = await _send('POST', 'conversations/$conversationId/messages',
-        {'body': body.trim()});
+  Future<ChatMessage> sendMessage(int conversationId, String body,
+      {String? clientUuid}) async {
+    final json = await _send('POST', 'conversations/$conversationId/messages', {
+      'body': body.trim(),
+      if (clientUuid != null) 'client_uuid': clientUuid,
+    });
     await Future.wait([
       _invalidate('marketplace:conversation:$conversationId:messages:v3'),
       _invalidate('marketplace:conversations:v3'),
@@ -139,13 +143,14 @@ class MarketplaceService {
       'houses/$houseId/reservation-state',
       refresh: refresh,
       freshFor: const Duration(seconds: 30),
+      allowStaleOnError: !refresh,
     );
     return ReservationState.fromMap(json);
   }
 
   Future<List<ReservationSummary>> reservations({bool refresh = false}) async {
     final json = await _cachedGet('marketplace:reservations:v1', 'reservations',
-        refresh: refresh);
+        refresh: refresh, allowStaleOnError: !refresh);
     return _directItems(json).map(ReservationSummary.fromMap).toList();
   }
 
@@ -180,6 +185,19 @@ class MarketplaceService {
     ]);
   }
 
+  Future<void> releaseReservation(int reservationId) async {
+    final json = await _send('POST', 'reservations/$reservationId/release');
+    final reservation = json['reservation'];
+    final houseId = reservation is Map ? _asInt(reservation['house_id']) : null;
+    await Future.wait([
+      _invalidate('marketplace:reservations:v1'),
+      _invalidate('marketplace:notifications:v2'),
+      if (houseId != null)
+        _invalidate('marketplace:house:$houseId:reservation:v2'),
+      if (houseId != null) House.invalidatePropertyData(id: houseId),
+    ]);
+  }
+
   Future<void> joinReservationInterest(int houseId) async {
     await _send('POST', 'houses/$houseId/reservation-interest');
     await _invalidate('marketplace:house:$houseId:reservation:v2');
@@ -196,6 +214,7 @@ class MarketplaceService {
       'marketplace:my-house:$houseId:reservation-availability:v1',
       'my-houses/$houseId/reservation-availability',
       refresh: refresh,
+      allowStaleOnError: !refresh,
     );
     return ReservationAvailabilityConfig.fromMap(json);
   }
@@ -236,6 +255,7 @@ class MarketplaceService {
       'marketplace:my-house:$houseId:reservation-slots:v1',
       'my-houses/$houseId/reservation-slots',
       refresh: refresh,
+      allowStaleOnError: !refresh,
     );
     return _directItems(json).map(ReservationSlot.fromMap).toList();
   }
@@ -330,6 +350,7 @@ class MarketplaceService {
     String path, {
     required bool refresh,
     Duration freshFor = _freshFor,
+    bool allowStaleOnError = true,
   }) async {
     final key = await AppCache.instance.privateKey(resource);
     final cached = await AppCache.instance.read(key);
@@ -342,7 +363,9 @@ class MarketplaceService {
           .write(key, value, freshFor: freshFor, keepFor: _keepFor);
       return value;
     } catch (_) {
-      if (cached?.value is Map) return Map<String, dynamic>.from(cached!.value);
+      if (allowStaleOnError && cached?.value is Map) {
+        return Map<String, dynamic>.from(cached!.value);
+      }
       rethrow;
     }
   }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
@@ -28,8 +29,10 @@ class MarketplaceHubScreen extends StatefulWidget {
 }
 
 class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabs;
+    with TickerProviderStateMixin {
+  late final TabController _inboxTabs;
+  late final TabController _activityTabs;
+  late int _sectionIndex;
   late int _visibleTab;
   late Future<List<ConversationSummary>> _inbox;
   late Future<List<ViewingSummary>> _viewings;
@@ -41,12 +44,23 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(
-      length: 5,
+    final initialTab = widget.initialTab.clamp(0, 4).toInt();
+    _sectionIndex = initialTab <= 1
+        ? 0
+        : initialTab <= 3
+            ? 1
+            : 2;
+    _inboxTabs = TabController(
+      length: 2,
       vsync: this,
-      initialIndex: widget.initialTab.clamp(0, 4),
+      initialIndex: initialTab <= 1 ? initialTab : 0,
     )..addListener(_tabChanged);
-    _visibleTab = _tabs.index;
+    _activityTabs = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: initialTab >= 2 && initialTab <= 3 ? initialTab - 2 : 0,
+    )..addListener(_tabChanged);
+    _visibleTab = _globalTab;
     _inbox = _delayedLoad(0, MarketplaceService.instance.conversations);
     _viewings = _delayedLoad(1, MarketplaceService.instance.viewings);
     _notifications = _delayedLoad(2, MarketplaceService.instance.notifications);
@@ -62,10 +76,32 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
     return loader();
   }
 
-  void _tabChanged() {
-    if (!_tabs.indexIsChanging && _visibleTab != _tabs.index && mounted) {
-      setState(() => _visibleTab = _tabs.index);
+  int get _globalTab {
+    switch (_sectionIndex) {
+      case 0:
+        return _inboxTabs.index;
+      case 1:
+        return _activityTabs.index + 2;
+      default:
+        return 4;
     }
+  }
+
+  void _tabChanged() {
+    if (!_inboxTabs.indexIsChanging &&
+        !_activityTabs.indexIsChanging &&
+        _visibleTab != _globalTab &&
+        mounted) {
+      setState(() => _visibleTab = _globalTab);
+    }
+  }
+
+  void _selectSection(int index) {
+    if (_sectionIndex == index || !mounted) return;
+    setState(() {
+      _sectionIndex = index;
+      _visibleTab = _globalTab;
+    });
   }
 
   Future<void> _refresh(int tab) async {
@@ -110,8 +146,10 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
 
   @override
   void dispose() {
-    _tabs.removeListener(_tabChanged);
-    _tabs.dispose();
+    _inboxTabs.removeListener(_tabChanged);
+    _activityTabs.removeListener(_tabChanged);
+    _inboxTabs.dispose();
+    _activityTabs.dispose();
     super.dispose();
   }
 
@@ -123,90 +161,296 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('Your Haven'),
-            Text('Messages, viewings, paid reservations and home alerts',
+            Text('Everything for your next move, in one place',
                 style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
         actions: [
-          if (_tabs.index == 2)
+          if (_globalTab == 2)
             TextButton(
               onPressed: _markAllRead,
               child: const Text('Read all'),
             ),
-          if (_tabs.index == 3)
+          if (_globalTab == 3)
             IconButton(
               tooltip: 'Home alert settings',
               onPressed: _configureHomeAlerts,
               icon: const Icon(Icons.notifications_active_outlined),
             ),
         ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(52),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 3, 16, 9),
-            child: TabBar(
-              controller: _tabs,
-              isScrollable: true,
-              tabAlignment: TabAlignment.start,
-              tabs: const [
-                Tab(text: 'Messages'),
-                Tab(text: 'Viewings'),
-                Tab(text: 'Updates'),
-                Tab(text: 'Saved searches'),
-                Tab(text: 'Paid reservations'),
-              ],
-            ),
-          ),
-        ),
       ),
-      body: TabBarView(
-        controller: _tabs,
+      body: Column(
         children: [
-          _MarketplaceList<ConversationSummary>(
-            future: _inbox,
-            onRefresh: () => _refresh(0),
-            onRetry: () => _refresh(0),
-            emptyIcon: Icons.forum_outlined,
-            emptyTitle: 'No conversations yet',
-            emptyBody: 'Message a lister from a home you like.',
-            itemBuilder: _conversation,
-          ),
-          _ViewingList(
-            future: _viewings,
-            onRefresh: () => _refresh(1),
-            onRetry: () => _refresh(1),
-            itemBuilder: _viewing,
-          ),
-          _NotificationList(
-            future: _notifications,
-            onRefresh: () => _refresh(2),
-            onRetry: () => _refresh(2),
-            itemBuilder: _notification,
-          ),
-          _MarketplaceList<SavedSearchSummary>(
-            future: _searches,
-            onRefresh: () => _refresh(3),
-            onRetry: () => _refresh(3),
-            emptyIcon: Icons.saved_search_rounded,
-            emptyTitle: 'No saved searches',
-            emptyBody: 'Save a search to hear when a matching home is listed.',
-            itemBuilder: _savedSearch,
-          ),
-          _ReservationList(
-            future: _reservations,
-            onRefresh: () => _refresh(4),
-            onRetry: () => _refresh(4),
-            itemBuilder: _reservation,
-          ),
+          _sectionSwitcher(context),
+          Expanded(child: _sectionBody(context)),
         ],
       ),
-      floatingActionButton: _tabs.index == 3
+      floatingActionButton: _globalTab == 3
           ? FloatingActionButton.extended(
               onPressed: _createSearch,
               icon: const Icon(Icons.add_rounded),
               label: const Text('Save a search'),
             )
           : null,
+    );
+  }
+
+  Widget _sectionSwitcher(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: colors.outlineVariant),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: _HavenSectionButton(
+                selected: _sectionIndex == 0,
+                icon: Icons.forum_outlined,
+                label: 'Inbox',
+                accessibilityLabel: 'Inbox: messages and viewings',
+                onTap: () => _selectSection(0),
+              ),
+            ),
+            Expanded(
+              child: _HavenSectionButton(
+                selected: _sectionIndex == 1,
+                icon: Icons.notifications_none_rounded,
+                label: 'Activity',
+                accessibilityLabel: 'Activity: updates and saved searches',
+                onTap: () => _selectSection(1),
+              ),
+            ),
+            Expanded(
+              child: _HavenSectionButton(
+                selected: _sectionIndex == 2,
+                icon: Icons.payments_outlined,
+                label: 'Paid',
+                accessibilityLabel: 'Paid reservations',
+                onTap: () => _selectSection(2),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionBody(BuildContext context) {
+    switch (_sectionIndex) {
+      case 0:
+        return _swipeableSection(
+          eyebrow: 'CONNECT',
+          title: 'Messages & viewings',
+          description: 'Keep conversations and scheduled visits together.',
+          icon: Icons.forum_outlined,
+          controller: _inboxTabs,
+          tabs: const [Tab(text: 'Messages'), Tab(text: 'Viewings')],
+          children: [
+            _MarketplaceList<ConversationSummary>(
+              future: _inbox,
+              onRefresh: () => _refresh(0),
+              onRetry: () => _refresh(0),
+              emptyIcon: Icons.forum_outlined,
+              emptyTitle: 'No conversations yet',
+              emptyBody: 'Message a lister from a home you like.',
+              itemBuilder: _conversation,
+            ),
+            _ViewingList(
+              future: _viewings,
+              onRefresh: () => _refresh(1),
+              onRetry: () => _refresh(1),
+              itemBuilder: _viewing,
+            ),
+          ],
+        );
+      case 1:
+        return _swipeableSection(
+          eyebrow: 'STAY IN THE LOOP',
+          title: 'Updates & saved searches',
+          description: 'Follow replies and discover matching homes.',
+          icon: Icons.notifications_none_rounded,
+          controller: _activityTabs,
+          tabs: const [Tab(text: 'Updates'), Tab(text: 'Saved searches')],
+          children: [
+            _NotificationList(
+              future: _notifications,
+              onRefresh: () => _refresh(2),
+              onRetry: () => _refresh(2),
+              itemBuilder: _notification,
+            ),
+            _MarketplaceList<SavedSearchSummary>(
+              future: _searches,
+              onRefresh: () => _refresh(3),
+              onRetry: () => _refresh(3),
+              emptyIcon: Icons.saved_search_rounded,
+              emptyTitle: 'No saved searches',
+              emptyBody:
+                  'Save a search to hear when a matching home is listed.',
+              itemBuilder: _savedSearch,
+            ),
+          ],
+        );
+      default:
+        return _singleSection(
+          eyebrow: 'PAID RESERVATIONS',
+          title: 'Your reservation holds',
+          description:
+              'Manage refundable down payments and homes reserved by you.',
+          icon: Icons.payments_outlined,
+          child: _ReservationList(
+            future: _reservations,
+            onRefresh: () => _refresh(4),
+            onRetry: () => _refresh(4),
+            itemBuilder: _reservation,
+          ),
+        );
+    }
+  }
+
+  Widget _swipeableSection({
+    required String eyebrow,
+    required String title,
+    required String description,
+    required IconData icon,
+    required TabController controller,
+    required List<Widget> tabs,
+    required List<Widget> children,
+  }) {
+    return Column(
+      children: [
+        _sectionIntro(
+          eyebrow: eyebrow,
+          title: title,
+          description: description,
+          icon: icon,
+        ),
+        _localTabBar(controller, tabs),
+        const SizedBox(height: 6),
+        Expanded(
+          child: TabBarView(controller: controller, children: children),
+        ),
+      ],
+    );
+  }
+
+  Widget _singleSection({
+    required String eyebrow,
+    required String title,
+    required String description,
+    required IconData icon,
+    required Widget child,
+  }) {
+    return Column(
+      children: [
+        _sectionIntro(
+          eyebrow: eyebrow,
+          title: title,
+          description: description,
+          icon: icon,
+        ),
+        Expanded(child: child),
+      ],
+    );
+  }
+
+  Widget _sectionIntro({
+    required String eyebrow,
+    required String title,
+    required String description,
+    required IconData icon,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: colors.primaryContainer,
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Icon(icon, color: colors.primary, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  eyebrow,
+                  style: TextStyle(
+                    color: colors.primary,
+                    fontSize: 11,
+                    letterSpacing: .8,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _localTabBar(TabController controller, List<Widget> tabs) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      height: 46,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: TabBar(
+        controller: controller,
+        tabs: tabs,
+        dividerColor: Colors.transparent,
+        indicatorSize: TabBarIndicatorSize.tab,
+        indicator: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: colors.shadow.withValues(alpha: .08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        labelColor: colors.primary,
+        unselectedLabelColor: colors.onSurfaceVariant,
+        labelStyle: const TextStyle(fontWeight: FontWeight.w800),
+        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
+      ),
     );
   }
 
@@ -685,7 +929,7 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
                 ),
               ),
               const SizedBox(width: 8),
-              _StatusPill(status: item.status),
+              _StatusPill(status: item.effectiveStatus),
             ],
           ),
           const SizedBox(height: 12),
@@ -717,13 +961,17 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
                 Icon(Icons.payments_outlined,
                     size: 17, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 7),
-                Text(
-                  'Paid down payment · K${item.reservationAmount!.toStringAsFixed(0)}'
-                  '${item.paymentMethod == null ? '' : ' · ${_paymentMethodLabel(item.paymentMethod!)}'}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
+                Expanded(
+                  child: Text(
+                    'Paid down payment · K${item.reservationAmount!.toStringAsFixed(0)}'
+                    '${item.paymentMethod == null ? '' : ' · ${_paymentMethodLabel(item.paymentMethod!)}'}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                  ),
                 ),
               ],
             ),
@@ -734,7 +982,11 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
                 ? isCustomer
                     ? 'Your paid reservation is confirmed. Continue any remaining rental steps directly with the lister.'
                     : 'This home has a paid reservation. Normal viewing requests remain available.'
-                : 'This paid reservation is closed.',
+                : item.effectiveStatus == 'released'
+                    ? 'The customer released the down payment to the lister. Complete any remaining rental steps directly.'
+                    : item.paymentStatus == 'simulated_refunded'
+                        ? 'The down payment has been marked as refunded in this simulation.'
+                        : 'This paid reservation is closed.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           if (item.cancelledAt != null && item.cancellationReason != null) ...[
@@ -744,13 +996,36 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
           ],
           if (item.isActive) ...[
             const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: OutlinedButton(
-                onPressed: () => _cancelReservation(item),
-                child: const Text('Cancel paid reservation'),
+            if (isCustomer)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  OutlinedButton(
+                    onPressed: () => _cancelReservation(item),
+                    child: const Text('Get down payment back'),
+                  ),
+                  const SizedBox(height: 6),
+                  FilledButton(
+                    onPressed: () => _releaseReservation(item),
+                    child: const Text('Release down payment to lister'),
+                  ),
+                ],
+              )
+            else
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Waiting for the customer to release the down payment or request a refund.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 6),
+                  OutlinedButton(
+                    onPressed: () => _cancelReservation(item),
+                    child: const Text('Cancel & refund customer'),
+                  ),
+                ],
               ),
-            ),
           ],
         ],
       ),
@@ -767,23 +1042,55 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Cancel paid reservation?'),
-        content: const Text(
-            'The home will become available for another paid reservation, and people following it may be notified.'),
+        title: Text(item.role == ReservationRole.customer
+            ? 'Get your down payment back?'
+            : 'Cancel and refund the customer?'),
+        content: Text(item.role == ReservationRole.customer
+            ? 'This closes the paid reservation and marks the simulated down payment as refunded. The home can accept another reservation.'
+            : 'This closes the paid reservation and marks the simulated down payment as refunded to the customer.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
               child: const Text('Keep it')),
           FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Cancel paid reservation')),
+              child: Text(item.role == ReservationRole.customer
+                  ? 'Refund down payment'
+                  : 'Cancel and refund')),
         ],
       ),
     );
     if (confirmed != true) return;
     await _perform(
       () => MarketplaceService.instance.cancelReservation(item.id),
-      success: 'Paid reservation cancelled. The home is available again.',
+      success: item.role == ReservationRole.customer
+          ? 'Down payment marked as refunded. The home is available again.'
+          : 'Reservation cancelled and refund marked for the customer.',
+    );
+    if (mounted) await _refresh(4);
+  }
+
+  Future<void> _releaseReservation(ReservationSummary item) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Release the down payment?'),
+        content: const Text(
+            'Only do this after you are satisfied with the home and have agreed the remaining rent or deposit directly with the lister. This closes the Haven reservation.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Not yet')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Release payment')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await _perform(
+      () => MarketplaceService.instance.releaseReservation(item.id),
+      success: 'Down payment released to the lister.',
     );
     if (mounted) await _refresh(4);
   }
@@ -915,6 +1222,7 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
         'reservation_created' => Icons.event_available_outlined,
         'reservation_cancelled' => Icons.event_busy_outlined,
         'reservation_available' => Icons.notifications_active_outlined,
+        'reservation_released' => Icons.payments_outlined,
         'reservation_expired' => Icons.event_busy_outlined,
         'verification_updated' => Icons.verified_user_outlined,
         _ => Icons.notifications_none_rounded,
@@ -955,6 +1263,8 @@ class _ConversationScreenState extends State<ConversationScreen>
   bool _sending = false;
   bool _refreshing = false;
   String? _error;
+  String? _pendingClientUuid;
+  String? _pendingMessageBody;
 
   @override
   void initState() {
@@ -1028,15 +1338,22 @@ class _ConversationScreenState extends State<ConversationScreen>
   Future<void> _send() async {
     final body = _text.text.trim();
     if (body.isEmpty || _sending) return;
+    if (_pendingMessageBody != body) {
+      _pendingClientUuid = _newClientUuid();
+      _pendingMessageBody = body;
+    }
+    final clientUuid = _pendingClientUuid!;
     setState(() => _sending = true);
     try {
       final message = await MarketplaceService.instance
-          .sendMessage(widget.conversationId, body);
+          .sendMessage(widget.conversationId, body, clientUuid: clientUuid);
       if (!mounted) return;
       _text.clear();
       setState(() {
         _messages = [..._messages, message];
         _sending = false;
+        _pendingClientUuid = null;
+        _pendingMessageBody = null;
       });
       _scrollToBottom();
     } on MarketplaceException catch (error) {
@@ -1045,6 +1362,16 @@ class _ConversationScreenState extends State<ConversationScreen>
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(error.message)));
     }
+  }
+
+  String _newClientUuid() {
+    final random = Random.secure();
+    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    final hex =
+        bytes.map((value) => value.toRadixString(16).padLeft(2, '0')).join();
+    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
   }
 
   void _scrollToBottom() {
@@ -1983,15 +2310,92 @@ class _IconDisc extends StatelessWidget {
       );
 }
 
+class _HavenSectionButton extends StatelessWidget {
+  final bool selected;
+  final IconData icon;
+  final String label;
+  final String accessibilityLabel;
+  final VoidCallback onTap;
+
+  const _HavenSectionButton({
+    required this.selected,
+    required this.icon,
+    required this.label,
+    required this.accessibilityLabel,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: accessibilityLabel,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+            decoration: BoxDecoration(
+              color: selected ? colors.surface : Colors.transparent,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: selected
+                  ? [
+                      BoxShadow(
+                        color: colors.shadow.withValues(alpha: .08),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : const [],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 17,
+                  color: selected ? colors.primary : colors.onSurfaceVariant,
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color:
+                          selected ? colors.primary : colors.onSurfaceVariant,
+                      fontSize: 12,
+                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _StatusPill extends StatelessWidget {
   final String status;
   const _StatusPill({required this.status});
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final positive = status == 'confirmed' || status == 'completed';
-    final closed =
-        status == 'declined' || status == 'cancelled' || status == 'no_show';
+    final positive =
+        status == 'confirmed' || status == 'completed' || status == 'released';
+    final closed = status == 'declined' ||
+        status == 'cancelled' ||
+        status == 'expired' ||
+        status == 'no_show';
     final color = positive
         ? colors.primary
         : closed

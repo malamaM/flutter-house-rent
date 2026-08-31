@@ -32,6 +32,7 @@ class _PaidReservationSheetState extends State<PaidReservationSheet> {
   List<ReservationAvailabilityRule> _rules = [];
   List<ReservationAvailabilityException> _exceptions = [];
   List<ReservationSlot> _oneOffSlots = [];
+  String? _slotsWarning;
 
   @override
   void initState() {
@@ -47,19 +48,23 @@ class _PaidReservationSheetState extends State<PaidReservationSheet> {
       });
     }
     try {
-      final values = await Future.wait([
-        MarketplaceService.instance
-            .reservationAvailability(widget.houseId, refresh: true),
-        MarketplaceService.instance
-            .reservationSlots(widget.houseId, refresh: true),
-      ]);
+      final config = await MarketplaceService.instance
+          .reservationAvailability(widget.houseId, refresh: true);
+      List<ReservationSlot> slots = const [];
+      String? slotsWarning;
+      try {
+        slots = await MarketplaceService.instance
+            .reservationSlots(widget.houseId, refresh: true);
+      } catch (_) {
+        slotsWarning =
+            'Schedule settings loaded, but one-off dates could not be refreshed.';
+      }
       if (!mounted) return;
-      final config = values[0] as ReservationAvailabilityConfig;
       _applyConfig(config);
       setState(() {
-        _oneOffSlots = (values[1] as List<ReservationSlot>)
-            .where((slot) => slot.source != 'recurring')
-            .toList();
+        _oneOffSlots =
+            slots.where((slot) => slot.source != 'recurring').toList();
+        _slotsWarning = slotsWarning;
         _loading = false;
       });
     } catch (error) {
@@ -109,16 +114,30 @@ class _PaidReservationSheetState extends State<PaidReservationSheet> {
         rules: _rules,
         exceptions: _exceptions,
       );
-      final slots = await MarketplaceService.instance
-          .reservationSlots(widget.houseId, refresh: true);
+      List<ReservationSlot>? slots;
+      try {
+        slots = await MarketplaceService.instance
+            .reservationSlots(widget.houseId, refresh: true);
+      } catch (_) {
+        // The schedule update has already succeeded. Keep the existing
+        // one-off list visible and let the next refresh reconcile it.
+      }
       if (!mounted) return;
       _applyConfig(config);
       setState(() {
-        _oneOffSlots =
-            slots.where((slot) => slot.source != 'recurring').toList();
+        if (slots != null) {
+          _oneOffSlots =
+              slots.where((slot) => slot.source != 'recurring').toList();
+          _slotsWarning = null;
+        } else {
+          _slotsWarning =
+              'Settings saved, but available dates could not be refreshed.';
+        }
         _saving = false;
       });
-      _showMessage('Paid reservation settings saved.');
+      _showMessage(slots == null
+          ? 'Settings saved. Dates will refresh when Haven reconnects.'
+          : 'Paid reservation settings saved.');
     } catch (error) {
       if (!mounted) return;
       setState(() => _saving = false);
@@ -294,6 +313,10 @@ class _PaidReservationSheetState extends State<PaidReservationSheet> {
                           ),
                           const SizedBox(height: 14),
                           _intro(context),
+                          if (_slotsWarning != null) ...[
+                            const SizedBox(height: 10),
+                            _warning(context, _slotsWarning!),
+                          ],
                           const SizedBox(height: 18),
                           _heading(context, 'Down payment',
                               'Set the amount and payment options'),
@@ -359,9 +382,33 @@ class _PaidReservationSheetState extends State<PaidReservationSheet> {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Customers pay a refundable down payment to show they are serious. Haven simulates Airtel Money and MTN Money for now; viewing requests continue as normal.',
+              'Customers pay a refundable down payment to show they are serious. A live refund may exclude the mobile-money provider fee; this demo applies no fee. Haven simulates Airtel Money and MTN Money for now; viewing requests continue as normal.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _warning(BuildContext context, String message) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colors.tertiaryContainer.withValues(alpha: .65),
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.sync_problem_outlined,
+              size: 19, color: colors.onTertiaryContainer),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(message,
+                style: TextStyle(color: colors.onTertiaryContainer)),
           ),
         ],
       ),
@@ -947,12 +994,19 @@ class _AvailabilityWindowPickerState extends State<_AvailabilityWindowPicker> {
 
   Widget _datePicker(BuildContext context, DateTime tomorrow) {
     final colors = Theme.of(context).colorScheme;
+    final minimumDate = widget.exception != null && _date.isBefore(tomorrow)
+        ? DateTime(_date.year, _date.month, _date.day)
+        : DateTime(tomorrow.year, tomorrow.month, tomorrow.day);
+    final maximumDate = DateTime.now().add(const Duration(days: 180));
+    final pickerMaximum = widget.exception != null && _date.isAfter(maximumDate)
+        ? DateTime(_date.year, _date.month, _date.day)
+        : DateTime(maximumDate.year, maximumDate.month, maximumDate.day);
     return _pickerBox(
       context,
       CupertinoDatePicker(
           mode: CupertinoDatePickerMode.date,
-          minimumDate: DateTime(tomorrow.year, tomorrow.month, tomorrow.day),
-          maximumDate: DateTime.now().add(const Duration(days: 180)),
+          minimumDate: minimumDate,
+          maximumDate: pickerMaximum,
           initialDateTime: _date,
           onDateTimeChanged: (value) => setState(() => _date = value)),
       colors,

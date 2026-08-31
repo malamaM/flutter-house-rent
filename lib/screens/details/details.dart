@@ -665,121 +665,126 @@ class _MobileMoneyPaymentSheetState extends State<_MobileMoneyPaymentSheet> {
       borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
       child: SafeArea(
         top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                        color: colors.outlineVariant,
-                        borderRadius: BorderRadius.circular(4))),
-              ),
-              const SizedBox(height: 18),
-              Text('Pay the reservation amount',
-                  style: Theme.of(context).textTheme.headlineSmall),
-              const SizedBox(height: 5),
-              Text(
-                  'This down payment is refundable according to Haven’s terms. Choose your mobile-money provider to continue.',
-                  style: Theme.of(context).textTheme.bodyMedium),
-              const SizedBox(height: 14),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(15),
-                decoration: BoxDecoration(
-                    color: colors.primaryContainer.withValues(alpha: .5),
-                    borderRadius: BorderRadius.circular(18)),
-                child: Row(
-                  children: [
-                    Icon(Icons.payments_rounded,
-                        color: colors.primary, size: 23),
-                    const SizedBox(width: 10),
-                    const Expanded(
-                        child: Text('Refundable reservation amount')),
-                    Text('K${widget.amount}',
-                        style: TextStyle(
-                            color: colors.primary,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 18)),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 15),
-              ...methods.map((method) {
-                final selected = method == _selected;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 9),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(17),
-                    onTap: () => setState(() => _selected = method),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 160),
-                      padding: const EdgeInsets.all(14),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * .88),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                      width: 40,
+                      height: 4,
                       decoration: BoxDecoration(
-                          color: selected
-                              ? colors.primaryContainer
-                              : colors.surfaceContainerLow,
-                          borderRadius: BorderRadius.circular(17),
-                          border: Border.all(
-                              color: selected
-                                  ? colors.primary
-                                  : colors.outlineVariant,
-                              width: selected ? 1.4 : .8)),
-                      child: Row(
-                        children: [
-                          Icon(
-                              selected
-                                  ? Icons.radio_button_checked_rounded
-                                  : Icons.radio_button_off_rounded,
-                              color: selected
-                                  ? colors.primary
-                                  : colors.onSurfaceVariant),
-                          const SizedBox(width: 11),
-                          Icon(Icons.phone_android_rounded,
-                              color: colors.primary, size: 21),
-                          const SizedBox(width: 9),
-                          Text(_paymentMethodLabel(method),
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w700)),
-                        ],
+                          color: colors.outlineVariant,
+                          borderRadius: BorderRadius.circular(4))),
+                ),
+                const SizedBox(height: 18),
+                Text('Pay the reservation amount',
+                    style: Theme.of(context).textTheme.headlineSmall),
+                const SizedBox(height: 5),
+                Text(
+                    'This down payment is refundable under Haven’s terms. A live refund may exclude the mobile-money provider fee; this demo applies no fee. Choose a provider to continue.',
+                    style: Theme.of(context).textTheme.bodyMedium),
+                const SizedBox(height: 14),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(15),
+                  decoration: BoxDecoration(
+                      color: colors.primaryContainer.withValues(alpha: .5),
+                      borderRadius: BorderRadius.circular(18)),
+                  child: Row(
+                    children: [
+                      Icon(Icons.payments_rounded,
+                          color: colors.primary, size: 23),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                          child: Text('Refundable reservation amount')),
+                      Text('K${widget.amount}',
+                          style: TextStyle(
+                              color: colors.primary,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 18)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 15),
+                ...methods.map((method) {
+                  final selected = method == _selected;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 9),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(17),
+                      onTap: () => setState(() => _selected = method),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 160),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                            color: selected
+                                ? colors.primaryContainer
+                                : colors.surfaceContainerLow,
+                            borderRadius: BorderRadius.circular(17),
+                            border: Border.all(
+                                color: selected
+                                    ? colors.primary
+                                    : colors.outlineVariant,
+                                width: selected ? 1.4 : .8)),
+                        child: Row(
+                          children: [
+                            Icon(
+                                selected
+                                    ? Icons.radio_button_checked_rounded
+                                    : Icons.radio_button_off_rounded,
+                                color: selected
+                                    ? colors.primary
+                                    : colors.onSurfaceVariant),
+                            const SizedBox(width: 11),
+                            Icon(Icons.phone_android_rounded,
+                                color: colors.primary, size: 21),
+                            const SizedBox(width: 9),
+                            Text(_paymentMethodLabel(method),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700)),
+                          ],
+                        ),
                       ),
                     ),
+                  );
+                }),
+                const SizedBox(height: 4),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(11),
+                  decoration: BoxDecoration(
+                      color: colors.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(14)),
+                  child: Row(
+                    children: [
+                      Icon(Icons.science_outlined,
+                          size: 18, color: colors.onSurfaceVariant),
+                      const SizedBox(width: 8),
+                      Expanded(
+                          child: Text(
+                              'Demo checkout · no real money moves yet.',
+                              style: Theme.of(context).textTheme.bodySmall)),
+                    ],
                   ),
-                );
-              }),
-              const SizedBox(height: 4),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(11),
-                decoration: BoxDecoration(
-                    color: colors.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(14)),
-                child: Row(
-                  children: [
-                    Icon(Icons.science_outlined,
-                        size: 18, color: colors.onSurfaceVariant),
-                    const SizedBox(width: 8),
-                    Expanded(
-                        child: Text('Demo checkout · no real money moves yet.',
-                            style: Theme.of(context).textTheme.bodySmall)),
-                  ],
                 ),
-              ),
-              const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: () => Navigator.pop(context, _selected),
-                  icon: const Icon(Icons.check_circle_outline_rounded),
-                  label:
-                      Text('Simulate successful payment · K${widget.amount}'),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () => Navigator.pop(context, _selected),
+                    icon: const Icon(Icons.check_circle_outline_rounded),
+                    label:
+                        Text('Simulate successful payment · K${widget.amount}'),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -1234,10 +1239,18 @@ class _DetailsState extends State<Details> {
                       strokeWidth: 2.2, color: colors.primary),
                 ),
                 const SizedBox(width: 12),
-                const Text('Checking reservation availability…'),
+                const Expanded(
+                  child: Text('Checking reservation availability…'),
+                ),
               ],
             ),
           );
+        }
+        if (snapshot.hasError) {
+          return _reservationUnavailable(ApiErrorResolver.message(
+              snapshot.error!,
+              fallback:
+                  'Paid reservation availability is temporarily unavailable.'));
         }
         final state = snapshot.data;
         if (state == null) return const SizedBox.shrink();
@@ -1246,27 +1259,36 @@ class _DetailsState extends State<Details> {
             .where((slot) =>
                 slot.isActive && slot.startsAt.isAfter(DateTime.now()))
             .toList();
-        final hasDates = !state.isReserved && available.isNotEmpty;
+        final hasDates = state.canAcceptReservations &&
+            !state.isReserved &&
+            available.isNotEmpty;
+        final unavailable = !state.canAcceptReservations && !state.isReserved;
         final isMine = state.isMine && state.isReserved;
         final title = isMine
             ? 'Your paid reservation is active'
             : state.isReserved
                 ? 'Currently held by a paid reservation'
-                : hasDates
-                    ? 'Reserve with a down payment'
-                    : 'Paid reservation dates coming soon';
+                : unavailable
+                    ? 'Paid reservation unavailable right now'
+                    : hasDates
+                        ? 'Reserve with a down payment'
+                        : 'Paid reservation dates coming soon';
         final message = isMine
             ? 'You have a paid reservation on this home. Viewings can still be requested.'
             : state.isReserved
                 ? 'This home is currently held by a paid reservation, but viewing requests remain open.'
-                : hasDates
-                    ? 'Pay a refundable K${state.settings.reservationAmount} down payment, then choose a date offered by the lister. Normal viewing requests stay open too.'
-                    : 'The lister has not opened a paid reservation date yet. We can notify you when one becomes available.';
+                : unavailable
+                    ? 'The lister is not accepting paid reservations for this home right now. Normal viewing requests remain open.'
+                    : hasDates
+                        ? 'Pay a refundable K${state.settings.reservationAmount} down payment, then choose a date offered by the lister. Normal viewing requests stay open too. A live refund may exclude the mobile-money provider fee; this demo applies no fee.'
+                        : 'The lister has not opened a paid reservation date yet. We can notify you when one becomes available.';
         final label = isMine || state.isReserved
             ? 'PAID RESERVATION ON HOLD'
-            : hasDates
-                ? 'PAID RESERVATION AVAILABLE'
-                : 'STAY IN THE LOOP';
+            : unavailable
+                ? 'PAID RESERVATIONS PAUSED'
+                : hasDates
+                    ? 'PAID RESERVATION AVAILABLE'
+                    : 'STAY IN THE LOOP';
 
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -1442,8 +1464,16 @@ class _DetailsState extends State<Details> {
             ),
           );
         }
+        if (snapshot.hasError) {
+          return _reservationUnavailable(ApiErrorResolver.message(
+              snapshot.error!,
+              fallback:
+                  'Paid reservation availability is temporarily unavailable.'));
+        }
         final state = snapshot.data;
         if (state == null) return const SizedBox.shrink();
+        final hasAvailableSlots = state.slots.any(
+            (slot) => slot.isActive && slot.startsAt.isAfter(DateTime.now()));
         if (state.isReserved) {
           final banner = Container(
               width: double.infinity,
@@ -1496,7 +1526,33 @@ class _DetailsState extends State<Details> {
             ],
           );
         }
-        if (state.slots.isEmpty) {
+        if (!state.canAcceptReservations) {
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.pause_circle_outline,
+                    size: 19,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Text(
+                    'Paid reservations are paused for this listing. Normal viewing requests remain available.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        if (!hasAvailableSlots) {
           return SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
@@ -1531,6 +1587,49 @@ class _DetailsState extends State<Details> {
         );
       },
     );
+  }
+
+  Widget _reservationUnavailable(String message) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colors.errorContainer.withValues(alpha: .55),
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.cloud_off_outlined,
+              size: 19, color: colors.onErrorContainer),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(message, style: TextStyle(color: colors.onErrorContainer)),
+                const SizedBox(height: 5),
+                TextButton(
+                  onPressed: _reservationBusy ? null : _refreshReservationState,
+                  style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero, minimumSize: Size.zero),
+                  child: const Text('Try again'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _refreshReservationState() {
+    if (!mounted) return;
+    setState(() {
+      _reservationFuture = MarketplaceService.instance
+          .reservationState(widget.house.id, refresh: true);
+    });
   }
 
   Future<void> _reserveHome({bool closeAfter = false}) async {
