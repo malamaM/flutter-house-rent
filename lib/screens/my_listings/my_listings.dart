@@ -221,6 +221,10 @@ class _ListingLifecycleBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final reservationDates = house.reservationDatesCount > 0
+        ? house.reservationDatesCount
+        : house.reservationSlotsCount;
+    final reservationWindows = house.reservationSlotsCount;
     final urgent = house.isArchived || house.daysUntilExpiry <= 3;
     final label = house.isArchived
         ? 'Archived after 30 days'
@@ -293,22 +297,22 @@ class _ListingLifecycleBar extends StatelessWidget {
               child: Row(
                 children: [
                   Icon(
-                    house.reservationSlotsCount > 0
+                    reservationDates > 0
                         ? Icons.event_available_rounded
                         : Icons.event_note_outlined,
                     size: 17,
-                    color: house.reservationSlotsCount > 0
+                    color: reservationDates > 0
                         ? colors.primary
                         : colors.onSurfaceVariant,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      house.reservationSlotsCount > 0
-                          ? '${house.reservationSlotsCount} paid reservation ${house.reservationSlotsCount == 1 ? 'date' : 'dates'} set'
+                      reservationDates > 0
+                          ? '$reservationDates paid reservation ${reservationDates == 1 ? 'date' : 'dates'} set'
                           : 'No paid reservation dates set',
                       style: TextStyle(
-                        color: house.reservationSlotsCount > 0
+                        color: reservationDates > 0
                             ? colors.primary
                             : colors.onSurfaceVariant,
                         fontSize: 12,
@@ -316,10 +320,21 @@ class _ListingLifecycleBar extends StatelessWidget {
                       ),
                     ),
                   ),
+                  if (reservationDates > 0 &&
+                      reservationWindows > reservationDates)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Text(
+                        '$reservationWindows times',
+                        style: TextStyle(
+                          color: colors.onSurfaceVariant,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
                   Text(
-                    house.reservationSlotsCount > 0
-                        ? 'Manage'
-                        : 'Add paid dates',
+                    reservationDates > 0 ? 'Manage' : 'Add paid dates',
                     style: TextStyle(
                       color: colors.primary,
                       fontSize: 12,

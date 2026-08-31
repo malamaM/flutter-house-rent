@@ -72,6 +72,7 @@ class House {
   bool isSaved;
   bool isReserved;
   int reservationSlotsCount;
+  int reservationDatesCount;
   int? ownerId;
   String? ownerName;
   String? ownerEmail;
@@ -132,6 +133,7 @@ class House {
     this.isSaved = false,
     this.isReserved = false,
     this.reservationSlotsCount = 0,
+    this.reservationDatesCount = 0,
     this.ownerId,
     this.ownerName,
     this.ownerEmail,
@@ -222,6 +224,7 @@ class House {
       isSaved: map['is_saved'] == true || map['is_saved'] == 1,
       isReserved: map['is_reserved'] == true || map['is_reserved'] == 1,
       reservationSlotsCount: _parseInt(map['reservation_slots_count']),
+      reservationDatesCount: _parseInt(map['reservation_dates_count']),
       ownerId: user == null ? null : _parseInt(user['id']),
       ownerName: _ownerName(user),
       ownerEmail: user?['email']?.toString(),
@@ -309,6 +312,7 @@ class House {
         'is_saved': isSaved,
         'is_reserved': isReserved,
         'reservation_slots_count': reservationSlotsCount,
+        'reservation_dates_count': reservationDatesCount,
         'user': ownerId == null
             ? null
             : {

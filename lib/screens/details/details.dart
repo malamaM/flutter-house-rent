@@ -311,142 +311,319 @@ class _ReservationSlotSheet extends StatefulWidget {
 
 class _ReservationSlotSheetState extends State<_ReservationSlotSheet> {
   int? _selectedId;
+  String? _selectedDayKey;
+
+  String _dayKey(DateTime value) =>
+      '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
+
+  String _dayTitle(DateTime value) {
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
+    return '${weekdays[value.weekday - 1]} ${value.day} ${months[value.month - 1]}';
+  }
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final available = widget.slots
         .where((slot) => slot.isActive && slot.startsAt.isAfter(DateTime.now()))
-        .toList();
+        .toList()
+      ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
+    final slotsByDay = <String, List<ReservationSlot>>{};
+    final dayDates = <String, DateTime>{};
+    for (final slot in available) {
+      final localStart = slot.startsAt.toLocal();
+      final key = _dayKey(localStart);
+      slotsByDay.putIfAbsent(key, () => <ReservationSlot>[]).add(slot);
+      dayDates[key] =
+          DateTime(localStart.year, localStart.month, localStart.day);
+    }
+    final dayKeys = slotsByDay.keys.toList();
+    final selectedDayKey = dayKeys.contains(_selectedDayKey)
+        ? _selectedDayKey!
+        : dayKeys.firstOrNull;
+    final selectedDaySlots = selectedDayKey == null
+        ? const <ReservationSlot>[]
+        : slotsByDay[selectedDayKey] ?? const <ReservationSlot>[];
+
     return Material(
       color: colors.surface,
       borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: colors.outlineVariant,
-                    borderRadius: BorderRadius.circular(4),
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * .9,
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: colors.outlineVariant,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 18),
-              Text('Choose a paid reservation date',
-                  style: Theme.of(context).textTheme.headlineSmall),
-              const SizedBox(height: 5),
-              Text(
-                'Choose one date offered by the lister for ${widget.propertyName}. The down payment is refundable according to Haven’s reservation terms.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 13),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(13),
-                decoration: BoxDecoration(
-                  color: colors.primaryContainer.withValues(alpha: .48),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
+                const SizedBox(height: 16),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.payments_outlined,
-                        size: 20, color: colors.primary),
-                    const SizedBox(width: 9),
                     Expanded(
-                      child: Text(
-                        'Refundable down payment · ${widget.settings.downPaymentPercent}% · K${widget.settings.reservationAmount}',
-                        style: TextStyle(
-                            color: colors.primary, fontWeight: FontWeight.w800),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Choose a paid reservation date',
+                              style: Theme.of(context).textTheme.headlineSmall),
+                          const SizedBox(height: 5),
+                          Text(
+                            'Select a date first, then choose an available time for ${widget.propertyName}.',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ],
                       ),
+                    ),
+                    IconButton(
+                      tooltip: 'Close',
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close_rounded),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 16),
-              if (available.isEmpty)
+                const SizedBox(height: 13),
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(13),
                   decoration: BoxDecoration(
-                    color: colors.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: colors.outlineVariant),
+                    color: colors.primaryContainer.withValues(alpha: .48),
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Text(
-                      'No reservation dates are available right now.'),
-                )
-              else
-                ...available.map((slot) {
-                  final selected = slot.id == _selectedId;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 9),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(18),
-                      onTap: () => setState(() => _selectedId = slot.id),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: selected
-                              ? colors.primaryContainer
-                              : colors.surfaceContainerLow,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                            color: selected
-                                ? colors.primary
-                                : colors.outlineVariant,
-                            width: selected ? 1.4 : .8,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              selected
-                                  ? Icons.radio_button_checked_rounded
-                                  : Icons.radio_button_off_rounded,
-                              color: selected
-                                  ? colors.primary
-                                  : colors.onSurfaceVariant,
-                            ),
-                            const SizedBox(width: 11),
-                            Icon(Icons.calendar_month_outlined,
-                                size: 19, color: colors.primary),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                _reservationSlotLabel(slot),
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleSmall
-                                    ?.copyWith(fontWeight: FontWeight.w700),
-                              ),
-                            ),
-                          ],
+                  child: Row(
+                    children: [
+                      Icon(Icons.payments_outlined,
+                          size: 20, color: colors.primary),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          'Refundable down payment · ${widget.settings.downPaymentPercent}% · K${widget.settings.reservationAmount}',
+                          style: TextStyle(
+                              color: colors.primary,
+                              fontWeight: FontWeight.w800),
                         ),
                       ),
-                    ),
-                  );
-                }),
-              const SizedBox(height: 5),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: _selectedId == null
-                      ? null
-                      : () => Navigator.pop(context, _selectedId),
-                  icon: const Icon(Icons.lock_outline_rounded, size: 18),
-                  label: const Text('Continue to payment'),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                if (available.isEmpty)
+                  Expanded(
+                    child: Center(
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          color: colors.surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: colors.outlineVariant),
+                        ),
+                        child: const Text(
+                            'No reservation dates are available right now.'),
+                      ),
+                    ),
+                  )
+                else ...[
+                  Row(
+                    children: [
+                      Text('Available dates',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w800)),
+                      const Spacer(),
+                      Text(
+                          '${dayKeys.length} ${dayKeys.length == 1 ? 'day' : 'days'}',
+                          style: TextStyle(
+                              color: colors.onSurfaceVariant,
+                              fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                  const SizedBox(height: 9),
+                  SizedBox(
+                    height: 78,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: dayKeys.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      itemBuilder: (context, index) {
+                        final key = dayKeys[index];
+                        final selected = key == selectedDayKey;
+                        final date = dayDates[key]!;
+                        final count = slotsByDay[key]!.length;
+                        return Semantics(
+                          button: true,
+                          selected: selected,
+                          label: '${_dayTitle(date)}, $count available times',
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: () => setState(() {
+                              _selectedDayKey = key;
+                              _selectedId = null;
+                            }),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 160),
+                              width: 106,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 9),
+                              decoration: BoxDecoration(
+                                color: selected
+                                    ? colors.primary
+                                    : colors.surfaceContainerLow,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: selected
+                                      ? colors.primary
+                                      : colors.outlineVariant,
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    _dayTitle(date),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: selected
+                                          ? colors.onPrimary
+                                          : colors.onSurface,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  Text(
+                                    '$count ${count == 1 ? 'time' : 'times'}',
+                                    style: TextStyle(
+                                      color: selected
+                                          ? colors.onPrimary
+                                              .withValues(alpha: .86)
+                                          : colors.onSurfaceVariant,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Text('Available times',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w800)),
+                      const Spacer(),
+                      if (selectedDayKey != null)
+                        Text('${selectedDaySlots.length} options',
+                            style: TextStyle(
+                                color: colors.onSurfaceVariant,
+                                fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: ListView.separated(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      itemCount: selectedDaySlots.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final slot = selectedDaySlots[index];
+                        final selected = slot.id == _selectedId;
+                        return InkWell(
+                          borderRadius: BorderRadius.circular(17),
+                          onTap: () => setState(() => _selectedId = slot.id),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 160),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 13),
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? colors.primaryContainer
+                                  : colors.surfaceContainerLow,
+                              borderRadius: BorderRadius.circular(17),
+                              border: Border.all(
+                                color: selected
+                                    ? colors.primary
+                                    : colors.outlineVariant,
+                                width: selected ? 1.4 : .8,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  selected
+                                      ? Icons.radio_button_checked_rounded
+                                      : Icons.radio_button_off_rounded,
+                                  color: selected
+                                      ? colors.primary
+                                      : colors.onSurfaceVariant,
+                                ),
+                                const SizedBox(width: 11),
+                                Icon(Icons.schedule_rounded,
+                                    size: 19, color: colors.primary),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _reservationTimeLabel(slot),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleSmall
+                                        ?.copyWith(fontWeight: FontWeight.w700),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 5),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _selectedId == null
+                        ? null
+                        : () => Navigator.pop(context, _selectedId),
+                    icon: const Icon(Icons.lock_outline_rounded, size: 18),
+                    label: const Text('Continue to payment'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -617,15 +794,28 @@ class _MobileMoneyPaymentSheetState extends State<_MobileMoneyPaymentSheet> {
 }
 
 String _reservationSlotLabel(ReservationSlot slot) {
-  final start = slot.startsAt;
+  final start = slot.startsAt.toLocal();
   final hour = start.hour % 12 == 0 ? 12 : start.hour % 12;
   final minute = start.minute.toString().padLeft(2, '0');
   final period = start.hour >= 12 ? 'PM' : 'AM';
-  final end = slot.endsAt;
+  final end = slot.endsAt?.toLocal();
   final endLabel = end == null
       ? ''
       : ' – ${end.hour % 12 == 0 ? 12 : end.hour % 12}:${end.minute.toString().padLeft(2, '0')} ${end.hour >= 12 ? 'PM' : 'AM'}';
   return '${_reservationDayLabel(start)} · $hour:$minute $period$endLabel';
+}
+
+String _reservationTimeLabel(ReservationSlot slot) {
+  final start = slot.startsAt.toLocal();
+  final end = slot.endsAt?.toLocal();
+  String format(DateTime value) {
+    final hour = value.hour % 12 == 0 ? 12 : value.hour % 12;
+    final minute = value.minute.toString().padLeft(2, '0');
+    final period = value.hour >= 12 ? 'PM' : 'AM';
+    return '$hour:$minute $period';
+  }
+
+  return end == null ? format(start) : '${format(start)} – ${format(end)}';
 }
 
 String _reservationDayLabel(DateTime value) {
@@ -1201,7 +1391,7 @@ class _DetailsState extends State<Details> {
                       context,
                       HavenPageRoute(
                           builder: (_) =>
-                              const MarketplaceHubScreen(initialTab: 1)),
+                              const MarketplaceHubScreen(initialTab: 4)),
                     ),
                     icon: const Icon(Icons.event_note_outlined, size: 18),
                     label: const Text('View my paid reservation'),
