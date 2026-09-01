@@ -34,11 +34,22 @@ class _PaidReservationSheetState extends State<PaidReservationSheet> {
   List<ReservationAvailabilityException> _exceptions = [];
   List<ReservationSlot> _oneOffSlots = [];
   String? _slotsWarning;
+  late final TextEditingController _airtelNumberController;
+  late final TextEditingController _mtnNumberController;
 
   @override
   void initState() {
     super.initState();
+    _airtelNumberController = TextEditingController();
+    _mtnNumberController = TextEditingController();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _airtelNumberController.dispose();
+    _mtnNumberController.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -87,6 +98,9 @@ class _PaidReservationSheetState extends State<PaidReservationSheet> {
     _paymentMethods
       ..clear()
       ..addAll(settings.paymentMethods);
+    _airtelNumberController.text =
+        settings.receivingNumbers['airtel_money'] ?? '';
+    _mtnNumberController.text = settings.receivingNumbers['mtn_money'] ?? '';
     _rules = [...config.rules];
     _exceptions = [...config.exceptions];
     _hasUnsavedChanges = false;
@@ -103,6 +117,14 @@ class _PaidReservationSheetState extends State<PaidReservationSheet> {
       _showMessage('Keep at least one mobile-money option enabled.');
       return;
     }
+    final receivingNumbers = _receivingNumbers;
+    for (final method in _paymentMethods) {
+      if (!_isValidNumber(receivingNumbers[method] ?? '')) {
+        _showMessage(
+            'Add a valid ${_methodLabel(method)} receiving number or turn that payment option off.');
+        return;
+      }
+    }
     setState(() => _saving = true);
     try {
       final config =
@@ -113,6 +135,7 @@ class _PaidReservationSheetState extends State<PaidReservationSheet> {
         depositMonths: _depositMonths,
         rentMonthsAdvance: _rentMonths,
         paymentMethods: _paymentMethods.toList(),
+        receivingNumbers: receivingNumbers,
         rules: _rules,
         exceptions: _exceptions,
       );
@@ -268,6 +291,31 @@ class _PaidReservationSheetState extends State<PaidReservationSheet> {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
   }
+
+  Map<String, String> get _receivingNumbers => {
+        'airtel_money': _normaliseNumber(_airtelNumberController.text),
+        'mtn_money': _normaliseNumber(_mtnNumberController.text),
+      };
+
+  bool _isValidNumber(String value) {
+    final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+    return digits.length >= 9 && digits.length <= 15;
+  }
+
+  String _normaliseNumber(String value) {
+    final trimmed = value.trim();
+    final digits = trimmed.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) return '';
+    if (digits.startsWith('0')) return '+260${digits.substring(1)}';
+    if (digits.length == 9) return '+260$digits';
+    return trimmed.startsWith('+') ? '+$digits' : digits;
+  }
+
+  String _methodLabel(String method) => method == 'mtn_money'
+      ? 'MTN Money'
+      : method == 'airtel_money'
+          ? 'Airtel Money'
+          : method;
 
   @override
   Widget build(BuildContext context) {
@@ -581,7 +629,133 @@ class _PaidReservationSheetState extends State<PaidReservationSheet> {
             ),
           ],
         ),
+        const SizedBox(height: 12),
+        _receivingNumbersCard(context),
       ],
+    );
+  }
+
+  Widget _receivingNumbersCard(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            colors.primaryContainer.withValues(alpha: .66),
+            colors.surfaceContainerLow,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(19),
+        border: Border.all(color: colors.primary.withValues(alpha: .18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: colors.primary,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.account_balance_wallet_outlined,
+                    size: 20, color: colors.onPrimary),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Where you receive payments',
+                        style: TextStyle(fontWeight: FontWeight.w900)),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Add the mobile-money numbers for this listing. Customers choose the provider; Haven will use these details when live payments are connected.',
+                      style: TextStyle(
+                          color: colors.onSurfaceVariant,
+                          fontSize: 12,
+                          height: 1.3),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 13),
+          _receivingNumberField(
+            context,
+            controller: _airtelNumberController,
+            label: 'Airtel Money receiving number',
+            hint: 'e.g. 097 123 4567',
+            icon: Icons.phone_android_rounded,
+          ),
+          const SizedBox(height: 10),
+          _receivingNumberField(
+            context,
+            controller: _mtnNumberController,
+            label: 'MTN Money receiving number',
+            hint: 'e.g. 096 123 4567',
+            icon: Icons.phone_android_rounded,
+          ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.lock_outline_rounded,
+                  size: 15, color: colors.onSurfaceVariant),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Private to you. Numbers are not displayed on the customer listing.',
+                  style: TextStyle(
+                      color: colors.onSurfaceVariant,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _receivingNumberField(
+    BuildContext context, {
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+    return TextField(
+      controller: controller,
+      keyboardType: TextInputType.phone,
+      textInputAction: TextInputAction.next,
+      onChanged: (_) => setState(() => _hasUnsavedChanges = true),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: Icon(icon, color: colors.primary),
+        filled: true,
+        fillColor: colors.surface.withValues(alpha: .78),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: colors.outlineVariant),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: colors.outlineVariant),
+        ),
+      ),
     );
   }
 

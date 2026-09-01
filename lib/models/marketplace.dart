@@ -157,6 +157,7 @@ class ReservationSettings {
   final int depositMonths;
   final int rentMonthsAdvance;
   final List<String> paymentMethods;
+  final Map<String, String> receivingNumbers;
   final int baseAmount;
   final int reservationAmount;
   final String currency;
@@ -167,6 +168,7 @@ class ReservationSettings {
     required this.depositMonths,
     required this.rentMonthsAdvance,
     required this.paymentMethods,
+    this.receivingNumbers = const {},
     required this.baseAmount,
     required this.reservationAmount,
     required this.currency,
@@ -183,6 +185,7 @@ class ReservationSettings {
             : (map['payment_methods'] as List)
                 .map((item) => item.toString())
                 .toList(),
+        receivingNumbers: _stringMap(map['receiving_numbers']),
         baseAmount: _integer(map['base_amount']),
         reservationAmount: _integer(map['reservation_amount']),
         currency: _text(map['currency'], fallback: 'ZMW'),
@@ -194,6 +197,7 @@ class ReservationSettings {
     depositMonths: 0,
     rentMonthsAdvance: 1,
     paymentMethods: ['airtel_money', 'mtn_money'],
+    receivingNumbers: {},
     baseAmount: 0,
     reservationAmount: 0,
     currency: 'ZMW',
@@ -576,6 +580,12 @@ class ReviewEligibility {
 
 Map<String, dynamic> _map(dynamic value) =>
     value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
+
+Map<String, String> _stringMap(dynamic value) {
+  if (value is! Map) return const {};
+  return value.map((key, item) => MapEntry('$key', '${item ?? ''}'.trim()));
+}
+
 int _integer(dynamic value) {
   if (value is num) return value.round();
   return int.tryParse('${value ?? 0}') ??

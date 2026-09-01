@@ -455,9 +455,9 @@ class _ReservationSlotSheetState extends State<_ReservationSlotSheet> {
             itemCount: leadingEmptyDays + daysInMonth,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 7,
-              mainAxisExtent: 32,
-              crossAxisSpacing: 3,
-              mainAxisSpacing: 3,
+              mainAxisExtent: 34,
+              crossAxisSpacing: 4,
+              mainAxisSpacing: 4,
             ),
             itemBuilder: (context, index) {
               if (index < leadingEmptyDays) return const SizedBox.shrink();
@@ -513,6 +513,7 @@ class _ReservationSlotSheetState extends State<_ReservationSlotSheet> {
                           style: TextStyle(
                             color: foreground,
                             fontSize: 13,
+                            height: 1,
                             fontWeight: selected || availableForDay
                                 ? FontWeight.w900
                                 : FontWeight.w500,
@@ -526,6 +527,7 @@ class _ReservationSlotSheetState extends State<_ReservationSlotSheet> {
                               color: foreground.withValues(
                                   alpha: selected ? .88 : .72),
                               fontSize: 9,
+                              height: 1,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -574,7 +576,7 @@ class _ReservationSlotSheetState extends State<_ReservationSlotSheet> {
       color: colors.surface,
       borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
       child: SizedBox(
-        height: MediaQuery.sizeOf(context).height * .9,
+        height: MediaQuery.sizeOf(context).height * .96,
         child: SafeArea(
           top: false,
           child: Padding(
@@ -618,186 +620,202 @@ class _ReservationSlotSheetState extends State<_ReservationSlotSheet> {
                   ],
                 ),
                 const SizedBox(height: 13),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(13),
-                  decoration: BoxDecoration(
-                    color: colors.primaryContainer.withValues(alpha: .48),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.payments_outlined,
-                          size: 20, color: colors.primary),
-                      const SizedBox(width: 9),
-                      Expanded(
-                        child: Text(
-                          'Refundable down payment · ${widget.settings.downPaymentPercent}% · K${widget.settings.reservationAmount}',
-                          style: TextStyle(
-                              color: colors.primary,
-                              fontWeight: FontWeight.w800),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                if (available.isEmpty)
-                  Expanded(
-                    child: Center(
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                          color: colors.surfaceContainerLow,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: colors.outlineVariant),
-                        ),
-                        child: const Text(
-                            'No reservation dates are available right now.'),
-                      ),
-                    ),
-                  )
-                else ...[
-                  Row(
-                    children: [
-                      Text('Available dates',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w800)),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                            '${dayKeys.length} ${dayKeys.length == 1 ? 'day' : 'days'} · ${available.length} time slots',
-                            textAlign: TextAlign.right,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                color: colors.onSurfaceVariant,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  _calendarView(
-                    context,
-                    sortedDates: dayDates.values.toList()..sort(),
-                    dayDates: dayDates,
-                    slotsByDay: slotsByDay,
-                    selectedDayKey: activeDayKey,
-                  ),
-                  const SizedBox(height: 10),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 13, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: colors.primaryContainer.withValues(alpha: .4),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: Row(
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.event_available_rounded,
-                            size: 20, color: colors.primary),
-                        const SizedBox(width: 9),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(13),
+                          decoration: BoxDecoration(
+                            color:
+                                colors.primaryContainer.withValues(alpha: .48),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
                             children: [
-                              Text(
-                                _fullDayTitle(dayDates[activeDayKey]!),
-                                style: TextStyle(
-                                    color: colors.primary,
-                                    fontWeight: FontWeight.w900),
-                              ),
-                              Text(
-                                '${selectedDaySlots.length} ${selectedDaySlots.length == 1 ? 'time option' : 'time options'} on this date',
-                                style: TextStyle(
-                                    color: colors.onSurfaceVariant,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600),
+                              Icon(Icons.payments_outlined,
+                                  size: 20, color: colors.primary),
+                              const SizedBox(width: 9),
+                              Expanded(
+                                child: Text(
+                                  'Refundable down payment · ${widget.settings.downPaymentPercent}% · K${widget.settings.reservationAmount}',
+                                  style: TextStyle(
+                                      color: colors.primary,
+                                      fontWeight: FontWeight.w800),
+                                ),
                               ),
                             ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Text('Choose a time',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w800)),
-                      const Spacer(),
-                      Text('${selectedDaySlots.length} options',
-                          style: TextStyle(
-                              color: colors.onSurfaceVariant,
-                              fontWeight: FontWeight.w700)),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Expanded(
-                    child: ListView.separated(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      itemCount: selectedDaySlots.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
-                      itemBuilder: (context, index) {
-                        final slot = selectedDaySlots[index];
-                        final selected = slot.id == _selectedId;
-                        return InkWell(
-                          borderRadius: BorderRadius.circular(17),
-                          onTap: () => setState(() => _selectedId = slot.id),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 160),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 13),
+                        const SizedBox(height: 12),
+                        const _ReservationControlCard(),
+                        const SizedBox(height: 16),
+                        if (available.isEmpty)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(18),
                             decoration: BoxDecoration(
-                              color: selected
-                                  ? colors.primaryContainer
-                                  : colors.surfaceContainerLow,
-                              borderRadius: BorderRadius.circular(17),
-                              border: Border.all(
-                                color: selected
-                                    ? colors.primary
-                                    : colors.outlineVariant,
-                                width: selected ? 1.4 : .8,
+                              color: colors.surfaceContainerLow,
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(color: colors.outlineVariant),
+                            ),
+                            child: const Text(
+                                'No reservation dates are available right now.'),
+                          )
+                        else ...[
+                          Row(
+                            children: [
+                              Text('Available dates',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.w800)),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                    '${dayKeys.length} ${dayKeys.length == 1 ? 'day' : 'days'} · ${available.length} time slots',
+                                    textAlign: TextAlign.right,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                        color: colors.onSurfaceVariant,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700)),
                               ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          _calendarView(
+                            context,
+                            sortedDates: dayDates.values.toList()..sort(),
+                            dayDates: dayDates,
+                            slotsByDay: slotsByDay,
+                            selectedDayKey: activeDayKey,
+                          ),
+                          const SizedBox(height: 10),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 13, vertical: 10),
+                            decoration: BoxDecoration(
+                              color:
+                                  colors.primaryContainer.withValues(alpha: .4),
+                              borderRadius: BorderRadius.circular(15),
                             ),
                             child: Row(
                               children: [
-                                Icon(
-                                  selected
-                                      ? Icons.radio_button_checked_rounded
-                                      : Icons.radio_button_off_rounded,
-                                  color: selected
-                                      ? colors.primary
-                                      : colors.onSurfaceVariant,
-                                ),
-                                const SizedBox(width: 11),
-                                Icon(Icons.schedule_rounded,
-                                    size: 19, color: colors.primary),
-                                const SizedBox(width: 8),
+                                Icon(Icons.event_available_rounded,
+                                    size: 20, color: colors.primary),
+                                const SizedBox(width: 9),
                                 Expanded(
-                                  child: Text(
-                                    _reservationTimeLabel(slot),
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleSmall
-                                        ?.copyWith(fontWeight: FontWeight.w700),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _fullDayTitle(dayDates[activeDayKey]!),
+                                        style: TextStyle(
+                                            color: colors.primary,
+                                            fontWeight: FontWeight.w900),
+                                      ),
+                                      Text(
+                                        '${selectedDaySlots.length} ${selectedDaySlots.length == 1 ? 'time option' : 'time options'} on this date',
+                                        style: TextStyle(
+                                            color: colors.onSurfaceVariant,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        );
-                      },
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Text('Choose a time window',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleLarge
+                                      ?.copyWith(fontWeight: FontWeight.w800)),
+                              const Spacer(),
+                              Text('${selectedDaySlots.length} options',
+                                  style: TextStyle(
+                                      color: colors.onSurfaceVariant,
+                                      fontWeight: FontWeight.w700)),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Column(
+                            children: selectedDaySlots.map((slot) {
+                              final selected = slot.id == _selectedId;
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(17),
+                                  onTap: () =>
+                                      setState(() => _selectedId = slot.id),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 160),
+                                    constraints:
+                                        const BoxConstraints(minHeight: 68),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 15, vertical: 17),
+                                    decoration: BoxDecoration(
+                                      color: selected
+                                          ? colors.primaryContainer
+                                          : colors.surfaceContainerLow,
+                                      borderRadius: BorderRadius.circular(17),
+                                      border: Border.all(
+                                        color: selected
+                                            ? colors.primary
+                                            : colors.outlineVariant,
+                                        width: selected ? 1.4 : .8,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          selected
+                                              ? Icons
+                                                  .radio_button_checked_rounded
+                                              : Icons.radio_button_off_rounded,
+                                          size: 28,
+                                          color: selected
+                                              ? colors.primary
+                                              : colors.onSurfaceVariant,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Icon(Icons.schedule_rounded,
+                                            size: 23, color: colors.primary),
+                                        const SizedBox(width: 9),
+                                        Expanded(
+                                          child: Text(
+                                            _reservationTimeLabel(slot),
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleMedium
+                                                ?.copyWith(
+                                                    fontWeight:
+                                                        FontWeight.w800),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
-                ],
+                ),
                 const SizedBox(height: 5),
                 SizedBox(
                   width: double.infinity,
@@ -814,6 +832,74 @@ class _ReservationSlotSheetState extends State<_ReservationSlotSheet> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ReservationControlCard extends StatelessWidget {
+  const _ReservationControlCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLow.withValues(alpha: .82),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colors.primary.withValues(alpha: .18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.shield_outlined, color: colors.primary, size: 21),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('You stay in control of the down payment',
+                    style: TextStyle(
+                        color: colors.primary, fontWeight: FontWeight.w900)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 9),
+          _controlPoint(context, Icons.undo_rounded,
+              'Cancel the reservation whenever you want and get the down payment back.'),
+          const SizedBox(height: 6),
+          _controlPoint(context, Icons.key_rounded,
+              'Release it only after you have seen the home and received the keys.'),
+          const SizedBox(height: 6),
+          _controlPoint(context, Icons.handshake_outlined,
+              'Agree and pay the remaining rent or deposit directly with the lister; this down payment counts toward it.'),
+          const SizedBox(height: 8),
+          Text(
+            'Once live payments are connected, a refund may exclude the mobile-money provider transaction fee. This demo applies no fee.',
+            style: TextStyle(
+                color: colors.onSurfaceVariant,
+                fontSize: 11,
+                height: 1.3,
+                fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _controlPoint(BuildContext context, IconData icon, String text) {
+    final colors = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: colors.primary, size: 17),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(text,
+              style: TextStyle(
+                  color: colors.onSurface, fontSize: 12, height: 1.3)),
+        ),
+      ],
     );
   }
 }
@@ -874,7 +960,7 @@ class _MobileMoneyPaymentSheetState extends State<_MobileMoneyPaymentSheet> {
                     style: Theme.of(context).textTheme.headlineSmall),
                 const SizedBox(height: 5),
                 Text(
-                    'This down payment is refundable under Haven’s terms. A live refund may exclude the mobile-money provider fee; this demo applies no fee. Choose a provider to continue.',
+                    'Choose a mobile-money provider to place your refundable down payment.',
                     style: Theme.of(context).textTheme.bodyMedium),
                 const SizedBox(height: 14),
                 Container(
@@ -898,6 +984,8 @@ class _MobileMoneyPaymentSheetState extends State<_MobileMoneyPaymentSheet> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 14),
+                const _ReservationControlCard(),
                 const SizedBox(height: 15),
                 ...methods.map((method) {
                   final selected = method == _selected;
@@ -1595,6 +1683,10 @@ class _DetailsState extends State<Details> {
               ),
               const SizedBox(height: 13),
               Text(message, style: Theme.of(context).textTheme.bodyMedium),
+              if (hasDates || isMine) ...[
+                const SizedBox(height: 12),
+                const _ReservationControlCard(),
+              ],
               if (hasDates) ...[
                 const SizedBox(height: 14),
                 Text('Next available dates',
@@ -2582,13 +2674,15 @@ class _OwnerPropertyUpdates extends StatelessWidget {
                 const SizedBox(height: 10),
                 Text(
                   'Activity is temporarily unavailable. Open your listing workspace to try again.',
-                  style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
+                  style:
+                      TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
                 ),
               ] else if (updates.isEmpty) ...[
                 const SizedBox(height: 10),
                 Text(
                   'No notifications for this home yet. New viewing requests, messages and paid reservations will appear here.',
-                  style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
+                  style:
+                      TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
                 ),
               ] else ...[
                 const SizedBox(height: 9),

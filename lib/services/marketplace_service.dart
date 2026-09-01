@@ -242,6 +242,7 @@ class MarketplaceService {
     required int depositMonths,
     required int rentMonthsAdvance,
     required List<String> paymentMethods,
+    required Map<String, String> receivingNumbers,
     required List<ReservationAvailabilityRule> rules,
     required List<ReservationAvailabilityException> exceptions,
   }) async {
@@ -252,6 +253,7 @@ class MarketplaceService {
       'deposit_months': depositMonths,
       'rent_months_advance': rentMonthsAdvance,
       'payment_methods': paymentMethods,
+      'receiving_numbers': receivingNumbers,
       'rules': rules.map((rule) => rule.toPayload()).toList(),
       'exceptions': exceptions.map((item) => item.toPayload()).toList(),
     });

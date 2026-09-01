@@ -1002,7 +1002,7 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
                 children: [
                   OutlinedButton(
                     onPressed: () => _cancelReservation(item),
-                    child: const Text('Get down payment back'),
+                    child: const Text('Cancel reservation & get refund'),
                   ),
                   const SizedBox(height: 6),
                   FilledButton(
@@ -1043,7 +1043,7 @@ class _MarketplaceHubScreenState extends State<MarketplaceHubScreen>
       context: context,
       builder: (context) => AlertDialog(
         title: Text(item.role == ReservationRole.customer
-            ? 'Get your down payment back?'
+            ? 'Cancel reservation and get your refund?'
             : 'Cancel and refund the customer?'),
         content: Text(item.role == ReservationRole.customer
             ? 'This closes the paid reservation and marks the simulated down payment as refunded. The home can accept another reservation.'
