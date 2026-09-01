@@ -47,6 +47,9 @@ class House {
   String availabilityStatus;
   int qualityScore;
   List<String> qualityWarnings;
+  bool hasPublicNotice;
+  String? publicNoticeLabel;
+  String? publicNoticeMessage;
   DateTime? publishedAt;
   DateTime? expiresAt;
   DateTime? archivedAt;
@@ -108,6 +111,9 @@ class House {
     this.availabilityStatus = 'available',
     this.qualityScore = 0,
     this.qualityWarnings = const [],
+    this.hasPublicNotice = false,
+    this.publicNoticeLabel,
+    this.publicNoticeMessage,
     this.publishedAt,
     this.expiresAt,
     this.archivedAt,
@@ -193,6 +199,16 @@ class House {
       qualityWarnings: (map['quality_warnings'] as List? ?? const [])
           .map((item) => item.toString())
           .toList(),
+      hasPublicNotice: map['public_notice'] is Map ||
+          map['public_notice'] == true ||
+          map['public_notice_enabled'] == true ||
+          map['public_notice_enabled'] == 1,
+      publicNoticeLabel: map['public_notice'] is Map
+          ? (map['public_notice'] as Map)['label']?.toString()
+          : null,
+      publicNoticeMessage: map['public_notice'] is Map
+          ? (map['public_notice'] as Map)['message']?.toString()
+          : null,
       publishedAt: DateTime.tryParse(map['published_at']?.toString() ?? ''),
       expiresAt: DateTime.tryParse(map['expires_at']?.toString() ?? ''),
       archivedAt: DateTime.tryParse(map['archived_at']?.toString() ?? ''),
@@ -278,6 +294,13 @@ class House {
         'availability_status': availabilityStatus,
         'quality_score': qualityScore,
         'quality_warnings': qualityWarnings,
+        'public_notice': hasPublicNotice
+            ? {
+                'label': publicNoticeLabel ?? 'Details may need confirmation',
+                'message': publicNoticeMessage ??
+                    'Confirm the price, availability and included features before making arrangements.',
+              }
+            : null,
         'published_at': publishedAt?.toIso8601String(),
         'expires_at': expiresAt?.toIso8601String(),
         'archived_at': archivedAt?.toIso8601String(),

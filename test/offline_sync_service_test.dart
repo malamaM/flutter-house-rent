@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:house_rent/services/recommendation_service.dart';
 import 'package:house_rent/services/offline_sync_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -8,6 +9,7 @@ void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     await OfflineSyncService.instance.clear();
+    await RecommendationService.instance.clearQueuedEvents();
   });
 
   test('contact messages are retained with a stable idempotency identifier',
@@ -25,5 +27,16 @@ void main() {
       matches(RegExp(
           r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')),
     );
+  });
+
+  test('recommendation queue publishes its pending count for live sync UI',
+      () async {
+    await RecommendationService.instance.track('details', 42);
+
+    expect(RecommendationService.instance.pendingCount.value, 1);
+    expect(await RecommendationService.instance.pendingEventCount(), 1);
+
+    await RecommendationService.instance.clearQueuedEvents();
+    expect(RecommendationService.instance.pendingCount.value, 0);
   });
 }

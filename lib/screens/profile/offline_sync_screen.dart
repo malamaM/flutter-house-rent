@@ -24,6 +24,7 @@ class _OfflineSyncScreenState extends State<OfflineSyncScreen> {
     super.initState();
     _reload();
     OfflineSyncService.instance.pendingCount.addListener(_changed);
+    RecommendationService.instance.pendingCount.addListener(_changed);
   }
 
   void _changed() {
@@ -38,6 +39,7 @@ class _OfflineSyncScreenState extends State<OfflineSyncScreen> {
   @override
   void dispose() {
     OfflineSyncService.instance.pendingCount.removeListener(_changed);
+    RecommendationService.instance.pendingCount.removeListener(_changed);
     super.dispose();
   }
 
@@ -45,7 +47,10 @@ class _OfflineSyncScreenState extends State<OfflineSyncScreen> {
     if (_syncing) return;
     setState(() => _syncing = true);
     await NetworkStatusService.instance.checkNow();
-    await OfflineSyncService.instance.flush();
+    await Future.wait([
+      OfflineSyncService.instance.flush(),
+      RecommendationService.instance.flush(),
+    ]);
     if (mounted) {
       setState(() {
         _syncing = false;
@@ -81,6 +86,9 @@ class _OfflineSyncScreenState extends State<OfflineSyncScreen> {
           future: _actions,
           builder: (context, snapshot) {
             final actions = snapshot.data ?? const [];
+            final recommendationPending =
+                RecommendationService.instance.pendingCount.value;
+            final hasPending = actions.isNotEmpty || recommendationPending > 0;
             return ListView(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
               children: [
@@ -88,17 +96,17 @@ class _OfflineSyncScreenState extends State<OfflineSyncScreen> {
                     alignment: Alignment.centerLeft,
                     child: OfflineStatusPill(onTap: _sync)),
                 const SizedBox(height: 20),
-                Text('Pending changes',
+                Text('Pending sync',
                     style: Theme.of(context).textTheme.headlineMedium),
                 const SizedBox(height: 6),
                 Text(
-                  'Haven keeps lightweight actions safely on this device and syncs them when the server is reachable.',
+                  'Haven keeps lightweight actions and recommendation signals safely on this device and syncs them when the server is reachable.',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 18),
                 if (snapshot.connectionState == ConnectionState.waiting)
                   const Center(child: CircularProgressIndicator())
-                else if (actions.isEmpty)
+                else if (!hasPending)
                   const SizedBox(
                     height: 230,
                     child: ScreenState(
@@ -107,11 +115,21 @@ class _OfflineSyncScreenState extends State<OfflineSyncScreen> {
                       message: 'There are no changes waiting on this device.',
                     ),
                   )
-                else
+                else if (actions.isNotEmpty) ...[
                   ...actions.map(_PendingActionCard.new),
+                ] else
+                  const SizedBox(
+                    height: 230,
+                    child: ScreenState(
+                      icon: Icons.auto_awesome_rounded,
+                      title: 'Recommendation signals waiting',
+                      message:
+                          'Haven will use these signals to improve your home recommendations after they sync.',
+                    ),
+                  ),
                 const SizedBox(height: 18),
                 FilledButton.icon(
-                  onPressed: actions.isEmpty || _syncing ? null : _sync,
+                  onPressed: !hasPending || _syncing ? null : _sync,
                   icon: _syncing
                       ? const SizedBox(
                           width: 17,

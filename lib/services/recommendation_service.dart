@@ -19,6 +19,7 @@ class RecommendationService with WidgetsBindingObserver {
   RecommendationService._();
   static final instance = RecommendationService._();
   static const _queueKey = 'recommendation_event_queue_v1';
+  final ValueNotifier<int> pendingCount = ValueNotifier(0);
   Timer? _flushTimer;
   bool _flushing = false;
   bool _initialized = false;
@@ -30,6 +31,7 @@ class RecommendationService with WidgetsBindingObserver {
     _initialized = true;
     WidgetsBinding.instance.addObserver(this);
     NetworkStatusService.instance.availability.addListener(_networkChanged);
+    unawaited(_refreshPendingCount());
     unawaited(flush());
   }
 
@@ -42,11 +44,22 @@ class RecommendationService with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) unawaited(flush());
   }
 
-  Future<int> pendingEventCount() async =>
-      (await SharedPreferences.getInstance())
-          .getStringList(_queueKey)
-          ?.length ??
-      0;
+  Future<int> pendingEventCount() async {
+    final count = (await SharedPreferences.getInstance())
+            .getStringList(_queueKey)
+            ?.length ??
+        0;
+    _setPendingCount(count);
+    return count;
+  }
+
+  Future<void> _refreshPendingCount() async {
+    await pendingEventCount();
+  }
+
+  void _setPendingCount(int count) {
+    if (pendingCount.value != count) pendingCount.value = count;
+  }
 
   String _errorMessage(http.Response response, String operation) {
     return ApiErrorResolver.responseDetail(response.body) ??
@@ -250,6 +263,7 @@ class RecommendationService with WidgetsBindingObserver {
     }
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_queueKey);
+    _setPendingCount(0);
     await House.invalidatePropertyData();
   }
 
@@ -276,8 +290,10 @@ class RecommendationService with WidgetsBindingObserver {
       if (metadata != null) 'metadata': metadata,
       'occurred_at': DateTime.now().toUtc().toIso8601String(),
     }));
-    await prefs.setStringList(_queueKey,
-        queue.skip(queue.length > 200 ? queue.length - 200 : 0).toList());
+    final persisted =
+        queue.skip(queue.length > 200 ? queue.length - 200 : 0).toList();
+    await prefs.setStringList(_queueKey, persisted);
+    _setPendingCount(persisted.length);
     if (queue.length >= 12) {
       unawaited(flush());
     } else {
@@ -289,6 +305,7 @@ class RecommendationService with WidgetsBindingObserver {
   Future<void> clearQueuedEvents() async {
     _flushTimer?.cancel();
     await (await SharedPreferences.getInstance()).remove(_queueKey);
+    _setPendingCount(0);
   }
 
   Future<void> flush() async {
@@ -300,7 +317,10 @@ class RecommendationService with WidgetsBindingObserver {
       if (token == null) return;
       final prefs = await SharedPreferences.getInstance();
       final encoded = prefs.getStringList(_queueKey) ?? const [];
-      if (encoded.isEmpty) return;
+      if (encoded.isEmpty) {
+        _setPendingCount(0);
+        return;
+      }
       final batch = encoded.take(100).map(jsonDecode).toList();
       final response = await http
           .post(
@@ -314,8 +334,9 @@ class RecommendationService with WidgetsBindingObserver {
           )
           .timeout(const Duration(seconds: 10));
       if (response.statusCode == 202) {
-        await prefs.setStringList(
-            _queueKey, encoded.skip(batch.length).toList());
+        final remaining = encoded.skip(batch.length).toList();
+        await prefs.setStringList(_queueKey, remaining);
+        _setPendingCount(remaining.length);
         if (encoded.length > batch.length) {
           _flushTimer = Timer(const Duration(seconds: 2), flush);
         }

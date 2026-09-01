@@ -29,6 +29,10 @@ class ContentIntro extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(house.name, style: Theme.of(context).textTheme.headlineLarge),
+          if (house.hasPublicNotice) ...[
+            const SizedBox(height: 12),
+            _PublicNotice(house: house),
+          ],
           if (house.demandLabel != null || house.recentlyListed) ...[
             const SizedBox(height: 10),
             Wrap(
@@ -87,6 +91,53 @@ class ContentIntro extends StatelessWidget {
                   letterSpacing: -.4)),
         ],
       ),
+    );
+  }
+}
+
+class _PublicNotice extends StatelessWidget {
+  final House house;
+
+  const _PublicNotice({required this.house});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(13, 12, 13, 11),
+      decoration: BoxDecoration(
+        color: colors.tertiaryContainer.withValues(alpha: .62),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.tertiary.withValues(alpha: .34)),
+      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(Icons.fact_check_outlined, size: 19, color: colors.tertiary),
+        const SizedBox(width: 9),
+        Expanded(
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(
+              house.publicNoticeLabel ?? 'Details may need confirmation',
+              style: TextStyle(
+                color: colors.onTertiaryContainer,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              house.publicNoticeMessage ??
+                  'Confirm the price, availability and included features before making arrangements.',
+              style: TextStyle(
+                color: colors.onTertiaryContainer.withValues(alpha: .86),
+                fontSize: 11,
+                height: 1.35,
+              ),
+            ),
+          ]),
+        ),
+      ]),
     );
   }
 }

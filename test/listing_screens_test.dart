@@ -20,6 +20,7 @@ import 'package:house_rent/theme/haven_responsive_media.dart';
 import 'package:house_rent/widgets/custom_app_bar.dart';
 import 'package:house_rent/widgets/house_info.dart';
 import 'package:house_rent/widgets/house_amenities.dart';
+import 'package:house_rent/widgets/content_intro.dart';
 import 'package:house_rent/screens/profile/marketplace_hub_screen.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -65,6 +66,44 @@ void main() {
 
     expect(staleBadge.isVerified, isFalse);
     expect(verifiedOwner.isVerified, isTrue);
+  });
+
+  test('public listing notices survive parsing and cache round trips', () {
+    final house = House.fromMap({
+      'id': 12,
+      'title': 'A home needing a closer look',
+      'public_notice': {
+        'label': 'Details may need confirmation',
+        'message': 'Confirm the price before arranging a viewing.',
+      },
+    });
+
+    expect(house.hasPublicNotice, isTrue);
+    expect(house.publicNoticeLabel, 'Details may need confirmation');
+    expect(House.fromMap(house.toCacheMap()).publicNoticeMessage,
+        'Confirm the price before arranging a viewing.');
+  });
+
+  testWidgets('public listing notices are visible on the property introduction',
+      (tester) async {
+    final house = House.fromMap({
+      'id': 13,
+      'title': 'A home with a community notice',
+      'city': 'Lusaka',
+      'public_notice': {
+        'label': 'Details may need confirmation',
+        'message': 'Confirm the price before arranging a viewing.',
+      },
+    });
+
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.lightTheme,
+      home: Scaffold(body: ContentIntro(house: house)),
+    ));
+
+    expect(find.text('Details may need confirmation'), findsOneWidget);
+    expect(find.text('Confirm the price before arranging a viewing.'),
+        findsOneWidget);
   });
 
   testWidgets('draft listing preview stays usable on a phone-sized screen',

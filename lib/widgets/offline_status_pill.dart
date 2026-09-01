@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/services/network_status_service.dart';
 import 'package:house_rent/services/offline_sync_service.dart';
+import 'package:house_rent/services/recommendation_service.dart';
 
 class OfflineStatusPill extends StatelessWidget {
   final VoidCallback? onTap;
@@ -12,10 +13,14 @@ class OfflineStatusPill extends StatelessWidget {
         listenable: Listenable.merge([
           NetworkStatusService.instance.availability,
           OfflineSyncService.instance.pendingCount,
+          RecommendationService.instance.pendingCount,
         ]),
         builder: (context, _) {
           final network = NetworkStatusService.instance.availability.value;
-          final pending = OfflineSyncService.instance.pendingCount.value;
+          final offlineActions = OfflineSyncService.instance.pendingCount.value;
+          final recommendationSignals =
+              RecommendationService.instance.pendingCount.value;
+          final pending = offlineActions + recommendationSignals;
           if (network != NetworkAvailability.offline && pending == 0) {
             return const SizedBox.shrink();
           }
@@ -31,9 +36,15 @@ class OfflineStatusPill extends StatelessWidget {
                           ? 'Offline · cached content'
                           : 'Offline · no downloaded content'
                   : 'Syncing $pending ${pending == 1 ? 'change' : 'changes'}';
+              final syncingSignalsOnly =
+                  !offline && offlineActions == 0 && recommendationSignals > 0;
+              final syncText = syncingSignalsOnly
+                  ? 'Syncing $recommendationSignals recommendation ${recommendationSignals == 1 ? 'signal' : 'signals'}'
+                  : 'Syncing $pending ${pending == 1 ? 'change' : 'changes'}';
+              final displayText = offline ? text : syncText;
               return Semantics(
                 button: onTap != null,
-                label: text,
+                label: displayText,
                 child: Material(
                   color: Theme.of(context).colorScheme.inverseSurface,
                   borderRadius: BorderRadius.circular(99),
@@ -53,7 +64,7 @@ class OfflineStatusPill extends StatelessWidget {
                           color: Theme.of(context).colorScheme.onInverseSurface,
                         ),
                         const SizedBox(width: 7),
-                        Text(text,
+                        Text(displayText,
                             style: TextStyle(
                                 color: Theme.of(context)
                                     .colorScheme

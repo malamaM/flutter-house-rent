@@ -1377,6 +1377,7 @@ class _DetailsState extends State<Details> {
   late Future<ReservationState> _reservationFuture;
   bool _reservationBusy = false;
   bool _interestBusy = false;
+  bool _reservationExpanded = false;
   bool _ownerLoaded = false;
   bool _canReview = false;
   bool _resolvedOwnerView = false;
@@ -1841,9 +1842,22 @@ class _DetailsState extends State<Details> {
                     ? 'PAID RESERVATION AVAILABLE'
                     : 'STAY IN THE LOOP';
 
+        final currencyLabel = state.settings.currency.toUpperCase() == 'ZMW'
+            ? 'K'
+            : state.settings.currency.toUpperCase();
+        final compactMessage = isMine
+            ? 'Your hold is active · viewing requests stay open'
+            : state.isReserved
+                ? 'Viewing requests remain open while this home is held'
+                : unavailable
+                    ? 'Normal viewing requests remain available'
+                    : hasDates
+                        ? '$currencyLabel${_formatReservationAmount(state.settings.reservationAmount)} refundable down payment'
+                        : 'Get notified when reservation dates open';
+
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 20),
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
@@ -1863,118 +1877,224 @@ class _DetailsState extends State<Details> {
               ),
             ],
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      color: colors.primary,
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: Icon(
-                      isMine || state.isReserved
-                          ? Icons.verified_rounded
-                          : Icons.event_available_rounded,
-                      color: colors.onPrimary,
-                      size: 24,
+          child: AnimatedSize(
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Semantics(
+                  key: const ValueKey('reservation-details-toggle'),
+                  button: true,
+                  expanded: _reservationExpanded,
+                  label: _reservationExpanded
+                      ? 'Collapse paid reservation details'
+                      : 'Expand paid reservation details',
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => setState(() {
+                        _reservationExpanded = !_reservationExpanded;
+                      }),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(18, 18, 14, 14),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 46,
+                              height: 46,
+                              decoration: BoxDecoration(
+                                color: colors.primary,
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                              child: Icon(
+                                isMine || state.isReserved
+                                    ? Icons.verified_rounded
+                                    : Icons.event_available_rounded,
+                                color: colors.onPrimary,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 13),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    label,
+                                    style: TextStyle(
+                                      color: colors.primary,
+                                      fontSize: 11,
+                                      letterSpacing: .7,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    title,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge
+                                        ?.copyWith(fontWeight: FontWeight.w800),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Column(
+                              children: [
+                                AnimatedRotation(
+                                  turns: _reservationExpanded ? .5 : 0,
+                                  duration: const Duration(milliseconds: 220),
+                                  child: Icon(
+                                    Icons.keyboard_arrow_down_rounded,
+                                    color: colors.primary,
+                                    size: 25,
+                                  ),
+                                ),
+                                Text(
+                                  _reservationExpanded ? 'Hide' : 'Details',
+                                  style: TextStyle(
+                                    color: colors.primary,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 13),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                ),
+                if (!_reservationExpanded)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 0, 14, 15),
+                    child: Row(
                       children: [
-                        Text(label,
+                        Expanded(
+                          child: Text(
+                            compactMessage,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                                color: colors.primary,
-                                fontSize: 11,
-                                letterSpacing: .7,
-                                fontWeight: FontWeight.w900)),
-                        const SizedBox(height: 4),
-                        Text(title,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge
-                                ?.copyWith(fontWeight: FontWeight.w800)),
+                              color: colors.onSurfaceVariant,
+                              fontSize: 12,
+                              height: 1.3,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        TextButton.icon(
+                          onPressed: () => setState(() {
+                            _reservationExpanded = true;
+                          }),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 9, vertical: 5),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          icon: Icon(Icons.open_in_new_rounded,
+                              size: 15, color: colors.primary),
+                          label: Text('View',
+                              style: TextStyle(
+                                  color: colors.primary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800)),
+                        ),
                       ],
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 13),
-              if (hasDates || isMine) ...[
-                _ReservationAmountCard(
-                  amount: state.settings.reservationAmount,
-                  downPaymentPercent: state.settings.downPaymentPercent,
-                  currency: state.settings.currency,
-                ),
-                const SizedBox(height: 11),
-              ],
-              Text(message, style: Theme.of(context).textTheme.bodyMedium),
-              if (hasDates || isMine) ...[
-                const SizedBox(height: 12),
-                const _ReservationControlCard(),
-              ],
-              if (hasDates) ...[
-                const SizedBox(height: 14),
-                _ReservationScheduleSummary(slots: available),
-              ],
-              const SizedBox(height: 15),
-              if (hasDates && !state.isReserved)
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: _reservationBusy ? null : _reserveHome,
-                    icon: _reservationBusy
-                        ? const SizedBox(
-                            width: 17,
-                            height: 17,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.lock_outline_rounded, size: 18),
-                    label: const Text('Choose a date & payment'),
-                  ),
-                )
-              else if (isMine)
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.push(
-                      context,
-                      HavenPageRoute(
-                          builder: (_) =>
-                              const MarketplaceHubScreen(initialTab: 4)),
+                if (_reservationExpanded)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 0, 18, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (hasDates || isMine) ...[
+                          _ReservationAmountCard(
+                            amount: state.settings.reservationAmount,
+                            downPaymentPercent:
+                                state.settings.downPaymentPercent,
+                            currency: state.settings.currency,
+                          ),
+                          const SizedBox(height: 11),
+                        ],
+                        Text(message,
+                            style: Theme.of(context).textTheme.bodyMedium),
+                        if (hasDates || isMine) ...[
+                          const SizedBox(height: 12),
+                          const _ReservationControlCard(),
+                        ],
+                        if (hasDates) ...[
+                          const SizedBox(height: 14),
+                          _ReservationScheduleSummary(slots: available),
+                        ],
+                        const SizedBox(height: 15),
+                        if (hasDates && !state.isReserved)
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.icon(
+                              onPressed: _reservationBusy ? null : _reserveHome,
+                              icon: _reservationBusy
+                                  ? const SizedBox(
+                                      width: 17,
+                                      height: 17,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2))
+                                  : const Icon(Icons.lock_outline_rounded,
+                                      size: 18),
+                              label: const Text('Choose a date & payment'),
+                            ),
+                          )
+                        else if (isMine)
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: () => Navigator.push(
+                                context,
+                                HavenPageRoute(
+                                    builder: (_) => const MarketplaceHubScreen(
+                                        initialTab: 4)),
+                              ),
+                              icon: const Icon(Icons.event_note_outlined,
+                                  size: 18),
+                              label: const Text('View my paid reservation'),
+                            ),
+                          )
+                        else
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: _interestBusy
+                                  ? null
+                                  : _toggleReservationInterest,
+                              icon: _interestBusy
+                                  ? const SizedBox(
+                                      width: 17,
+                                      height: 17,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2))
+                                  : Icon(state.isInterested
+                                      ? Icons.notifications_active_outlined
+                                      : Icons.notifications_none_outlined),
+                              label: Text(state.isInterested
+                                  ? 'Availability alerts are on'
+                                  : state.isReserved
+                                      ? 'Alert me when available again'
+                                      : 'Alert me when dates open'),
+                            ),
+                          ),
+                      ],
                     ),
-                    icon: const Icon(Icons.event_note_outlined, size: 18),
-                    label: const Text('View my paid reservation'),
                   ),
-                )
-              else
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed:
-                        _interestBusy ? null : _toggleReservationInterest,
-                    icon: _interestBusy
-                        ? const SizedBox(
-                            width: 17,
-                            height: 17,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : Icon(state.isInterested
-                            ? Icons.notifications_active_outlined
-                            : Icons.notifications_none_outlined),
-                    label: Text(state.isInterested
-                        ? 'Availability alerts are on'
-                        : state.isReserved
-                            ? 'Alert me when available again'
-                            : 'Alert me when dates open'),
-                  ),
-                ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -2284,13 +2404,28 @@ class _DetailsState extends State<Details> {
             DropdownButtonFormField<String>(
               initialValue: reason,
               items: const [
-                DropdownMenuItem(value: 'scam', child: Text('Possible scam')),
                 DropdownMenuItem(
-                    value: 'misleading', child: Text('Misleading information')),
+                    value: 'misleading',
+                    child: Text('Home or photos are not as described')),
                 DropdownMenuItem(
-                    value: 'unavailable', child: Text('No longer available')),
+                    value: 'inaccurate_features',
+                    child: Text('Features or room details seem wrong')),
                 DropdownMenuItem(
-                    value: 'spam', child: Text('Spam or duplicate')),
+                    value: 'inaccurate_price',
+                    child: Text('Price or extra costs seem wrong')),
+                DropdownMenuItem(
+                    value: 'inaccurate_location',
+                    child: Text('Location does not match')),
+                DropdownMenuItem(
+                    value: 'unavailable',
+                    child: Text('Home is no longer available')),
+                DropdownMenuItem(
+                    value: 'scam',
+                    child: Text('Possible scam or payment request')),
+                DropdownMenuItem(
+                    value: 'duplicate', child: Text('Duplicate listing')),
+                DropdownMenuItem(
+                    value: 'unsafe', child: Text('Safety concern')),
                 DropdownMenuItem(value: 'other', child: Text('Something else')),
               ],
               onChanged: (value) => update(() => reason = value ?? reason),
@@ -2313,13 +2448,18 @@ class _DetailsState extends State<Details> {
         ),
       ),
     );
-    if (submitted != true) return;
+    if (submitted != true) {
+      details.dispose();
+      return;
+    }
     try {
       final message = await MarketplaceService.instance
           .reportListing(widget.house.id, reason, details: details.text);
       _notice(message);
     } on MarketplaceException catch (error) {
       _notice(error.message);
+    } finally {
+      details.dispose();
     }
   }
 

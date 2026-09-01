@@ -213,6 +213,33 @@ class _PropertyCardState extends State<PropertyCard> {
                 ),
               ),
             ),
+          if (widget.house.hasPublicNotice)
+            Positioned(
+              left: 10,
+              top: widget.house.isReserved ? 52 : 10,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF1D5).withValues(alpha: .96),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.fact_check_outlined,
+                      size: 13, color: Color(0xFF8A5D2E)),
+                  const SizedBox(width: 4),
+                  Text(
+                    widget.horizontal
+                        ? 'Check details'
+                        : 'Details need confirmation',
+                    style: const TextStyle(
+                      color: Color(0xFF8A5D2E),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ]),
+              ),
+            ),
           if (widget.showSave)
             Positioned(
               right: 10,
