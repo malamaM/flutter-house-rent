@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:house_rent/services/session_token_store.dart';
 import 'package:path/path.dart' as path;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 
 /// Versioned stale-while-revalidate storage for API JSON.
@@ -26,8 +26,7 @@ class AppCache {
   String publicKey(String resource) => 'public:$resource';
 
   Future<String> privateKey(String resource) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('access_token');
+    final token = await SessionTokenStore.read();
     return 'user:${_fingerprint(token ?? 'guest')}:$resource';
   }
 

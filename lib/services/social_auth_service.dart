@@ -8,8 +8,8 @@ import 'package:house_rent/config/oauth_config.dart';
 import 'package:house_rent/services/api_error.dart';
 import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/services/auth_method_memory.dart';
+import 'package:house_rent/services/session_token_store.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 class SocialAuthService {
   SocialAuthService._();
@@ -90,8 +90,7 @@ class SocialAuthService {
         throw const SocialAuthException(
             'Haven did not receive a valid account session from Google.');
       }
-      final preferences = await SharedPreferences.getInstance();
-      await preferences.setString('access_token', token);
+      await SessionTokenStore.write(token);
       final user = payload['user'] is Map
           ? Map<String, dynamic>.from(payload['user'] as Map)
           : <String, dynamic>{};

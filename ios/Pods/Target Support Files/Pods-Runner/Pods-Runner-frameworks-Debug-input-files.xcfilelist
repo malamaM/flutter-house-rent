@@ -10,6 +10,7 @@ ${BUILT_PRODUCTS_DIR}/PromisesSwift/Promises.framework
 ${BUILT_PRODUCTS_DIR}/RecaptchaInterop/RecaptchaInterop.framework
 ${BUILT_PRODUCTS_DIR}/audioplayers_darwin/audioplayers_darwin.framework
 ${BUILT_PRODUCTS_DIR}/file_picker_darwin/file_picker_darwin.framework
+${BUILT_PRODUCTS_DIR}/flutter_secure_storage_darwin/flutter_secure_storage_darwin.framework
 ${BUILT_PRODUCTS_DIR}/geolocator_apple/geolocator_apple.framework
 ${BUILT_PRODUCTS_DIR}/image_picker_ios/image_picker_ios.framework
 ${BUILT_PRODUCTS_DIR}/path_provider_foundation/path_provider_foundation.framework

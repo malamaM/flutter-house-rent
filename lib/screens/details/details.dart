@@ -13,6 +13,7 @@ import 'package:house_rent/services/session_recommendation.dart';
 import 'package:house_rent/services/marketplace_service.dart';
 import 'package:house_rent/services/network_status_service.dart';
 import 'package:house_rent/services/offline_sync_service.dart';
+import 'package:house_rent/services/session_token_store.dart';
 import 'package:house_rent/screens/profile/marketplace_hub_screen.dart';
 import 'package:house_rent/screens/my_listings/edit_listing.dart';
 import 'package:house_rent/screens/my_listings/listing_management_screen.dart';
@@ -30,7 +31,6 @@ import 'package:house_rent/widgets/lister_reviews_section.dart';
 import 'package:house_rent/widgets/lister_trust_badges.dart';
 import 'package:house_rent/widgets/listing_videos_section.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Cupertino-backed so iOS can attach its interactive edge-swipe pop gesture.
@@ -1459,8 +1459,7 @@ class _DetailsState extends State<Details> {
 
   Future<void> _loadReviewEligibility() async {
     if (widget.house.ownerId == null) return;
-    final token =
-        (await SharedPreferences.getInstance()).getString('access_token');
+    final token = await SessionTokenStore.read();
     if (token == null) return;
     try {
       final result = await MarketplaceService.instance
@@ -1512,8 +1511,7 @@ class _DetailsState extends State<Details> {
 
   Future<void> _submitReview(int rating, String comment) async {
     if (widget.house.ownerId == null) return;
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('access_token');
+    final token = await SessionTokenStore.read();
     if (token == null) {
       _notice('Sign in to review this owner.');
       return;

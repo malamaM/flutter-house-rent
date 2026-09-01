@@ -8,11 +8,11 @@ import 'package:house_rent/screens/onboarding/social_profile_completion_screen.d
 import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/services/api_error.dart';
 import 'package:house_rent/services/auth_method_memory.dart';
+import 'package:house_rent/services/session_token_store.dart';
 import 'package:house_rent/services/social_auth_service.dart';
 import 'package:house_rent/widgets/social_auth_buttons.dart';
 import 'package:house_rent/widgets/social_auth_conflict_sheet.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 enum _WhatsAppChoice { same, different, none }
 
@@ -106,8 +106,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
           .timeout(const Duration(seconds: 15));
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('access_token', data['access_token'] as String);
+        await SessionTokenStore.write(data['access_token'] as String);
         await AuthMethodMemory.remember(
           provider: 'password',
           email: _email.text,

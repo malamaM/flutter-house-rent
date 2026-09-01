@@ -44,9 +44,9 @@
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
-		<true/>
+		<false/>
 		<key>NSAllowsLocalNetworking</key>
-		<true/>
+		<false/>
 	</dict>
 	<key>NSBonjourServices</key>
 	<array>
@@ -56,7 +56,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>We need access to the camera to take pictures for your profile.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Haven Zambia uses your local network in development to connect securely to the Haven server running on your Mac.</string>
+	<string>Haven Zambia uses secure network connections to connect to Haven services.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Haven Zambia uses your location to show rental homes near your current area.</string>
 	<key>NSLocationAlwaysUsageDescription</key>

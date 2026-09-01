@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/services/api_error.dart';
 import 'package:house_rent/services/app_data_service.dart';
+import 'package:house_rent/services/session_token_store.dart';
 import 'package:house_rent/widgets/haven_navigation_bar.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 class ChangePassword extends StatefulWidget {
   const ChangePassword({super.key});
@@ -45,8 +45,7 @@ class _ChangePasswordState extends State<ChangePassword> {
     FocusScope.of(context).unfocus();
     setState(() => _saving = true);
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('access_token');
+      final token = await SessionTokenStore.read();
       if (token == null) {
         _notice('Please sign in again.');
         return;

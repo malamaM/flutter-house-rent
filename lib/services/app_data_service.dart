@@ -7,8 +7,9 @@ import 'package:house_rent/services/api_error.dart';
 import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/services/offline_sync_service.dart';
 import 'package:house_rent/services/recommendation_service.dart';
+import 'package:house_rent/services/listing_draft_service.dart';
+import 'package:house_rent/services/session_token_store.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 class SessionService {
   SessionService._();
@@ -26,8 +27,7 @@ class SessionService {
     bool forceRefresh = false,
     bool allowExpired = true,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('access_token');
+    final token = await SessionTokenStore.read();
     if (token == null) return null;
     if (!forceRefresh && _memoryUser != null) return _memoryUser;
 
@@ -120,6 +120,8 @@ class SessionService {
       AppCache.instance.clearPrivateData(),
       OfflineSyncService.instance.clear(),
       RecommendationService.instance.clearQueuedEvents(),
+      ListingDraftService.instance.clearAll(),
+      SessionTokenStore.delete(),
     ]);
   }
 
@@ -129,10 +131,7 @@ class SessionService {
     if (_expiring) return;
     _expiring = true;
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final hadSession =
-          prefs.containsKey('access_token') || _memoryUser != null;
-      await prefs.remove('access_token');
+      final hadSession = await SessionTokenStore.read() != null || _memoryUser != null;
       await clear();
       if (hadSession) expirationEvents.value++;
     } finally {

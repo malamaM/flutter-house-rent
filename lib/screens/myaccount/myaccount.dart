@@ -8,9 +8,9 @@ import 'package:house_rent/theme/theme_controller.dart';
 import 'package:house_rent/services/social_auth_service.dart';
 import 'package:house_rent/services/api_error.dart';
 import 'package:house_rent/services/app_data_service.dart';
+import 'package:house_rent/services/session_token_store.dart';
 import 'package:house_rent/widgets/haven_navigation_bar.dart';
 import 'package:house_rent/widgets/haven_settings_group.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class MyAccount extends StatefulWidget {
   const MyAccount({Key? key}) : super(key: key);
@@ -67,8 +67,7 @@ class _MyAccountState extends State<MyAccount> {
     if (confirmed != true || !mounted) return;
     setState(() => _connectingGoogle = true);
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('access_token');
+      final token = await SessionTokenStore.read();
       if (token == null || token.isEmpty) {
         throw const SocialAuthException(
             'Your Haven session has expired. Please sign in again.');

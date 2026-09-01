@@ -8,11 +8,11 @@ import 'package:house_rent/screens/onboarding/social_profile_completion_screen.d
 import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/services/api_error.dart';
 import 'package:house_rent/services/auth_method_memory.dart';
+import 'package:house_rent/services/session_token_store.dart';
 import 'package:house_rent/services/social_auth_service.dart';
 import 'package:house_rent/widgets/social_auth_buttons.dart';
 import 'package:house_rent/widgets/social_auth_conflict_sheet.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({Key? key}) : super(key: key);
@@ -111,8 +111,7 @@ class _SignInScreenState extends State<SignInScreen> {
           .timeout(const Duration(seconds: 12));
       if (response.statusCode == 200) {
         final token = jsonDecode(response.body)['access_token'];
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('access_token', token);
+        await SessionTokenStore.write(token);
         final pendingLink = _pendingSocialLink;
         if (pendingLink != null) {
           try {
@@ -122,7 +121,7 @@ class _SignInScreenState extends State<SignInScreen> {
             );
             _pendingSocialLink = null;
           } catch (_) {
-            await prefs.remove('access_token');
+            await SessionTokenStore.delete();
             rethrow;
           }
         }

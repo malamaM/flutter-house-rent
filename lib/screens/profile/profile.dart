@@ -14,12 +14,12 @@ import 'package:house_rent/screens/profile/marketplace_hub_screen.dart';
 import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/services/api_error.dart';
 import 'package:house_rent/services/media_upload_policy.dart';
+import 'package:house_rent/services/session_token_store.dart';
 import 'package:house_rent/widgets/haven_navigation_bar.dart';
 import 'package:house_rent/widgets/haven_settings_group.dart';
 import 'package:house_rent/widgets/zambia_pattern.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:house_rent/services/session_recommendation.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -68,8 +68,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       await MediaUploadPolicy.validateFile(image.path,
           maxBytes: MediaUploadPolicy.maxImageBytes, label: 'Profile photo');
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('access_token');
+      final token = await SessionTokenStore.read();
       if (token == null) return;
       final request = http.MultipartRequest(
           'POST', Uri.parse('${ApiConfig.apiBase}/update-profile-picture'));
@@ -108,8 +107,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('access_token');
+    final token = await SessionTokenStore.read();
     if (token != null) {
       try {
         await http.post(
@@ -122,7 +120,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       } catch (_) {}
     }
     await SessionService.clear();
-    await prefs.remove('access_token');
     SessionRecommendation.instance.reset();
     if (!mounted) return;
     Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(

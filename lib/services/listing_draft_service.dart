@@ -47,6 +47,19 @@ class ListingDraftService {
     if (await directory.exists()) await directory.delete(recursive: true);
   }
 
+  Future<void> clearAll() async {
+    final preferences = await SharedPreferences.getInstance();
+    final draftKeys = preferences
+        .getKeys()
+        .where((key) => key.startsWith(_prefix))
+        .toList(growable: false);
+    await Future.wait(draftKeys.map(preferences.remove));
+
+    final directory =
+        Directory(path.join(await getDatabasesPath(), 'listing_drafts'));
+    if (await directory.exists()) await directory.delete(recursive: true);
+  }
+
   String _safe(String value) =>
       value.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
 }

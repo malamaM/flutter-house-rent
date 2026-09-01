@@ -8,9 +8,9 @@ import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/services/media_upload_policy.dart';
 import 'package:house_rent/services/offline_sync_service.dart';
 import 'package:house_rent/services/performance_monitor.dart';
+import 'package:house_rent/services/session_token_store.dart';
 import 'package:house_rent/models/recommendation.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 class House {
   static String get _apiBase => ApiConfig.apiBase;
@@ -1130,10 +1130,7 @@ class House {
         if (token != null) 'Authorization': 'Bearer $token',
       };
 
-  static Future<String?> _token() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('access_token');
-  }
+  static Future<String?> _token() => SessionTokenStore.read();
 
   static Future<String> _requiredToken() async {
     final token = await _token();

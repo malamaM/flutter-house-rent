@@ -6,10 +6,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/services/api_error.dart';
 import 'package:house_rent/services/media_upload_policy.dart';
+import 'package:house_rent/services/session_token_store.dart';
 import 'package:house_rent/widgets/haven_navigation_bar.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class VerificationRequestScreen extends StatefulWidget {
   const VerificationRequestScreen({super.key});
@@ -38,7 +38,7 @@ class _VerificationRequestScreenState extends State<VerificationRequestScreen> {
   }
 
   Future<String?> _token() async =>
-      (await SharedPreferences.getInstance()).getString('access_token');
+      SessionTokenStore.read();
 
   Future<void> _load() async {
     final token = await _token();

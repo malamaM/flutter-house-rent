@@ -1,3 +1,27 @@
+import java.io.FileInputStream
+import java.util.Properties
+
+val signingProperties = Properties()
+val signingPropertiesFile = rootProject.file("key.properties")
+if (signingPropertiesFile.exists()) {
+    signingProperties.load(FileInputStream(signingPropertiesFile))
+}
+
+fun releaseSigningValue(property: String, environment: String): String? =
+    System.getenv(environment)?.takeIf { it.isNotBlank() }
+        ?: signingProperties.getProperty(property)?.takeIf { it.isNotBlank() }
+
+val releaseStoreFile = releaseSigningValue("storeFile", "ANDROID_KEYSTORE_PATH")
+val releaseStorePassword = releaseSigningValue("storePassword", "ANDROID_KEYSTORE_PASSWORD")
+val releaseKeyAlias = releaseSigningValue("keyAlias", "ANDROID_KEY_ALIAS")
+val releaseKeyPassword = releaseSigningValue("keyPassword", "ANDROID_KEY_PASSWORD")
+val releaseSigningConfigured = listOf(
+    releaseStoreFile,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+).all { !it.isNullOrBlank() }
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -32,9 +56,20 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Never ship a production build signed with the public debug key.
+            // Configure these values in android/key.properties (untracked) or
+            // ANDROID_KEYSTORE_* CI secrets before producing an installable APK.
+            if (releaseSigningConfigured) {
+                signingConfig = signingConfigs.create("release") {
+                    storeFile = file(releaseStoreFile!!)
+                    storePassword = releaseStorePassword
+                    keyAlias = releaseKeyAlias
+                    keyPassword = releaseKeyPassword
+                }
+            } else {
+                logger.warn("Haven release APK is unsigned: configure release keystore credentials before distribution.")
+                signingConfig = null
+            }
         }
     }
 }

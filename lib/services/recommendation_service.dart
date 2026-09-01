@@ -11,6 +11,7 @@ import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/services/api_error.dart';
 import 'package:house_rent/services/offline_sync_service.dart';
 import 'package:house_rent/services/network_status_service.dart';
+import 'package:house_rent/services/session_token_store.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -52,8 +53,7 @@ class RecommendationService with WidgetsBindingObserver {
         ApiErrorResolver.statusMessage(response.statusCode, operation);
   }
 
-  Future<String?> _token() async =>
-      (await SharedPreferences.getInstance()).getString('access_token');
+  Future<String?> _token() => SessionTokenStore.read();
 
   Future<bool> needsOnboarding() async {
     final token = await _token();

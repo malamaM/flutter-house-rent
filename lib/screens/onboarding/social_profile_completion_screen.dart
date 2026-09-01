@@ -7,9 +7,9 @@ import 'package:house_rent/navigation/haven_page_route.dart';
 import 'package:house_rent/screens/home/app_shell.dart';
 import 'package:house_rent/services/api_error.dart';
 import 'package:house_rent/services/app_data_service.dart';
+import 'package:house_rent/services/session_token_store.dart';
 import 'package:house_rent/services/social_auth_service.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 enum _WhatsAppChoice { same, different, unavailable }
 
@@ -58,8 +58,7 @@ class _SocialProfileCompletionScreenState
       _WhatsAppChoice.unavailable => null,
     };
     try {
-      final preferences = await SharedPreferences.getInstance();
-      final token = preferences.getString('access_token');
+      final token = await SessionTokenStore.read();
       if (token == null) {
         throw const HavenApiException(
           'Your secure sign-in session was not found. Sign in with Google again.',

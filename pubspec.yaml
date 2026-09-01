@@ -30,6 +30,8 @@ dependencies:
   flutter:
     sdk: flutter
   shared_preferences: ^2.0.13
+  # v11 aligns with share_plus' current win32 dependency on desktop builds.
+  flutter_secure_storage: ^11.0.0
   http: ^0.13.4
   cached_network_image: ^3.2.0
   image_picker: ^0.8.4+4

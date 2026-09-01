@@ -6,8 +6,8 @@ import 'package:house_rent/models/marketplace.dart';
 import 'package:house_rent/models/property_management.dart';
 import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/services/api_error.dart';
+import 'package:house_rent/services/session_token_store.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 class MarketplaceException implements Exception {
   final String message;
@@ -430,8 +430,7 @@ class MarketplaceService {
 
   Future<Map<String, dynamic>> _send(String method, String path,
       [Map<String, dynamic>? body]) async {
-    final token =
-        (await SharedPreferences.getInstance()).getString('access_token');
+    final token = await SessionTokenStore.read();
     if (token == null) {
       throw const MarketplaceException('Please sign in first.');
     }

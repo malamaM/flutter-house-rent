@@ -7,6 +7,7 @@ import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/services/app_feedback.dart';
 import 'package:house_rent/services/network_status_service.dart';
+import 'package:house_rent/services/session_token_store.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -98,7 +99,7 @@ class OfflineSyncService with WidgetsBindingObserver {
     _syncing = true;
     try {
       final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('access_token');
+      final token = await SessionTokenStore.read();
       if (token == null) return;
       final actions = _read(prefs);
       if (actions.isEmpty) return;
