@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:house_rent/screens/myaccount/changepassword/change_password.dart';
 import 'package:house_rent/navigation/haven_page_route.dart';
+import 'package:house_rent/screens/myaccount/mobile_money_settings.dart';
 import 'package:house_rent/screens/myaccount/update/update_profile.dart';
 import 'package:house_rent/theme/theme_controller.dart';
 import 'package:house_rent/services/social_auth_service.dart';
@@ -110,8 +111,7 @@ class _MyAccountState extends State<MyAccount> {
                 borderRadius: BorderRadius.circular(18)),
             child: Row(
               children: [
-                Icon(CupertinoIcons.shield,
-                    color: colors.primary, size: 28),
+                Icon(CupertinoIcons.shield, color: colors.primary, size: 28),
                 const SizedBox(width: 14),
                 Expanded(
                     child: Text(
@@ -153,6 +153,16 @@ class _MyAccountState extends State<MyAccount> {
                       size: 16,
                       color: Theme.of(context).colorScheme.primary),
               onTap: _googleConnected ? () {} : _connectGoogle,
+            ),
+            HavenSettingsRow(
+              icon: CupertinoIcons.creditcard,
+              title: 'Mobile-money payments',
+              subtitle: 'Airtel Money and MTN Money receiving numbers',
+              iconColor: const Color(0xFF2E9D77),
+              onTap: () => Navigator.push(
+                  context,
+                  HavenPageRoute(
+                      builder: (_) => const MobileMoneySettingsScreen())),
             ),
             ListenableBuilder(
               listenable: ThemeController.instance,

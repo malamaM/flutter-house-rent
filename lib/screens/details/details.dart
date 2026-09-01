@@ -627,29 +627,11 @@ class _ReservationSlotSheetState extends State<_ReservationSlotSheet> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(13),
-                          decoration: BoxDecoration(
-                            color:
-                                colors.primaryContainer.withValues(alpha: .48),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.payments_outlined,
-                                  size: 20, color: colors.primary),
-                              const SizedBox(width: 9),
-                              Expanded(
-                                child: Text(
-                                  'Refundable down payment · ${widget.settings.downPaymentPercent}% · K${widget.settings.reservationAmount}',
-                                  style: TextStyle(
-                                      color: colors.primary,
-                                      fontWeight: FontWeight.w800),
-                                ),
-                              ),
-                            ],
-                          ),
+                        _ReservationAmountCard(
+                          amount: widget.settings.reservationAmount,
+                          downPaymentPercent:
+                              widget.settings.downPaymentPercent,
+                          currency: widget.settings.currency,
                         ),
                         const SizedBox(height: 12),
                         const _ReservationControlCard(),
@@ -836,15 +818,120 @@ class _ReservationSlotSheetState extends State<_ReservationSlotSheet> {
   }
 }
 
-class _ReservationControlCard extends StatelessWidget {
+class _ReservationAmountCard extends StatelessWidget {
+  final int amount;
+  final int? downPaymentPercent;
+  final String currency;
+  final String? detail;
+
+  const _ReservationAmountCard({
+    required this.amount,
+    this.downPaymentPercent,
+    this.currency = 'ZMW',
+    this.detail,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final currencyLabel =
+        currency.toUpperCase() == 'ZMW' ? 'K' : currency.toUpperCase();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(15, 13, 13, 13),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            colors.primary.withValues(alpha: .12),
+            colors.primaryContainer.withValues(alpha: .62),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(19),
+        border: Border.all(color: colors.primary.withValues(alpha: .2)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 45,
+            height: 45,
+            decoration: BoxDecoration(
+              color: colors.primary,
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child:
+                Icon(Icons.payments_rounded, color: colors.onPrimary, size: 23),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'YOU PAY TO RESERVE',
+                  style: TextStyle(
+                    color: colors.primary,
+                    fontSize: 10,
+                    letterSpacing: .8,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '$currencyLabel${_formatReservationAmount(amount)}',
+                    style: TextStyle(
+                      color: colors.primary,
+                      fontSize: 28,
+                      height: 1.08,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  detail ??
+                      (downPaymentPercent == null
+                          ? 'Refundable down payment'
+                          : '$downPaymentPercent% refundable down payment'),
+                  style: TextStyle(
+                    color: colors.onSurface,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Icon(Icons.verified_rounded, color: colors.primary, size: 22),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReservationControlCard extends StatefulWidget {
   const _ReservationControlCard();
+
+  @override
+  State<_ReservationControlCard> createState() =>
+      _ReservationControlCardState();
+}
+
+class _ReservationControlCardState extends State<_ReservationControlCard> {
+  bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
       decoration: BoxDecoration(
         color: colors.surfaceContainerLow.withValues(alpha: .82),
         borderRadius: BorderRadius.circular(18),
@@ -853,34 +940,102 @@ class _ReservationControlCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(Icons.shield_outlined, color: colors.primary, size: 21),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text('You stay in control of the down payment',
-                    style: TextStyle(
-                        color: colors.primary, fontWeight: FontWeight.w900)),
+          Semantics(
+            button: true,
+            expanded: _expanded,
+            label: 'How the refundable down payment works',
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(18),
+                onTap: () => setState(() => _expanded = !_expanded),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 13, 12, 13),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: colors.primaryContainer,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.shield_outlined,
+                            color: colors.primary, size: 18),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'How the down payment works',
+                              style: TextStyle(
+                                  color: colors.primary,
+                                  fontWeight: FontWeight.w900),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _expanded
+                                  ? 'Your money stays in your control.'
+                                  : 'Refund any time · release when ready',
+                              style: TextStyle(
+                                color: colors.onSurfaceVariant,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      AnimatedRotation(
+                        turns: _expanded ? .5 : 0,
+                        duration: const Duration(milliseconds: 180),
+                        child: Icon(Icons.keyboard_arrow_down_rounded,
+                            color: colors.primary, size: 24),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ],
+            ),
           ),
-          const SizedBox(height: 9),
-          _controlPoint(context, Icons.undo_rounded,
-              'Cancel the reservation whenever you want and get the down payment back.'),
-          const SizedBox(height: 6),
-          _controlPoint(context, Icons.key_rounded,
-              'Release it only after you have seen the home and received the keys.'),
-          const SizedBox(height: 6),
-          _controlPoint(context, Icons.handshake_outlined,
-              'Agree and pay the remaining rent or deposit directly with the lister; this down payment counts toward it.'),
-          const SizedBox(height: 8),
-          Text(
-            'Once live payments are connected, a refund may exclude the mobile-money provider transaction fee. This demo applies no fee.',
-            style: TextStyle(
-                color: colors.onSurfaceVariant,
-                fontSize: 11,
-                height: 1.3,
-                fontWeight: FontWeight.w600),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: _expanded
+                ? Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 13),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Divider(
+                            height: 1,
+                            color: colors.primary.withValues(alpha: .12)),
+                        const SizedBox(height: 11),
+                        _controlPoint(context, Icons.undo_rounded,
+                            'Cancel the reservation whenever you want and get the down payment back.'),
+                        const SizedBox(height: 7),
+                        _controlPoint(context, Icons.key_rounded,
+                            'Release it only after you have seen the home and received the keys.'),
+                        const SizedBox(height: 7),
+                        _controlPoint(context, Icons.handshake_outlined,
+                            'Pay the remaining rent or deposit directly with the lister; this amount counts toward it.'),
+                        const SizedBox(height: 9),
+                        Text(
+                          'A live refund may exclude the mobile-money provider fee. This demo applies no fee.',
+                          style: TextStyle(
+                            color: colors.onSurfaceVariant,
+                            fontSize: 11,
+                            height: 1.3,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : const SizedBox.shrink(),
           ),
         ],
       ),
@@ -963,26 +1118,9 @@ class _MobileMoneyPaymentSheetState extends State<_MobileMoneyPaymentSheet> {
                     'Choose a mobile-money provider to place your refundable down payment.',
                     style: Theme.of(context).textTheme.bodyMedium),
                 const SizedBox(height: 14),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(15),
-                  decoration: BoxDecoration(
-                      color: colors.primaryContainer.withValues(alpha: .5),
-                      borderRadius: BorderRadius.circular(18)),
-                  child: Row(
-                    children: [
-                      Icon(Icons.payments_rounded,
-                          color: colors.primary, size: 23),
-                      const SizedBox(width: 10),
-                      const Expanded(
-                          child: Text('Refundable reservation amount')),
-                      Text('K${widget.amount}',
-                          style: TextStyle(
-                              color: colors.primary,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 18)),
-                    ],
-                  ),
+                _ReservationAmountCard(
+                  amount: widget.amount,
+                  detail: 'Refundable reservation amount',
                 ),
                 const SizedBox(height: 14),
                 const _ReservationControlCard(),
@@ -1083,6 +1221,16 @@ String _reservationSlotLabel(ReservationSlot slot) {
       ? ''
       : ' – ${end.hour % 12 == 0 ? 12 : end.hour % 12}:${end.minute.toString().padLeft(2, '0')} ${end.hour >= 12 ? 'PM' : 'AM'}';
   return '${_reservationDayLabel(start)} · $hour:$minute $period$endLabel';
+}
+
+String _formatReservationAmount(int amount) {
+  final value = amount.toString();
+  final firstGroupLength = value.length % 3 == 0 ? 3 : value.length % 3;
+  final groups = <String>[value.substring(0, firstGroupLength)];
+  for (var index = firstGroupLength; index < value.length; index += 3) {
+    groups.add(value.substring(index, index + 3));
+  }
+  return groups.join(',');
 }
 
 String _reservationTimeLabel(ReservationSlot slot) {
@@ -1606,7 +1754,7 @@ class _DetailsState extends State<Details> {
                 : unavailable
                     ? 'The lister is not accepting paid reservations for this home right now. Normal viewing requests remain open.'
                     : hasDates
-                        ? 'Pay a refundable K${state.settings.reservationAmount} down payment, then choose a date offered by the lister. Normal viewing requests stay open too. A live refund may exclude the mobile-money provider fee; this demo applies no fee.'
+                        ? 'Choose a date and time, then pay the refundable down payment. Normal viewing requests stay open too.'
                         : 'The lister has not opened a paid reservation date yet. We can notify you when one becomes available.';
         final label = isMine || state.isReserved
             ? 'PAID RESERVATION ON HOLD'
@@ -1682,6 +1830,14 @@ class _DetailsState extends State<Details> {
                 ],
               ),
               const SizedBox(height: 13),
+              if (hasDates || isMine) ...[
+                _ReservationAmountCard(
+                  amount: state.settings.reservationAmount,
+                  downPaymentPercent: state.settings.downPaymentPercent,
+                  currency: state.settings.currency,
+                ),
+                const SizedBox(height: 11),
+              ],
               Text(message, style: Theme.of(context).textTheme.bodyMedium),
               if (hasDates || isMine) ...[
                 const SizedBox(height: 12),

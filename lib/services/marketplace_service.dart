@@ -224,6 +224,28 @@ class MarketplaceService {
     await _invalidate('marketplace:house:$houseId:reservation:v2');
   }
 
+  Future<Map<String, String>> mobileMoneyNumbers({bool refresh = false}) async {
+    final json = await _cachedGet(
+      'marketplace:mobile-money-settings:v1',
+      'settings/mobile-money',
+      refresh: refresh,
+      allowStaleOnError: !refresh,
+    );
+    return _mobileMoneyNumbersFrom(json['mobile_money_numbers']);
+  }
+
+  Future<Map<String, String>> updateMobileMoneyNumbers({
+    required String airtelMoney,
+    required String mtnMoney,
+  }) async {
+    final json = await _send('PUT', 'settings/mobile-money', {
+      'airtel_money': airtelMoney.trim(),
+      'mtn_money': mtnMoney.trim(),
+    });
+    await _invalidate('marketplace:mobile-money-settings:v1');
+    return _mobileMoneyNumbersFrom(json['mobile_money_numbers']);
+  }
+
   Future<ReservationAvailabilityConfig> reservationAvailability(int houseId,
       {bool refresh = false}) async {
     final json = await _cachedGet(
@@ -242,7 +264,6 @@ class MarketplaceService {
     required int depositMonths,
     required int rentMonthsAdvance,
     required List<String> paymentMethods,
-    required Map<String, String> receivingNumbers,
     required List<ReservationAvailabilityRule> rules,
     required List<ReservationAvailabilityException> exceptions,
   }) async {
@@ -253,7 +274,6 @@ class MarketplaceService {
       'deposit_months': depositMonths,
       'rent_months_advance': rentMonthsAdvance,
       'payment_methods': paymentMethods,
-      'receiving_numbers': receivingNumbers,
       'rules': rules.map((rule) => rule.toPayload()).toList(),
       'exceptions': exceptions.map((item) => item.toPayload()).toList(),
     });
@@ -397,6 +417,15 @@ class MarketplaceService {
     final key = await AppCache.instance.privateKey(resource);
     await AppCache.instance.remove(key);
     AppCache.instance.announce(resource, key);
+  }
+
+  Map<String, String> _mobileMoneyNumbersFrom(dynamic raw) {
+    final map =
+        raw is Map ? Map<String, dynamic>.from(raw) : const <String, dynamic>{};
+    return {
+      'airtel_money': map['airtel_money']?.toString() ?? '',
+      'mtn_money': map['mtn_money']?.toString() ?? '',
+    };
   }
 
   Future<Map<String, dynamic>> _send(String method, String path,
