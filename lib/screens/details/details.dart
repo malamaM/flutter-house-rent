@@ -312,27 +312,231 @@ class _ReservationSlotSheet extends StatefulWidget {
 class _ReservationSlotSheetState extends State<_ReservationSlotSheet> {
   int? _selectedId;
   String? _selectedDayKey;
+  DateTime? _calendarMonth;
 
   String _dayKey(DateTime value) =>
       '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
 
-  String _dayTitle(DateTime value) {
-    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec'
+  String _fullDayTitle(DateTime value) {
+    const weekdays = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
     ];
-    return '${weekdays[value.weekday - 1]} ${value.day} ${months[value.month - 1]}';
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    return '${weekdays[value.weekday - 1]}, ${value.day} ${months[value.month - 1]}';
+  }
+
+  DateTime _monthOnly(DateTime value) => DateTime(value.year, value.month);
+
+  bool _sameMonth(DateTime first, DateTime second) =>
+      first.year == second.year && first.month == second.month;
+
+  DateTime _shiftMonth(DateTime value, int amount) =>
+      DateTime(value.year, value.month + amount);
+
+  Widget _calendarView(
+    BuildContext context, {
+    required List<DateTime> sortedDates,
+    required Map<String, DateTime> dayDates,
+    required Map<String, List<ReservationSlot>> slotsByDay,
+    required String selectedDayKey,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+    final firstMonth = _monthOnly(sortedDates.first);
+    final lastMonth = _monthOnly(sortedDates.last);
+    var month = _monthOnly(
+        _calendarMonth ?? dayDates[selectedDayKey] ?? sortedDates.first);
+    if (month.isBefore(firstMonth)) month = firstMonth;
+    if (month.isAfter(lastMonth)) month = lastMonth;
+    final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
+    final leadingEmptyDays = DateTime(month.year, month.month, 1).weekday - 1;
+    final availableKeys = slotsByDay.keys.toSet();
+    const weekdayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    const monthLabels = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              IconButton(
+                tooltip: 'Previous month',
+                visualDensity: VisualDensity.compact,
+                onPressed: _sameMonth(month, firstMonth)
+                    ? null
+                    : () => setState(() {
+                          _calendarMonth = _shiftMonth(month, -1);
+                        }),
+                icon: const Icon(Icons.chevron_left_rounded),
+              ),
+              Expanded(
+                child: Text(
+                  '${monthLabels[month.month - 1]} ${month.year}',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w900),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Next month',
+                visualDensity: VisualDensity.compact,
+                onPressed: _sameMonth(month, lastMonth)
+                    ? null
+                    : () => setState(() {
+                          _calendarMonth = _shiftMonth(month, 1);
+                        }),
+                icon: const Icon(Icons.chevron_right_rounded),
+              ),
+            ],
+          ),
+          const SizedBox(height: 3),
+          Row(
+            children: weekdayLabels
+                .map((label) => Expanded(
+                      child: Center(
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            color: colors.onSurfaceVariant,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ))
+                .toList(),
+          ),
+          const SizedBox(height: 5),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: leadingEmptyDays + daysInMonth,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 7,
+              mainAxisExtent: 32,
+              crossAxisSpacing: 3,
+              mainAxisSpacing: 3,
+            ),
+            itemBuilder: (context, index) {
+              if (index < leadingEmptyDays) return const SizedBox.shrink();
+              final date = DateTime(
+                month.year,
+                month.month,
+                index - leadingEmptyDays + 1,
+              );
+              final key = _dayKey(date);
+              final availableForDay = availableKeys.contains(key);
+              final selected = selectedDayKey == key;
+              final count = slotsByDay[key]?.length ?? 0;
+              final isToday = DateUtils.isSameDay(date, DateTime.now());
+              final foreground = selected
+                  ? colors.onPrimary
+                  : availableForDay
+                      ? colors.primary
+                      : colors.onSurfaceVariant.withValues(alpha: .48);
+              return Semantics(
+                button: availableForDay,
+                enabled: availableForDay,
+                selected: selected,
+                label: availableForDay
+                    ? '${_fullDayTitle(date)}, $count time options available'
+                    : '${_fullDayTitle(date)}, unavailable',
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: availableForDay
+                      ? () => setState(() {
+                            _selectedDayKey = key;
+                            _selectedId = null;
+                            _calendarMonth = _monthOnly(date);
+                          })
+                      : null,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 160),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? colors.primary
+                          : availableForDay
+                              ? colors.primaryContainer.withValues(alpha: .58)
+                              : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                      border: isToday && !selected
+                          ? Border.all(color: colors.primary, width: 1.2)
+                          : null,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          '${date.day}',
+                          style: TextStyle(
+                            color: foreground,
+                            fontSize: 13,
+                            fontWeight: selected || availableForDay
+                                ? FontWeight.w900
+                                : FontWeight.w500,
+                          ),
+                        ),
+                        if (availableForDay) ...[
+                          const SizedBox(height: 1),
+                          Text(
+                            '$count',
+                            style: TextStyle(
+                              color: foreground.withValues(
+                                  alpha: selected ? .88 : .72),
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -355,6 +559,10 @@ class _ReservationSlotSheetState extends State<_ReservationSlotSheet> {
     final selectedDayKey = dayKeys.contains(_selectedDayKey)
         ? _selectedDayKey!
         : dayKeys.firstOrNull;
+    // The calendar and time list are only built when at least one day exists.
+    // Keeping a non-null local here also makes that invariant explicit to the
+    // widgets below.
+    final activeDayKey = selectedDayKey ?? '';
     final selectedDaySlots = selectedDayKey == null
         ? const <ReservationSlot>[]
         : slotsByDay[selectedDayKey] ?? const <ReservationSlot>[];
@@ -389,11 +597,11 @@ class _ReservationSlotSheetState extends State<_ReservationSlotSheet> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Choose a paid reservation date',
+                          Text('Reserve this home',
                               style: Theme.of(context).textTheme.headlineSmall),
                           const SizedBox(height: 5),
                           Text(
-                            'Select a date first, then choose an available time for ${widget.propertyName}.',
+                            'Choose an available date and time for ${widget.propertyName}.',
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
                         ],
@@ -455,101 +663,77 @@ class _ReservationSlotSheetState extends State<_ReservationSlotSheet> {
                               .textTheme
                               .titleMedium
                               ?.copyWith(fontWeight: FontWeight.w800)),
-                      const Spacer(),
-                      Text(
-                          '${dayKeys.length} ${dayKeys.length == 1 ? 'day' : 'days'}',
-                          style: TextStyle(
-                              color: colors.onSurfaceVariant,
-                              fontWeight: FontWeight.w700)),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                            '${dayKeys.length} ${dayKeys.length == 1 ? 'day' : 'days'} · ${available.length} time slots',
+                            textAlign: TextAlign.right,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                color: colors.onSurfaceVariant,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700)),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 9),
-                  SizedBox(
-                    height: 78,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: dayKeys.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 8),
-                      itemBuilder: (context, index) {
-                        final key = dayKeys[index];
-                        final selected = key == selectedDayKey;
-                        final date = dayDates[key]!;
-                        final count = slotsByDay[key]!.length;
-                        return Semantics(
-                          button: true,
-                          selected: selected,
-                          label: '${_dayTitle(date)}, $count available times',
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(16),
-                            onTap: () => setState(() {
-                              _selectedDayKey = key;
-                              _selectedId = null;
-                            }),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 160),
-                              width: 106,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 9),
-                              decoration: BoxDecoration(
-                                color: selected
-                                    ? colors.primary
-                                    : colors.surfaceContainerLow,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: selected
-                                      ? colors.primary
-                                      : colors.outlineVariant,
-                                ),
+                  const SizedBox(height: 8),
+                  _calendarView(
+                    context,
+                    sortedDates: dayDates.values.toList()..sort(),
+                    dayDates: dayDates,
+                    slotsByDay: slotsByDay,
+                    selectedDayKey: activeDayKey,
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 13, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: colors.primaryContainer.withValues(alpha: .4),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.event_available_rounded,
+                            size: 20, color: colors.primary),
+                        const SizedBox(width: 9),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _fullDayTitle(dayDates[activeDayKey]!),
+                                style: TextStyle(
+                                    color: colors.primary,
+                                    fontWeight: FontWeight.w900),
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    _dayTitle(date),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: selected
-                                          ? colors.onPrimary
-                                          : colors.onSurface,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                  Text(
-                                    '$count ${count == 1 ? 'time' : 'times'}',
-                                    style: TextStyle(
-                                      color: selected
-                                          ? colors.onPrimary
-                                              .withValues(alpha: .86)
-                                          : colors.onSurfaceVariant,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
+                              Text(
+                                '${selectedDaySlots.length} ${selectedDaySlots.length == 1 ? 'time option' : 'time options'} on this date',
+                                style: TextStyle(
+                                    color: colors.onSurfaceVariant,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600),
                               ),
-                            ),
+                            ],
                           ),
-                        );
-                      },
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
-                      Text('Available times',
+                      Text('Choose a time',
                           style: Theme.of(context)
                               .textTheme
                               .titleMedium
                               ?.copyWith(fontWeight: FontWeight.w800)),
                       const Spacer(),
-                      if (selectedDayKey != null)
-                        Text('${selectedDaySlots.length} options',
-                            style: TextStyle(
-                                color: colors.onSurfaceVariant,
-                                fontWeight: FontWeight.w700)),
+                      Text('${selectedDaySlots.length} options',
+                          style: TextStyle(
+                              color: colors.onSurfaceVariant,
+                              fontWeight: FontWeight.w700)),
                     ],
                   ),
                   const SizedBox(height: 8),

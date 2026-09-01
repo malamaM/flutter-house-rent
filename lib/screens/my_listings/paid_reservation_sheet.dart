@@ -23,6 +23,7 @@ class PaidReservationSheet extends StatefulWidget {
 class _PaidReservationSheetState extends State<PaidReservationSheet> {
   bool _loading = true;
   bool _saving = false;
+  bool _hasUnsavedChanges = false;
   String? _error;
   int _percent = 10;
   bool _depositRequired = false;
@@ -88,6 +89,7 @@ class _PaidReservationSheetState extends State<PaidReservationSheet> {
       ..addAll(settings.paymentMethods);
     _rules = [...config.rules];
     _exceptions = [...config.exceptions];
+    _hasUnsavedChanges = false;
   }
 
   int get _baseAmount =>
@@ -163,7 +165,11 @@ class _PaidReservationSheetState extends State<PaidReservationSheet> {
       } else {
         _rules[index] = result;
       }
+      _hasUnsavedChanges = true;
     });
+    _showMessage(index == null
+        ? 'Window added. Save settings to publish it.'
+        : 'Window updated. Save settings to publish it.');
   }
 
   Future<void> _editException({int? index}) async {
@@ -183,7 +189,11 @@ class _PaidReservationSheetState extends State<PaidReservationSheet> {
       } else {
         _exceptions[index] = result;
       }
+      _hasUnsavedChanges = true;
     });
+    _showMessage(index == null
+        ? 'Exception added. Save settings to publish it.'
+        : 'Exception updated. Save settings to publish it.');
   }
 
   Future<void> _addOneOffDate() async {
@@ -316,6 +326,11 @@ class _PaidReservationSheetState extends State<PaidReservationSheet> {
                           if (_slotsWarning != null) ...[
                             const SizedBox(height: 10),
                             _warning(context, _slotsWarning!),
+                          ],
+                          if (_hasUnsavedChanges) ...[
+                            const SizedBox(height: 10),
+                            _warning(context,
+                                'You have schedule changes waiting to be saved. Customers will see them after you tap Save.'),
                           ],
                           const SizedBox(height: 18),
                           _heading(context, 'Down payment',
@@ -463,7 +478,10 @@ class _PaidReservationSheetState extends State<PaidReservationSheet> {
                 max: 100,
                 divisions: 99,
                 label: '$_percent%',
-                onChanged: (value) => setState(() => _percent = value.round()),
+                onChanged: (value) => setState(() {
+                  _percent = value.round();
+                  _hasUnsavedChanges = true;
+                }),
               ),
               Align(
                 alignment: Alignment.centerLeft,
@@ -476,8 +494,15 @@ class _PaidReservationSheetState extends State<PaidReservationSheet> {
           ),
         ),
         const SizedBox(height: 10),
-        _choiceCard(context, 'Rent paid in advance', [1, 2, 3, 6], _rentMonths,
-            (value) => setState(() => _rentMonths = value)),
+        _choiceCard(
+            context,
+            'Rent paid in advance',
+            [1, 2, 3, 6],
+            _rentMonths,
+            (value) => setState(() {
+                  _rentMonths = value;
+                  _hasUnsavedChanges = true;
+                })),
         const SizedBox(height: 10),
         Container(
           padding: const EdgeInsets.fromLTRB(14, 5, 8, 5),
@@ -501,8 +526,10 @@ class _PaidReservationSheetState extends State<PaidReservationSheet> {
               ),
               Switch.adaptive(
                   value: _depositRequired,
-                  onChanged: (value) =>
-                      setState(() => _depositRequired = value)),
+                  onChanged: (value) => setState(() {
+                        _depositRequired = value;
+                        _hasUnsavedChanges = true;
+                      })),
             ],
           ),
         ),
@@ -513,7 +540,10 @@ class _PaidReservationSheetState extends State<PaidReservationSheet> {
               'Security deposit months',
               [1, 2, 3],
               _depositMonths,
-              (value) => setState(() => _depositMonths = value)),
+              (value) => setState(() {
+                    _depositMonths = value;
+                    _hasUnsavedChanges = true;
+                  })),
         ],
         const SizedBox(height: 10),
         _choiceCard(
@@ -533,6 +563,7 @@ class _PaidReservationSheetState extends State<PaidReservationSheet> {
                 } else {
                   _paymentMethods.remove('airtel_money');
                 }
+                _hasUnsavedChanges = true;
               }),
             ),
             FilterChip(
@@ -545,6 +576,7 @@ class _PaidReservationSheetState extends State<PaidReservationSheet> {
                 } else {
                   _paymentMethods.remove('mtn_money');
                 }
+                _hasUnsavedChanges = true;
               }),
             ),
           ],
@@ -602,13 +634,17 @@ class _PaidReservationSheetState extends State<PaidReservationSheet> {
                       _timeLabel(entry.value.endsAt),
                   'Weekly availability window',
                   () => _editRule(index: entry.key),
-                  () => setState(() => _rules.removeAt(entry.key)),
+                  () => setState(() {
+                    _rules.removeAt(entry.key);
+                    _hasUnsavedChanges = true;
+                  }),
                 )),
           const SizedBox(height: 4),
           Align(
             alignment: Alignment.centerLeft,
             child: OutlinedButton.icon(
-              onPressed: _saving ? null : _editRule,
+              key: const ValueKey('add-recurring-window'),
+              onPressed: _saving ? null : () => _editRule(),
               icon: const Icon(Icons.add_rounded, size: 18),
               label: const Text('Add recurring window'),
             ),
@@ -641,14 +677,18 @@ class _PaidReservationSheetState extends State<PaidReservationSheet> {
                         ? 'Repeats every week'
                         : 'Specific date',
                 () => _editException(index: entry.key),
-                () => setState(() => _exceptions.removeAt(entry.key)),
+                () => setState(() {
+                  _exceptions.removeAt(entry.key);
+                  _hasUnsavedChanges = true;
+                }),
               );
             }),
           const SizedBox(height: 4),
           Align(
             alignment: Alignment.centerLeft,
             child: OutlinedButton.icon(
-              onPressed: _saving ? null : _editException,
+              key: const ValueKey('add-reservation-exception'),
+              onPressed: _saving ? null : () => _editException(),
               icon: const Icon(Icons.add_rounded, size: 18),
               label: const Text('Add exception'),
             ),

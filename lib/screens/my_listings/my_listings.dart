@@ -231,8 +231,8 @@ class _ListingLifecycleBar extends StatelessWidget {
     final label = house.isArchived
         ? 'Archived after 30 days'
         : house.daysUntilExpiry == 0
-            ? 'Expires today'
-            : '${house.daysUntilExpiry} days remaining';
+            ? 'Listing expires today'
+            : 'Listing expires in ${house.daysUntilExpiry} days';
     return Container(
       margin: const EdgeInsets.only(top: 7),
       padding: const EdgeInsets.fromLTRB(13, 8, 9, 8),
@@ -272,7 +272,7 @@ class _ListingLifecycleBar extends StatelessWidget {
             ),
           IconButton(
             onPressed: onReservations,
-            tooltip: 'Paid reservation dates',
+            tooltip: 'Paid reservation availability',
             icon: const Icon(Icons.event_available_outlined),
             visualDensity: VisualDensity.compact,
           ),
@@ -295,48 +295,55 @@ class _ListingLifecycleBar extends StatelessWidget {
             onTap: onReservations,
             borderRadius: BorderRadius.circular(11),
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 3),
+              padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Icon(
                     reservationDates > 0
                         ? Icons.event_available_rounded
                         : Icons.event_note_outlined,
-                    size: 17,
+                    size: 19,
                     color: reservationDates > 0
                         ? colors.primary
                         : colors.onSurfaceVariant,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 9),
                   Expanded(
-                    child: Text(
-                      reservationDates > 0
-                          ? '$reservationDates paid reservation ${reservationDates == 1 ? 'date' : 'dates'} set'
-                          : 'No paid reservation dates set',
-                      style: TextStyle(
-                        color: reservationDates > 0
-                            ? colors.primary
-                            : colors.onSurfaceVariant,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                    child: reservationDates > 0
+                        ? Wrap(
+                            spacing: 14,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              _AvailabilityCount(
+                                value: reservationDates,
+                                label: reservationDates == 1
+                                    ? 'available day'
+                                    : 'available days',
+                                color: colors.primary,
+                              ),
+                              _AvailabilityCount(
+                                value: reservationWindows,
+                                label: reservationWindows == 1
+                                    ? 'time slot'
+                                    : 'time slots',
+                                color: colors.onSurfaceVariant,
+                              ),
+                            ],
+                          )
+                        : Text(
+                            'No paid reservation availability set',
+                            style: TextStyle(
+                              color: colors.onSurfaceVariant,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                   ),
-                  if (reservationDates > 0 &&
-                      reservationWindows > reservationDates)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: Text(
-                        '$reservationWindows times',
-                        style: TextStyle(
-                          color: colors.onSurfaceVariant,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
+                  const SizedBox(width: 6),
                   Text(
-                    reservationDates > 0 ? 'Manage' : 'Add paid dates',
+                    reservationDates > 0 ? 'Manage' : 'Set up',
                     style: TextStyle(
                       color: colors.primary,
                       fontSize: 12,
@@ -363,6 +370,37 @@ class _ListingLifecycleBar extends StatelessWidget {
           ]),
         ],
       ]),
+    );
+  }
+}
+
+class _AvailabilityCount extends StatelessWidget {
+  const _AvailabilityCount({
+    required this.value,
+    required this.label,
+    required this.color,
+  });
+
+  final int value;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return RichText(
+      text: TextSpan(
+        style: TextStyle(color: color, fontSize: 12),
+        children: [
+          TextSpan(
+            text: '$value ',
+            style: const TextStyle(fontWeight: FontWeight.w900),
+          ),
+          TextSpan(
+            text: label,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ],
+      ),
     );
   }
 }
