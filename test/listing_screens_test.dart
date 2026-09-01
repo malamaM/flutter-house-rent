@@ -5,6 +5,7 @@ import 'package:house_rent/models/house.dart';
 import 'package:house_rent/models/marketplace.dart';
 import 'package:house_rent/screens/my_listings/create_listing_screen.dart';
 import 'package:house_rent/screens/my_listings/edit_listing.dart';
+import 'package:house_rent/screens/my_listings/listing_preview_screen.dart';
 import 'package:house_rent/widgets/all_homes.dart';
 import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/widgets/demand_badge.dart';
@@ -64,6 +65,42 @@ void main() {
 
     expect(staleBadge.isVerified, isFalse);
     expect(verifiedOwner.isVerified, isTrue);
+  });
+
+  testWidgets('draft listing preview stays usable on a phone-sized screen',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    const draft = ListingDraftPreviewData(
+      title: 'A bright garden home',
+      description: 'A comfortable home close to everyday amenities.',
+      location: 'Lusaka, Kabulonga',
+      province: 'Lusaka',
+      propertyType: 'House',
+      price: 5200,
+      bedrooms: 2,
+      bathrooms: 1,
+      size: 90,
+      parking: 1,
+      qualityScore: 86,
+      cover: null,
+      gallery: [],
+      amenities: ['Security', 'Garden'],
+    );
+
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.lightTheme,
+      home: const ListingPreviewScreen(draft: draft),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('A bright garden home'), findsOneWidget);
+    expect(find.text('86% listing score'), findsOneWidget);
+    expect(find.text('Property details'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   test('marketplace models preserve read receipts and viewing details', () {

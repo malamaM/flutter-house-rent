@@ -18,6 +18,7 @@ import 'package:house_rent/widgets/listing_form_components.dart';
 import 'package:house_rent/widgets/amenity_icon.dart';
 import 'package:house_rent/widgets/haven_navigation_bar.dart';
 import 'package:house_rent/widgets/map_location_picker.dart';
+import 'package:house_rent/screens/my_listings/listing_preview_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -575,6 +576,43 @@ class _EditListingScreenState extends State<EditListingScreen> {
     }
   }
 
+  void _showPreview() {
+    final amenityNames = widget.house.amenities
+        .where((amenity) => amenityIds.contains(amenity.id))
+        .map((amenity) => amenity.name)
+        .toList();
+    Navigator.push<void>(
+      context,
+      HavenPageRoute(
+        builder: (_) => ListingPreviewScreen(
+          draft: ListingDraftPreviewData(
+            title: title.text.trim(),
+            description: description.text.trim(),
+            location: [city.text.trim(), district.text.trim()]
+                .where((item) => item.isNotEmpty)
+                .join(', '),
+            province: province.text.trim(),
+            propertyType: propertyType,
+            price: int.tryParse(rentalPrice.text) ?? widget.house.priceRental,
+            bedrooms: int.tryParse(bedrooms.text) ?? widget.house.bedrooms,
+            bathrooms: int.tryParse(bathrooms.text) ?? widget.house.bathrooms,
+            size: int.tryParse(size.text) ?? widget.house.size,
+            parking: int.tryParse(parking.text) ?? widget.house.carGarage,
+            qualityScore: _estimatedQualityScore,
+            cover: newCoverImage,
+            coverUrl: newCoverImage == null ? widget.house.imageUrl : null,
+            gallery: List<File>.of(newGalleryImages),
+            galleryUrls: existingGalleryImages
+                .map((image) => image['url']?.toString() ?? '')
+                .where((url) => url.isNotEmpty)
+                .toList(),
+            amenities: amenityNames,
+          ),
+        ),
+      ),
+    );
+  }
+
   void _message(String value) {
     if (mounted) {
       ScaffoldMessenger.of(context)
@@ -585,7 +623,14 @@ class _EditListingScreenState extends State<EditListingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const HavenNavigationBar(title: 'Edit Listing'),
+      appBar: HavenNavigationBar(
+        title: 'Edit Listing',
+        trailing: IconButton(
+          tooltip: 'Preview listing',
+          onPressed: saving || preparingVideo ? null : _showPreview,
+          icon: const Icon(Icons.visibility_outlined),
+        ),
+      ),
       body: Form(
         key: formKey,
         child: ListView(

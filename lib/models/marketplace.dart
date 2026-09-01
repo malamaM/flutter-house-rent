@@ -27,9 +27,13 @@ class ConversationSummary {
 
   factory ConversationSummary.fromMap(Map<String, dynamic> map) {
     final house = _map(map['house']);
+    final latestMessage = map['latest_message'];
     final messages = map['messages'] as List? ?? const [];
-    final last =
-        messages.isEmpty ? const <String, dynamic>{} : _map(messages.first);
+    final last = latestMessage is Map
+        ? _map(latestMessage)
+        : messages.isEmpty
+            ? const <String, dynamic>{}
+            : _map(messages.first);
     final role = map['viewer_role'] == 'lister'
         ? ViewingRole.lister
         : ViewingRole.renter;

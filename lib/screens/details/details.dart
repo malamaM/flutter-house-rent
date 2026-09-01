@@ -14,6 +14,9 @@ import 'package:house_rent/services/marketplace_service.dart';
 import 'package:house_rent/services/network_status_service.dart';
 import 'package:house_rent/services/offline_sync_service.dart';
 import 'package:house_rent/screens/profile/marketplace_hub_screen.dart';
+import 'package:house_rent/screens/my_listings/edit_listing.dart';
+import 'package:house_rent/screens/my_listings/listing_management_screen.dart';
+import 'package:house_rent/screens/my_listings/paid_reservation_sheet.dart';
 import 'package:house_rent/theme/app_colors.dart';
 import 'package:house_rent/widgets/about.dart';
 import 'package:house_rent/widgets/content_intro.dart';
@@ -1029,9 +1032,14 @@ String _reservationDayLabel(DateTime value) {
 class Details extends StatefulWidget {
   final House house;
   final bool isOwnerView;
+  final bool isPreview;
 
-  const Details({Key? key, required this.house, this.isOwnerView = false})
-      : super(key: key);
+  const Details({
+    Key? key,
+    required this.house,
+    this.isOwnerView = false,
+    this.isPreview = false,
+  }) : super(key: key);
 
   /// A lightweight transition keeps the first details frame smooth on Android
   /// while the gallery, videos, owner data, and map initialize behind it.
@@ -1050,11 +1058,15 @@ class _DetailsState extends State<Details> {
   int _reviewVersion = 0;
   late Future<Map<String, dynamic>> _ownerFuture;
   late Future<List<ViewingSummary>> _ownerViewingsFuture;
+  late Future<NotificationInbox> _ownerNotificationsFuture;
   late Future<ReservationState> _reservationFuture;
   bool _reservationBusy = false;
   bool _interestBusy = false;
   bool _ownerLoaded = false;
   bool _canReview = false;
+  bool _resolvedOwnerView = false;
+
+  bool get _isOwnerView => widget.isOwnerView || _resolvedOwnerView;
 
   String get _offlineAge {
     final cachedAt = widget.house.cachedAt;
@@ -1069,23 +1081,65 @@ class _DetailsState extends State<Details> {
   @override
   void initState() {
     super.initState();
+    _resolvedOwnerView = widget.isOwnerView || _matchesSignedInOwner();
     // Owner details are only needed when the contact sheet opens. Deferring
     // this request keeps the route's first frames free for the transition.
     _ownerFuture = Future.value(widget.house.ownerContact);
-    _ownerViewingsFuture = widget.isOwnerView
+    _ownerViewingsFuture = _isOwnerView && !widget.isPreview
         ? MarketplaceService.instance.viewings()
         : Future.value(const <ViewingSummary>[]);
-    _reservationFuture =
-        MarketplaceService.instance.reservationState(widget.house.id);
+    _ownerNotificationsFuture = _isOwnerView && !widget.isPreview
+        ? MarketplaceService.instance.notifications()
+        : Future.value(const NotificationInbox(unreadCount: 0, items: []));
+    _reservationFuture = widget.isPreview
+        ? Future.value(const ReservationState(
+            isReserved: false,
+            isMine: false,
+            isInterested: false,
+            reservation: null,
+            slots: [],
+          ))
+        : MarketplaceService.instance.reservationState(widget.house.id);
     unawaited(PropertyDetailsService.cacheOwnerContact(
         widget.house.id, widget.house.ownerContact));
-    if (!widget.isOwnerView) {
+    if (!_isOwnerView && !widget.isPreview) {
       unawaited(_loadReviewEligibility());
       House.recordView(widget.house.id);
       SessionRecommendation.instance.observe(widget.house, 1.1);
       unawaited(RecommendationService.instance
           .track('details', widget.house.id, surface: 'details'));
     }
+    if (!widget.isPreview && !_isOwnerView) {
+      unawaited(_resolveSignedInOwner());
+    }
+  }
+
+  bool _matchesSignedInOwner() {
+    final ownerId = widget.house.ownerId;
+    final userId = _userId(SessionService.cachedUser);
+    return ownerId != null && userId != null && ownerId == userId;
+  }
+
+  Future<void> _resolveSignedInOwner() async {
+    if (widget.house.ownerId == null) return;
+    final user = await SessionService.currentUser();
+    final userId = _userId(user);
+    if (!mounted || userId != widget.house.ownerId || _isOwnerView) return;
+    // Assign the futures before the synchronous state update. This keeps the
+    // page safe even when account hydration finishes during the first frame.
+    final viewings = MarketplaceService.instance.viewings();
+    final notifications = MarketplaceService.instance.notifications();
+    setState(() {
+      _resolvedOwnerView = true;
+      _ownerViewingsFuture = viewings;
+      _ownerNotificationsFuture = notifications;
+    });
+  }
+
+  int? _userId(Map<String, dynamic>? user) {
+    final value = user?['id'];
+    if (value is num) return value.toInt();
+    return int.tryParse('$value');
   }
 
   Future<void> _loadReviewEligibility() async {
@@ -2181,7 +2235,9 @@ class _DetailsState extends State<Details> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: CustomScrollView(
         slivers: [
-          SliverToBoxAdapter(child: DetailsAppBar(house: widget.house)),
+          SliverToBoxAdapter(
+              child: DetailsAppBar(
+                  house: widget.house, isPreview: widget.isPreview)),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.only(top: 24, bottom: 116),
@@ -2189,7 +2245,23 @@ class _DetailsState extends State<Details> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   ContentIntro(house: widget.house),
-                  if (!widget.isOwnerView) ...[
+                  if (_isOwnerView && !widget.isPreview) ...[
+                    const SizedBox(height: 16),
+                    _OwnerListingActions(house: widget.house),
+                    const SizedBox(height: 10),
+                    _OwnerPropertyUpdates(
+                      house: widget.house,
+                      future: _ownerNotificationsFuture,
+                      onOpen: () => Navigator.push(
+                        context,
+                        HavenPageRoute(
+                          builder: (_) =>
+                              ListingManagementScreen(house: widget.house),
+                        ),
+                      ),
+                    ),
+                  ],
+                  if (!_isOwnerView && !widget.isPreview) ...[
                     const SizedBox(height: 16),
                     _reservationAvailabilitySection(),
                   ],
@@ -2216,7 +2288,7 @@ class _DetailsState extends State<Details> {
                       ]),
                     ),
                   ],
-                  if (widget.isOwnerView) ...[
+                  if (_isOwnerView && !widget.isPreview) ...[
                     const SizedBox(height: 14),
                     _PendingViewingsBanner(
                         houseId: widget.house.id, future: _ownerViewingsFuture),
@@ -2302,7 +2374,7 @@ class _DetailsState extends State<Details> {
                                 ],
                               ),
                             ),
-                            if (!widget.isOwnerView)
+                            if (!_isOwnerView)
                               CupertinoButton(
                                 padding: const EdgeInsets.all(8),
                                 minimumSize: Size.zero,
@@ -2339,57 +2411,400 @@ class _DetailsState extends State<Details> {
           ),
         ],
       ),
-      bottomNavigationBar: widget.isOwnerView
+      bottomNavigationBar: _isOwnerView
           ? null
-          : SafeArea(
-              minimum: const EdgeInsets.fromLTRB(20, 10, 20, 14),
-              child: GlassSurface(
-                borderRadius: BorderRadius.circular(18),
-                blur: 24,
-                tint: Theme.of(context).colorScheme.surface.withValues(
-                    alpha: Theme.of(context).brightness == Brightness.dark
-                        ? .76
-                        : .68),
-                borderColor: Colors.white.withValues(
-                    alpha: Theme.of(context).brightness == Brightness.dark
-                        ? .2
-                        : .72),
-                shadows: [
-                  BoxShadow(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .shadow
-                        .withValues(alpha: .18),
-                    blurRadius: 28,
-                    offset: const Offset(0, 9),
-                  ),
-                ],
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: _showContact,
+          : widget.isPreview
+              ? const _PreviewModeBar()
+              : SafeArea(
+                  minimum: const EdgeInsets.fromLTRB(20, 10, 20, 14),
+                  child: GlassSurface(
                     borderRadius: BorderRadius.circular(18),
-                    child: SizedBox(
-                      height: 58,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.chat_bubble_outline_rounded,
-                              color: Theme.of(context).colorScheme.primary),
-                          const SizedBox(width: 10),
-                          Text('Contact owner',
-                              style: TextStyle(
-                                  color:
-                                      Theme.of(context).colorScheme.onSurface,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700)),
-                        ],
+                    blur: 24,
+                    tint: Theme.of(context).colorScheme.surface.withValues(
+                        alpha: Theme.of(context).brightness == Brightness.dark
+                            ? .76
+                            : .68),
+                    borderColor: Colors.white.withValues(
+                        alpha: Theme.of(context).brightness == Brightness.dark
+                            ? .2
+                            : .72),
+                    shadows: [
+                      BoxShadow(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .shadow
+                            .withValues(alpha: .18),
+                        blurRadius: 28,
+                        offset: const Offset(0, 9),
+                      ),
+                    ],
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _showContact,
+                        borderRadius: BorderRadius.circular(18),
+                        child: SizedBox(
+                          height: 58,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.chat_bubble_outline_rounded,
+                                  color: Theme.of(context).colorScheme.primary),
+                              const SizedBox(width: 10),
+                              Text('Contact owner',
+                                  style: TextStyle(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700)),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
+    );
+  }
+}
+
+class _PreviewModeBar extends StatelessWidget {
+  const _PreviewModeBar();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return SafeArea(
+      minimum: const EdgeInsets.fromLTRB(20, 10, 20, 14),
+      child: GlassSurface(
+        borderRadius: BorderRadius.circular(18),
+        tint: colors.primaryContainer.withValues(alpha: .86),
+        blur: 18,
+        child: SizedBox(
+          height: 58,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.visibility_outlined, color: colors.primary),
+              const SizedBox(width: 9),
+              Text('Customer view preview',
+                  style: TextStyle(
+                      color: colors.onPrimaryContainer,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OwnerPropertyUpdates extends StatelessWidget {
+  final House house;
+  final Future<NotificationInbox> future;
+  final VoidCallback onOpen;
+
+  const _OwnerPropertyUpdates({
+    required this.house,
+    required this.future,
+    required this.onOpen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return FutureBuilder<NotificationInbox>(
+      future: future,
+      builder: (context, snapshot) {
+        final updates = (snapshot.data?.items ?? const <HavenNotification>[])
+            .where((item) => item.houseId == house.id)
+            .toList();
+        final unread = updates.where((item) => !item.isRead).length;
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.fromLTRB(15, 14, 15, 12),
+          decoration: BoxDecoration(
+            color: colors.primaryContainer.withValues(alpha: .42),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: colors.primary.withValues(alpha: .18)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: colors.primary,
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Icon(Icons.notifications_active_outlined,
+                        size: 19, color: colors.onPrimary),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Updates for this listing',
+                            style: TextStyle(fontWeight: FontWeight.w900)),
+                        const SizedBox(height: 2),
+                        Text(
+                          unread > 0
+                              ? '$unread unread update${unread == 1 ? '' : 's'}'
+                              : 'Notifications, viewings and activity stay here',
+                          style: TextStyle(
+                              color: colors.onSurfaceVariant, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: onOpen,
+                    child: const Text('Open'),
+                  ),
+                ],
               ),
+              if (snapshot.connectionState == ConnectionState.waiting) ...[
+                const SizedBox(height: 13),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: LinearProgressIndicator(
+                      minHeight: 5,
+                      backgroundColor: colors.surface.withValues(alpha: .7)),
+                ),
+              ] else if (snapshot.hasError) ...[
+                const SizedBox(height: 10),
+                Text(
+                  'Activity is temporarily unavailable. Open your listing workspace to try again.',
+                  style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
+                ),
+              ] else if (updates.isEmpty) ...[
+                const SizedBox(height: 10),
+                Text(
+                  'No notifications for this home yet. New viewing requests, messages and paid reservations will appear here.',
+                  style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
+                ),
+              ] else ...[
+                const SizedBox(height: 9),
+                ...updates.take(3).map((item) => _OwnerUpdateRow(item: item)),
+                if (updates.length > 3)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: onOpen,
+                      icon: const Icon(Icons.arrow_forward_rounded, size: 16),
+                      label: Text('See all ${updates.length} updates'),
+                    ),
+                  ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _OwnerUpdateRow extends StatelessWidget {
+  final HavenNotification item;
+
+  const _OwnerUpdateRow({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            margin: const EdgeInsets.only(top: 6, right: 9),
+            decoration: BoxDecoration(
+              color: item.isRead ? colors.outlineVariant : colors.primary,
+              shape: BoxShape.circle,
             ),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(item.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w800)),
+                if (item.body.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(item.body,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          color: colors.onSurfaceVariant, fontSize: 12)),
+                ],
+              ],
+            ),
+          ),
+          if (item.createdAt != null) ...[
+            const SizedBox(width: 8),
+            Text(_ownerUpdateAge(item.createdAt!),
+                style: TextStyle(color: colors.onSurfaceVariant, fontSize: 10)),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+String _ownerUpdateAge(DateTime value) {
+  final elapsed = DateTime.now().difference(value);
+  if (elapsed.inMinutes < 1) return 'now';
+  if (elapsed.inMinutes < 60) return '${elapsed.inMinutes}m';
+  if (elapsed.inHours < 24) return '${elapsed.inHours}h';
+  if (elapsed.inDays < 7) return '${elapsed.inDays}d';
+  return '${value.day}/${value.month}';
+}
+
+class _OwnerListingActions extends StatelessWidget {
+  final House house;
+
+  const _OwnerListingActions({required this.house});
+
+  Future<void> _openReservations(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => PaidReservationSheet(
+        houseId: house.id,
+        houseName: house.name,
+        monthlyRent: house.priceRental,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                    color: colors.primaryContainer, shape: BoxShape.circle),
+                child: Icon(Icons.home_work_outlined,
+                    color: colors.onPrimaryContainer, size: 19),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Your listing controls',
+                        style: TextStyle(fontWeight: FontWeight.w800)),
+                    SizedBox(height: 3),
+                    Text('Edit the home, paid setup and activity'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 13),
+          Row(
+            children: [
+              Expanded(
+                child: _OwnerActionButton(
+                  icon: Icons.insights_outlined,
+                  label: 'Management',
+                  onTap: () => Navigator.push(
+                    context,
+                    HavenPageRoute(
+                        builder: (_) => ListingManagementScreen(house: house)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _OwnerActionButton(
+                  icon: Icons.edit_outlined,
+                  label: 'Edit listing',
+                  onTap: () => Navigator.push(
+                    context,
+                    HavenPageRoute(
+                        builder: (_) => EditListingScreen(house: house)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _OwnerActionButton(
+                  icon: Icons.event_available_outlined,
+                  label: 'Paid setup',
+                  onTap: () => _openReservations(context),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OwnerActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _OwnerActionButton(
+      {required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Material(
+      color: colors.primaryContainer.withValues(alpha: .55),
+      borderRadius: BorderRadius.circular(13),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(13),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 4),
+          child: Column(
+            children: [
+              Icon(icon, color: colors.primary, size: 20),
+              const SizedBox(height: 5),
+              Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      color: colors.onPrimaryContainer,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800)),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

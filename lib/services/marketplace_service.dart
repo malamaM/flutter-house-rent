@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:house_rent/config/api_config.dart';
 import 'package:house_rent/models/house.dart';
 import 'package:house_rent/models/marketplace.dart';
+import 'package:house_rent/models/property_management.dart';
 import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/services/api_error.dart';
 import 'package:http/http.dart' as http;
@@ -129,10 +130,14 @@ class MarketplaceService {
   }
 
   Future<void> updateViewing(int id, String status) async {
-    await _send('PATCH', 'viewings/$id', {'status': status});
+    final json = await _send('PATCH', 'viewings/$id', {'status': status});
+    final viewing = json['viewing'];
+    final houseId = viewing is Map ? _asInt(viewing['house_id']) : null;
     await Future.wait([
       _invalidate('marketplace:viewings:v3'),
       _invalidate('marketplace:notifications:v2'),
+      if (houseId != null)
+        _invalidate('marketplace:my-house:$houseId:management:v1'),
     ]);
   }
 
@@ -152,6 +157,17 @@ class MarketplaceService {
     final json = await _cachedGet('marketplace:reservations:v1', 'reservations',
         refresh: refresh, allowStaleOnError: !refresh);
     return _directItems(json).map(ReservationSummary.fromMap).toList();
+  }
+
+  Future<PropertyManagementData> propertyManagement(int houseId,
+      {bool refresh = false}) async {
+    final json = await _cachedGet(
+      'marketplace:my-house:$houseId:management:v1',
+      'my-houses/$houseId/management',
+      refresh: refresh,
+      allowStaleOnError: !refresh,
+    );
+    return PropertyManagementData.fromMap(json);
   }
 
   Future<ReservationSummary> reserveHome(
@@ -242,6 +258,7 @@ class MarketplaceService {
     await Future.wait([
       _invalidate('marketplace:my-house:$houseId:reservation-availability:v1'),
       _invalidate('marketplace:my-house:$houseId:reservation-slots:v1'),
+      _invalidate('marketplace:my-house:$houseId:management:v1'),
       _invalidate('marketplace:house:$houseId:reservation:v2'),
       _invalidate('marketplace:notifications:v2'),
       House.invalidatePropertyData(id: houseId),
@@ -266,7 +283,10 @@ class MarketplaceService {
       'starts_at': startsAt.toUtc().toIso8601String(),
       if (endsAt != null) 'ends_at': endsAt.toUtc().toIso8601String(),
     });
-    await _invalidate('marketplace:my-house:$houseId:reservation-slots:v1');
+    await Future.wait([
+      _invalidate('marketplace:my-house:$houseId:reservation-slots:v1'),
+      _invalidate('marketplace:my-house:$houseId:management:v1'),
+    ]);
     return ReservationSlot.fromMap(
         Map<String, dynamic>.from(json['slot'] as Map));
   }
@@ -300,7 +320,8 @@ class MarketplaceService {
     await _send('PATCH', 'houses/$houseId/availability',
         {'availability_status': status});
     await Future.wait([
-      _invalidate('marketplace:viewings:v2'),
+      _invalidate('marketplace:viewings:v3'),
+      _invalidate('marketplace:my-house:$houseId:management:v1'),
       House.invalidatePropertyData(id: houseId),
     ]);
   }

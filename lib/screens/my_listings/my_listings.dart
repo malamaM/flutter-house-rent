@@ -5,8 +5,8 @@ import 'package:house_rent/models/marketplace.dart';
 import 'package:house_rent/navigation/haven_page_route.dart';
 import 'package:house_rent/screens/details/details.dart';
 import 'package:house_rent/screens/my_listings/create_listing_screen.dart';
-import 'package:house_rent/screens/my_listings/edit_listing.dart';
 import 'package:house_rent/screens/my_listings/paid_reservation_sheet.dart';
+import 'package:house_rent/screens/my_listings/listing_management_screen.dart';
 import 'package:house_rent/widgets/property_card.dart';
 import 'package:house_rent/widgets/screen_state.dart';
 import 'package:house_rent/widgets/haven_navigation_bar.dart';
@@ -23,6 +23,7 @@ class MyListingsScreen extends StatefulWidget {
 
 class _MyListingsScreenState extends State<MyListingsScreen> {
   late Future<List<House>> listings;
+  late Future<NotificationInbox> notifications;
   final Set<int> _renewing = {};
 
   @override
@@ -33,6 +34,8 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
 
   void _reload({bool forceRefresh = false}) {
     listings = House.fetchMyHouses(forceRefresh: forceRefresh);
+    notifications =
+        MarketplaceService.instance.notifications(refresh: forceRefresh);
   }
 
   Future<void> _create() async {
@@ -45,14 +48,12 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
     }
   }
 
-  Future<void> _edit(House house) async {
-    final changed = await Navigator.push(context,
-        HavenPageRoute(builder: (_) => EditListingScreen(house: house)));
-    if (changed == true && mounted) {
-      setState(() {
-        _reload(forceRefresh: true);
-      });
-    }
+  Future<void> _manage(House house) async {
+    await Navigator.push<void>(
+      context,
+      HavenPageRoute(builder: (_) => ListingManagementScreen(house: house)),
+    );
+    if (mounted) setState(() => _reload(forceRefresh: true));
   }
 
   Future<void> _manageReservationSlots(House house) async {
@@ -157,40 +158,57 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
               onAction: _create,
             );
           }
-          return RefreshIndicator(
-            onRefresh: () async {
-              setState(() => _reload(forceRefresh: true));
-              await listings;
+          return FutureBuilder<NotificationInbox>(
+            future: notifications,
+            builder: (context, notificationSnapshot) {
+              final unreadByHouse = <int, int>{};
+              for (final notification in notificationSnapshot.data?.items ??
+                  const <HavenNotification>[]) {
+                if (!notification.isRead && notification.houseId != null) {
+                  unreadByHouse.update(
+                      notification.houseId!, (value) => value + 1,
+                      ifAbsent: () => 1);
+                }
+              }
+              return RefreshIndicator(
+                onRefresh: () async {
+                  setState(() => _reload(forceRefresh: true));
+                  await listings;
+                },
+                child: ListView.separated(
+                  key: const PageStorageKey('my-listings'),
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+                  itemCount: items.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final house = items[index];
+                    return Column(
+                      children: [
+                        PropertyCard(
+                          horizontal: true,
+                          showSave: false,
+                          house: house,
+                          secondaryLabel: 'Manage listing',
+                          onSecondaryAction: () => _manage(house),
+                          onTap: () => Navigator.push(
+                              context, Details.route(house, isOwnerView: true)),
+                        ),
+                        _ListingLifecycleBar(
+                          house: house,
+                          renewing: _renewing.contains(house.id),
+                          unreadNotifications: unreadByHouse[house.id] ?? 0,
+                          onRenew: () => _renew(house),
+                          onAvailability: (value) =>
+                              _availability(house, value),
+                          onReservations: () => _manageReservationSlots(house),
+                          onManage: () => _manage(house),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              );
             },
-            child: ListView.separated(
-              key: const PageStorageKey('my-listings'),
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
-              itemCount: items.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final house = items[index];
-                return Column(
-                  children: [
-                    PropertyCard(
-                      horizontal: true,
-                      showSave: false,
-                      house: house,
-                      secondaryLabel: 'Edit listing',
-                      onSecondaryAction: () => _edit(house),
-                      onTap: () => Navigator.push(
-                          context, Details.route(house, isOwnerView: true)),
-                    ),
-                    _ListingLifecycleBar(
-                      house: house,
-                      renewing: _renewing.contains(house.id),
-                      onRenew: () => _renew(house),
-                      onAvailability: (value) => _availability(house, value),
-                      onReservations: () => _manageReservationSlots(house),
-                    ),
-                  ],
-                );
-              },
-            ),
           );
         },
       ),
@@ -207,16 +225,20 @@ class _ListingLifecycleBar extends StatelessWidget {
   const _ListingLifecycleBar({
     required this.house,
     required this.renewing,
+    required this.unreadNotifications,
     required this.onRenew,
     required this.onAvailability,
     required this.onReservations,
+    required this.onManage,
   });
 
   final House house;
   final bool renewing;
+  final int unreadNotifications;
   final VoidCallback onRenew;
   final ValueChanged<String> onAvailability;
   final VoidCallback onReservations;
+  final VoidCallback onManage;
 
   @override
   Widget build(BuildContext context) {
@@ -368,6 +390,29 @@ class _ListingLifecycleBar extends StatelessWidget {
               style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant),
             )),
           ]),
+        ],
+        if (unreadNotifications > 0) ...[
+          const SizedBox(height: 6),
+          InkWell(
+            onTap: onManage,
+            borderRadius: BorderRadius.circular(8),
+            child: Row(children: [
+              Icon(Icons.notifications_active_outlined,
+                  size: 16, color: colors.primary),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  '$unreadNotifications new update${unreadNotifications == 1 ? '' : 's'} about this listing',
+                  style: TextStyle(
+                      color: colors.primary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800),
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded,
+                  size: 17, color: colors.primary),
+            ]),
+          ),
         ],
       ]),
     );

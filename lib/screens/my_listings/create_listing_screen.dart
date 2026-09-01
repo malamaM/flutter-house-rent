@@ -16,6 +16,7 @@ import 'package:house_rent/widgets/listing_form_components.dart';
 import 'package:house_rent/widgets/map_location_picker.dart';
 import 'package:house_rent/widgets/amenity_icon.dart';
 import 'package:house_rent/widgets/haven_navigation_bar.dart';
+import 'package:house_rent/screens/my_listings/listing_preview_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -472,6 +473,38 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     }
   }
 
+  void _showPreview() {
+    final selectedAmenities = availableAmenities
+        .where((amenity) => amenityIds.contains(amenity.id))
+        .map((amenity) => amenity.name)
+        .toList();
+    Navigator.push<void>(
+      context,
+      HavenPageRoute(
+        builder: (_) => ListingPreviewScreen(
+          draft: ListingDraftPreviewData(
+            title: title.text.trim(),
+            description: description.text.trim(),
+            location: [city.text.trim(), district.text.trim()]
+                .where((item) => item.isNotEmpty)
+                .join(', '),
+            province: province.text.trim(),
+            propertyType: propertyType,
+            price: int.tryParse(rentalPrice.text) ?? 0,
+            bedrooms: int.tryParse(bedrooms.text) ?? 0,
+            bathrooms: int.tryParse(bathrooms.text) ?? 0,
+            size: int.tryParse(size.text) ?? 0,
+            parking: int.tryParse(parking.text) ?? 0,
+            qualityScore: _estimatedQualityScore,
+            cover: coverImage,
+            gallery: List<File>.of(galleryImages),
+            amenities: selectedAmenities,
+          ),
+        ),
+      ),
+    );
+  }
+
   void _message(String value) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(value)));
@@ -858,6 +891,12 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
           ListingQualityGuide(
             score: _estimatedQualityScore,
             improvements: _qualityImprovements,
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: submitting || preparingVideo ? null : _showPreview,
+            icon: const Icon(Icons.visibility_outlined),
+            label: const Text('Preview customer view'),
           ),
           const SizedBox(height: 16),
           _PhotoPicker(

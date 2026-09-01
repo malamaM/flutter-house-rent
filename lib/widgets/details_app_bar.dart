@@ -11,8 +11,10 @@ import 'package:share_plus/share_plus.dart';
 
 class DetailsAppBar extends StatefulWidget {
   final House house;
+  final bool isPreview;
 
-  const DetailsAppBar({Key? key, required this.house}) : super(key: key);
+  const DetailsAppBar({Key? key, required this.house, this.isPreview = false})
+      : super(key: key);
 
   @override
   State<DetailsAppBar> createState() => _DetailsAppBarState();
@@ -178,7 +180,7 @@ class _DetailsAppBarState extends State<DetailsAppBar> {
                     icon: saved
                         ? Icons.bookmark_rounded
                         : Icons.bookmark_border_rounded,
-                    onTap: loading ? null : _save,
+                    onTap: widget.isPreview || loading ? null : _save,
                   ),
                 ],
               ),
