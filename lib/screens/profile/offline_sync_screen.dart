@@ -3,7 +3,6 @@ import 'package:house_rent/services/network_status_service.dart';
 import 'package:house_rent/services/offline_sync_service.dart';
 import 'package:house_rent/services/recommendation_service.dart';
 import 'package:house_rent/services/app_cache.dart';
-import 'package:house_rent/widgets/offline_status_pill.dart';
 import 'package:house_rent/widgets/screen_state.dart';
 import 'package:house_rent/widgets/haven_navigation_bar.dart';
 
@@ -16,7 +15,6 @@ class OfflineSyncScreen extends StatefulWidget {
 
 class _OfflineSyncScreenState extends State<OfflineSyncScreen> {
   late Future<List<Map<String, dynamic>>> _actions;
-  late Future<int> _signalCount;
   bool _syncing = false;
 
   @override
@@ -24,7 +22,6 @@ class _OfflineSyncScreenState extends State<OfflineSyncScreen> {
     super.initState();
     _reload();
     OfflineSyncService.instance.pendingCount.addListener(_changed);
-    RecommendationService.instance.pendingCount.addListener(_changed);
   }
 
   void _changed() {
@@ -33,13 +30,11 @@ class _OfflineSyncScreenState extends State<OfflineSyncScreen> {
 
   void _reload() {
     _actions = OfflineSyncService.instance.pendingActions();
-    _signalCount = RecommendationService.instance.pendingEventCount();
   }
 
   @override
   void dispose() {
     OfflineSyncService.instance.pendingCount.removeListener(_changed);
-    RecommendationService.instance.pendingCount.removeListener(_changed);
     super.dispose();
   }
 
@@ -86,47 +81,31 @@ class _OfflineSyncScreenState extends State<OfflineSyncScreen> {
           future: _actions,
           builder: (context, snapshot) {
             final actions = snapshot.data ?? const [];
-            final recommendationPending =
-                RecommendationService.instance.pendingCount.value;
-            final hasPending = actions.isNotEmpty || recommendationPending > 0;
+            final hasPending = actions.isNotEmpty;
             return ListView(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
               children: [
-                Align(
-                    alignment: Alignment.centerLeft,
-                    child: OfflineStatusPill(onTap: _sync)),
-                const SizedBox(height: 20),
                 Text('Pending sync',
                     style: Theme.of(context).textTheme.headlineMedium),
                 const SizedBox(height: 6),
                 Text(
-                  'Haven keeps lightweight actions and recommendation signals safely on this device and syncs them when the server is reachable.',
+                  'Haven keeps lightweight changes safely on this device and syncs them when the server is reachable.',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 18),
                 if (snapshot.connectionState == ConnectionState.waiting)
                   const Center(child: CircularProgressIndicator())
                 else if (!hasPending)
-                  const SizedBox(
-                    height: 230,
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
                     child: ScreenState(
                       icon: Icons.cloud_done_outlined,
                       title: 'Everything is synced',
                       message: 'There are no changes waiting on this device.',
                     ),
                   )
-                else if (actions.isNotEmpty) ...[
+                else
                   ...actions.map(_PendingActionCard.new),
-                ] else
-                  const SizedBox(
-                    height: 230,
-                    child: ScreenState(
-                      icon: Icons.auto_awesome_rounded,
-                      title: 'Recommendation signals waiting',
-                      message:
-                          'Haven will use these signals to improve your home recommendations after they sync.',
-                    ),
-                  ),
                 const SizedBox(height: 18),
                 FilledButton.icon(
                   onPressed: !hasPending || _syncing ? null : _sync,
@@ -142,17 +121,6 @@ class _OfflineSyncScreenState extends State<OfflineSyncScreen> {
                   TextButton(
                       onPressed: _discard,
                       child: const Text('Discard pending changes')),
-                FutureBuilder<int>(
-                  future: _signalCount,
-                  builder: (context, signalSnapshot) {
-                    final count = signalSnapshot.data ?? 0;
-                    if (count == 0) return const SizedBox.shrink();
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 14),
-                      child: _SignalQueueCard(count: count),
-                    );
-                  },
-                ),
                 const SizedBox(height: 28),
                 Text('Offline storage',
                     style: Theme.of(context).textTheme.headlineMedium),
@@ -246,27 +214,4 @@ class _PendingActionCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class _SignalQueueCard extends StatelessWidget {
-  const _SignalQueueCard({required this.count});
-  final int count;
-
-  @override
-  Widget build(BuildContext context) => Card(
-        color: Theme.of(context).colorScheme.secondaryContainer,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(children: [
-            const Icon(Icons.auto_awesome_rounded),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                '$count recommendation ${count == 1 ? 'signal is' : 'signals are'} saved on this device and will upload automatically when Haven is reachable.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ),
-          ]),
-        ),
-      );
 }

@@ -252,7 +252,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
                     ),
             ),
           ),
-          if (!keyboardOpen)
+          if (showBottomNavigation)
             Positioned(
               left: 0,
               right: 0,

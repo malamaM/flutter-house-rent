@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:house_rent/services/app_cache.dart';
 import 'package:house_rent/services/network_status_service.dart';
 import 'package:house_rent/services/offline_sync_service.dart';
-import 'package:house_rent/services/recommendation_service.dart';
 
 class OfflineStatusPill extends StatelessWidget {
   final VoidCallback? onTap;
@@ -13,14 +12,13 @@ class OfflineStatusPill extends StatelessWidget {
         listenable: Listenable.merge([
           NetworkStatusService.instance.availability,
           OfflineSyncService.instance.pendingCount,
-          RecommendationService.instance.pendingCount,
         ]),
         builder: (context, _) {
           final network = NetworkStatusService.instance.availability.value;
-          final offlineActions = OfflineSyncService.instance.pendingCount.value;
-          final recommendationSignals =
-              RecommendationService.instance.pendingCount.value;
-          final pending = offlineActions + recommendationSignals;
+          // Recommendation telemetry is best-effort background learning. This
+          // global status is reserved for user-authored changes such as saved
+          // homes, messages, and preference updates.
+          final pending = OfflineSyncService.instance.pendingCount.value;
           if (network != NetworkAvailability.offline && pending == 0) {
             return const SizedBox.shrink();
           }
@@ -36,12 +34,9 @@ class OfflineStatusPill extends StatelessWidget {
                           ? 'Offline · cached content'
                           : 'Offline · no downloaded content'
                   : 'Syncing $pending ${pending == 1 ? 'change' : 'changes'}';
-              final syncingSignalsOnly =
-                  !offline && offlineActions == 0 && recommendationSignals > 0;
-              final syncText = syncingSignalsOnly
-                  ? 'Syncing $recommendationSignals recommendation ${recommendationSignals == 1 ? 'signal' : 'signals'}'
+              final displayText = offline
+                  ? text
                   : 'Syncing $pending ${pending == 1 ? 'change' : 'changes'}';
-              final displayText = offline ? text : syncText;
               return Semantics(
                 button: onTap != null,
                 label: displayText,

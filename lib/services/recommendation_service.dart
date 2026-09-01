@@ -23,6 +23,8 @@ class RecommendationService with WidgetsBindingObserver {
   Timer? _flushTimer;
   bool _flushing = false;
   bool _initialized = false;
+  final http.Client _client = http.Client();
+  http.Client? _clientForTesting;
 
   /// Starts durable event delivery. Events are still accepted before this is
   /// called, but initialization lets a restored network flush them promptly.
@@ -31,8 +33,15 @@ class RecommendationService with WidgetsBindingObserver {
     _initialized = true;
     WidgetsBinding.instance.addObserver(this);
     NetworkStatusService.instance.availability.addListener(_networkChanged);
-    unawaited(_refreshPendingCount());
-    unawaited(flush());
+    unawaited(_initializeQueue());
+  }
+
+  Future<void> _initializeQueue() async {
+    // Serialize the initial count read and the first flush. Running these in
+    // parallel can let the count read finish after a successful flush and
+    // repaint a queue that has already been drained.
+    await _refreshPendingCount();
+    await flush();
   }
 
   void _networkChanged() {
@@ -308,36 +317,65 @@ class RecommendationService with WidgetsBindingObserver {
     _setPendingCount(0);
   }
 
+  /// Overrides the network client for deterministic queue lifecycle tests.
+  void setClientForTesting(http.Client? client) {
+    _clientForTesting = client;
+  }
+
   Future<void> flush() async {
     if (_flushing) return;
     _flushing = true;
     _flushTimer?.cancel();
     try {
       final token = await _token();
-      if (token == null) return;
+      if (token == null) {
+        _flushTimer = Timer(const Duration(seconds: 30), flush);
+        return;
+      }
       final prefs = await SharedPreferences.getInstance();
-      final encoded = prefs.getStringList(_queueKey) ?? const [];
+      final stored = prefs.getStringList(_queueKey) ?? const [];
+      final encoded = _removeInvalidEvents(stored);
+      if (encoded.length != stored.length) {
+        await prefs.setStringList(_queueKey, encoded);
+        _setPendingCount(encoded.length);
+      }
       if (encoded.isEmpty) {
         _setPendingCount(0);
         return;
       }
       final batch = encoded.take(100).map(jsonDecode).toList();
-      final response = await http
-          .post(
-            Uri.parse('${ApiConfig.apiBase}/recommendation-events/batch'),
-            headers: {
-              'Authorization': 'Bearer $token',
-              'Accept': 'application/json',
-              'Content-Type': 'application/json'
-            },
-            body: jsonEncode({'events': batch}),
-          )
+      final response = await (_clientForTesting ?? _client)
+          .post(Uri.parse('${ApiConfig.apiBase}/recommendation-events/batch'),
+              headers: {
+                'Authorization': 'Bearer $token',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+              },
+              body: jsonEncode({'events': batch}))
           .timeout(const Duration(seconds: 10));
-      if (response.statusCode == 202) {
+      // The batch endpoint may acknowledge an accepted batch with any
+      // successful 2xx response (202 is the current backend response, while
+      // 200/204 are also valid responses from older or proxied deployments).
+      // Treating only 202 as success leaves a healthy queue stuck forever.
+      if (response.statusCode >= 200 && response.statusCode < 300) {
         final remaining = encoded.skip(batch.length).toList();
         await prefs.setStringList(_queueKey, remaining);
         _setPendingCount(remaining.length);
         if (encoded.length > batch.length) {
+          _flushTimer = Timer(const Duration(seconds: 2), flush);
+        }
+      } else if (_isPermanentFailure(response.statusCode)) {
+        // A validation/auth response will never improve by retrying the same
+        // payload. Remove rejected telemetry so a stale event cannot keep the
+        // sync banner alive forever. A later user action will create a fresh
+        // event under the current session.
+        final remaining =
+            response.statusCode == 401 || response.statusCode == 403
+                ? <String>[]
+                : encoded.skip(batch.length).toList();
+        await prefs.setStringList(_queueKey, remaining);
+        _setPendingCount(remaining.length);
+        if (remaining.isNotEmpty) {
           _flushTimer = Timer(const Duration(seconds: 2), flush);
         }
       } else {
@@ -350,5 +388,38 @@ class RecommendationService with WidgetsBindingObserver {
     } finally {
       _flushing = false;
     }
+  }
+
+  bool _isPermanentFailure(int statusCode) =>
+      statusCode == 400 ||
+      statusCode == 401 ||
+      statusCode == 403 ||
+      statusCode == 404 ||
+      statusCode == 409 ||
+      statusCode == 422;
+
+  List<String> _removeInvalidEvents(List<String> encoded) {
+    final now = DateTime.now().toUtc();
+    final oldestAllowed = now.subtract(const Duration(days: 7));
+    final newestAllowed = now.add(const Duration(minutes: 5));
+    final valid = <String>[];
+    for (final raw in encoded) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is! Map<String, dynamic>) continue;
+        final occurredAt = DateTime.tryParse(
+          decoded['occurred_at']?.toString() ?? '',
+        );
+        if (occurredAt == null ||
+            occurredAt.isBefore(oldestAllowed) ||
+            occurredAt.isAfter(newestAllowed)) {
+          continue;
+        }
+        valid.add(raw);
+      } catch (_) {
+        // Corrupt telemetry is disposable; it must not block newer signals.
+      }
+    }
+    return valid;
   }
 }
