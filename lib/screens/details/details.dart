@@ -1211,16 +1211,114 @@ class _MobileMoneyPaymentSheetState extends State<_MobileMoneyPaymentSheet> {
           : value;
 }
 
-String _reservationSlotLabel(ReservationSlot slot) {
-  final start = slot.startsAt.toLocal();
-  final hour = start.hour % 12 == 0 ? 12 : start.hour % 12;
-  final minute = start.minute.toString().padLeft(2, '0');
-  final period = start.hour >= 12 ? 'PM' : 'AM';
-  final end = slot.endsAt?.toLocal();
-  final endLabel = end == null
-      ? ''
-      : ' – ${end.hour % 12 == 0 ? 12 : end.hour % 12}:${end.minute.toString().padLeft(2, '0')} ${end.hour >= 12 ? 'PM' : 'AM'}';
-  return '${_reservationDayLabel(start)} · $hour:$minute $period$endLabel';
+class _ReservationScheduleSummary extends StatelessWidget {
+  final List<ReservationSlot> slots;
+
+  const _ReservationScheduleSummary({required this.slots});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final recurring =
+        slots.where((slot) => slot.source == 'recurring').toList();
+    final summarySlots = recurring.isNotEmpty ? recurring : slots;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      decoration: BoxDecoration(
+        color: colors.surface.withValues(alpha: .72),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: colors.primary.withValues(alpha: .16)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.event_available_rounded, size: 20, color: colors.primary),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              _reservationScheduleSummary(summarySlots),
+              style: TextStyle(
+                  color: colors.onSurface,
+                  fontSize: 13,
+                  height: 1.3,
+                  fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _reservationScheduleSummary(List<ReservationSlot> slots) {
+  if (slots.isEmpty) return 'Choose a date and time from the calendar.';
+
+  final days = <int>{};
+  var earliest = 24 * 60;
+  var latest = 0;
+  for (final slot in slots) {
+    final start = slot.startsAt.toLocal();
+    days.add(start.weekday);
+    final startMinutes = start.hour * 60 + start.minute;
+    earliest = startMinutes < earliest ? startMinutes : earliest;
+    final end = slot.endsAt?.toLocal();
+    final endMinutes = end == null ? startMinutes : end.hour * 60 + end.minute;
+    latest = endMinutes > latest ? endMinutes : latest;
+  }
+
+  return 'Available on ${_reservationDaysLabel(days)} '
+      '${_reservationTimeOfDayLabel(earliest, latest)}.';
+}
+
+String _reservationDaysLabel(Set<int> days) {
+  final weekdays = {1, 2, 3, 4, 5};
+  final weekends = {6, 7};
+  final weekdayDays = days.intersection(weekdays);
+  final weekendDays = days.intersection(weekends);
+  if (weekdayDays.length == weekdays.length &&
+      weekendDays.length == weekends.length) {
+    return 'weekdays and weekends';
+  }
+  if (weekdayDays.length == weekdays.length && weekendDays.isEmpty) {
+    return 'weekdays';
+  }
+  if (weekendDays.length == weekends.length && weekdayDays.isEmpty) {
+    return 'weekends';
+  }
+
+  const names = <int, String>{
+    1: 'Mondays',
+    2: 'Tuesdays',
+    3: 'Wednesdays',
+    4: 'Thursdays',
+    5: 'Fridays',
+    6: 'Saturdays',
+    7: 'Sundays',
+  };
+  final labels = days.toList()..sort();
+  if (weekdayDays.length == weekdays.length && weekendDays.length == 1) {
+    return 'weekdays and ${names[weekendDays.first]}';
+  }
+  if (weekendDays.length == weekends.length && weekdayDays.length == 1) {
+    return '${names[weekdayDays.first]} and weekends';
+  }
+  if (labels.length == 1) return names[labels.first]!;
+  if (labels.length == 2) {
+    return '${names[labels.first]} and ${names[labels.last]}';
+  }
+  return labels.map((day) => names[day]!).join(', ').replaceFirstMapped(
+      RegExp(r', ([^,]+)$'), (match) => ', and ${match.group(1)}');
+}
+
+String _reservationTimeOfDayLabel(int earliest, int latest) {
+  if (latest <= 12 * 60) return 'in the morning';
+  if (earliest >= 17 * 60) return 'in the evening';
+  if (earliest >= 12 * 60 && latest <= 17 * 60) return 'in the afternoon';
+  if (earliest < 12 * 60 && latest <= 17 * 60) return 'during the day';
+  if (earliest >= 12 * 60) return 'in the afternoon and evening';
+  return 'during the day and evening';
 }
 
 String _formatReservationAmount(int amount) {
@@ -1244,25 +1342,6 @@ String _reservationTimeLabel(ReservationSlot slot) {
   }
 
   return end == null ? format(start) : '${format(start)} – ${format(end)}';
-}
-
-String _reservationDayLabel(DateTime value) {
-  const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec'
-  ];
-  return '${weekdays[value.weekday - 1]}, ${value.day} ${months[value.month - 1]}';
 }
 
 class Details extends StatefulWidget {
@@ -1845,36 +1924,7 @@ class _DetailsState extends State<Details> {
               ],
               if (hasDates) ...[
                 const SizedBox(height: 14),
-                Text('Next available dates',
-                    style: TextStyle(
-                        color: colors.onSurfaceVariant,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 7,
-                  runSpacing: 7,
-                  children: available
-                      .take(3)
-                      .map((slot) => Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: colors.surface.withValues(alpha: .78),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color: colors.primary.withValues(alpha: .18)),
-                            ),
-                            child: Text(
-                              _reservationSlotLabel(slot),
-                              style: TextStyle(
-                                  color: colors.onSurface,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700),
-                            ),
-                          ))
-                      .toList(),
-                ),
+                _ReservationScheduleSummary(slots: available),
               ],
               const SizedBox(height: 15),
               if (hasDates && !state.isReserved)
