@@ -7,7 +7,7 @@ import 'package:house_rent/widgets/demand_badge.dart';
 class ContentIntro extends StatelessWidget {
   final House house;
 
-  const ContentIntro({Key? key, required this.house}) : super(key: key);
+  const ContentIntro({super.key, required this.house});
 
   String get location {
     final parts = <String>[

@@ -3,7 +3,7 @@ import 'package:house_rent/services/app_data_service.dart';
 import 'package:house_rent/theme/app_colors.dart';
 
 class WelcomeText extends StatefulWidget {
-  const WelcomeText({Key? key}) : super(key: key);
+  const WelcomeText({super.key});
 
   @override
   State<WelcomeText> createState() => _WelcomeTextState();

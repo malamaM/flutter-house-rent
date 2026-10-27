@@ -6,7 +6,7 @@ import 'package:house_rent/models/house.dart';
 class CacheStatusBanner extends StatefulWidget {
   final String? resource;
 
-  const CacheStatusBanner({Key? key, this.resource}) : super(key: key);
+  const CacheStatusBanner({super.key, this.resource});
 
   @override
   State<CacheStatusBanner> createState() => _CacheStatusBannerState();

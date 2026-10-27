@@ -25,7 +25,7 @@ import 'package:latlong2/latlong.dart';
 class EditListingScreen extends StatefulWidget {
   final House house;
 
-  const EditListingScreen({Key? key, required this.house}) : super(key: key);
+  const EditListingScreen({super.key, required this.house});
 
   @override
   State<EditListingScreen> createState() => _EditListingScreenState();
@@ -565,6 +565,7 @@ class _EditListingScreenState extends State<EditListingScreen> {
       if (!mounted) return;
       _completed = true;
       await ListingDraftService.instance.clear(_draftId);
+      if (!mounted) return;
       PremiumHaptics.success();
       _message('Your listing changes are live.');
       Navigator.pop(context, true);

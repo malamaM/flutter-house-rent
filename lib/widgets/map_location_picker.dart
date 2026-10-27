@@ -7,10 +7,10 @@ import 'package:geolocator/geolocator.dart';
 class MapLocationPicker extends StatefulWidget {
   final LatLng? initialLocation;
 
-  const MapLocationPicker({Key? key, this.initialLocation}) : super(key: key);
+  const MapLocationPicker({super.key, this.initialLocation});
 
   @override
-  _MapLocationPickerState createState() => _MapLocationPickerState();
+  State<MapLocationPicker> createState() => _MapLocationPickerState();
 }
 
 class _MapLocationPickerState extends State<MapLocationPicker> {
@@ -54,7 +54,10 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
       }
 
       final position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high);
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
       final newLocation = LatLng(position.latitude, position.longitude);
 
       setState(() {
@@ -95,8 +98,8 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
-              center: _selectedLocation,
-              zoom: 13.0,
+              initialCenter: _selectedLocation!,
+              initialZoom: 13.0,
               onTap: (tapPosition, point) {
                 setState(() {
                   _selectedLocation = point;
@@ -117,7 +120,7 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
                       width: 50.0,
                       height: 50.0,
                       point: _selectedLocation!,
-                      builder: (ctx) => const Icon(
+                      child: const Icon(
                         Icons.location_pin,
                         color: Colors.red,
                         size: 50.0,

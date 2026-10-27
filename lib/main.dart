@@ -15,9 +15,15 @@ import 'package:house_rent/services/recommendation_service.dart';
 import 'package:house_rent/services/network_status_service.dart';
 import 'package:house_rent/theme/haven_responsive_media.dart';
 import 'package:house_rent/config/api_config.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:house_rent/firebase_options.dart';
+import 'package:house_rent/services/push_notification_service.dart';
+
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  unawaited(PushNotificationService.instance.initialize());
   // Never hold the first Flutter frame on a platform channel. On a physical
   // device the preferences channel can take a moment to become available;
   // rendering the splash first keeps launch responsive and lets the saved

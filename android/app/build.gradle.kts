@@ -1,5 +1,7 @@
+import com.android.build.api.dsl.ApplicationExtension
 import java.io.FileInputStream
 import java.util.Properties
+import org.gradle.kotlin.dsl.configure
 
 val signingProperties = Properties()
 val signingPropertiesFile = rootProject.file("key.properties")
@@ -24,24 +26,23 @@ val releaseSigningConfigured = listOf(
 
 plugins {
     id("com.android.application")
-    id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    id("com.google.gms.google-services")
+    // Kotlin is provided by AGP 9 built-in Kotlin support.
+    // The Flutter Gradle Plugin must be applied after the Android plugin.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-android {
+extensions.configure<ApplicationExtension> {
     namespace = "com.malamachiluwe.haven"
-    compileSdk = flutter.compileSdkVersion
-    // Keep this aligned with the highest version required by native plugins.
-    ndkVersion = "27.0.12077973"
+    // Keep this on the latest API level supported by the Flutter/AGP toolchain.
+    compileSdk = 36
+    // Keep this aligned with Flutter's current template and path_provider's
+    // native JNI support.
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
     defaultConfig {
@@ -71,6 +72,12 @@ android {
                 signingConfig = null
             }
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
 }
 

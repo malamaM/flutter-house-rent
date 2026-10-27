@@ -1,40 +1,30 @@
-import 'dart:async';
+import 'package:flutter/foundation.dart';
 
 class ApiConfig {
   ApiConfig._();
 
-  /// The app is intentionally live-only for now.
-  static const _productionOrigin =
-      'https://haven-c4fga3bbgxgjhyab.southafricanorth-01.azurewebsites.net';
+  // Phones reach Laravel through this Mac's local-network hostname.
+  // For an Android emulator, pass --dart-define=DEV_API_HOST=10.0.2.2.
+  static const _developmentHost = String.fromEnvironment(
+    'DEV_API_HOST',
+    defaultValue: 'malamas-MacBook-Pro.local',
+  );
+  static const _originOverride = String.fromEnvironment('API_ORIGIN');
 
-  // Development routing is intentionally disabled. Keep this reference here
-  // so local-server support can be restored later without being rediscovered.
-  // static const _developmentHost = String.fromEnvironment(
-  //   'DEV_API_HOST',
-  //   defaultValue: 'malamas-MacBook-Pro.local',
-  // );
-  // static String get _developmentOrigin {
-  //   if (kIsWeb) return 'http://127.0.0.1:8000';
-  //   if (Platform.isAndroid || Platform.isIOS) {
-  //     return 'http://$_developmentHost:8000';
-  //   }
-  //   return 'http://127.0.0.1:8000';
-  // }
-
-  static String? _sessionOrigin;
-  static Future<void>? _initialization;
-
-  /// Locks this process to the production API. An unreachable live service is
-  /// surfaced as an offline/server error; it never redirects to a local host.
-  static Future<void> initialize() => _initialization ??= _resolveOrigin();
-
-  static Future<void> get ready => initialize();
-
-  static Future<void> _resolveOrigin() async {
-    _sessionOrigin = _productionOrigin;
+  static String get origin {
+    if (_originOverride.isNotEmpty) {
+      return _originOverride.replaceFirst(RegExp(r'/+$'), '');
+    }
+    final isMobile = !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.android ||
+            defaultTargetPlatform == TargetPlatform.iOS);
+    final host = isMobile ? _developmentHost : '127.0.0.1';
+    return Uri.parse('http://$host:8000').toString();
   }
 
-  static String get origin => _sessionOrigin ?? _productionOrigin;
+  static Future<void> initialize() async {}
+
+  static Future<void> get ready => initialize();
 
   static String get apiBase => '$origin/api';
   static String get storageBase => '$origin/storage';

@@ -5,8 +5,7 @@ import 'package:video_player/video_player.dart';
 
 class ListingVideosSection extends StatelessWidget {
   final int houseId;
-  const ListingVideosSection({Key? key, required this.houseId})
-      : super(key: key);
+  const ListingVideosSection({super.key, required this.houseId});
 
   @override
   Widget build(BuildContext context) {

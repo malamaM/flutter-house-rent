@@ -19,10 +19,10 @@ import 'package:house_rent/services/app_cache.dart';
 
 class Home extends StatefulWidget {
   const Home({
-    Key? key,
+    super.key,
     this.initialFeed,
     this.initialType,
-  }) : super(key: key);
+  });
 
   final HomeFeedData? initialFeed;
   final String? initialType;
@@ -161,8 +161,7 @@ class _HomeState extends State<Home> {
           // after its future changes. ConnectionState is the source of truth;
           // otherwise a previous type can be rendered while the new type is
           // loading and look like the filter was ignored.
-          final waiting =
-              snapshot.connectionState == ConnectionState.waiting;
+          final waiting = snapshot.connectionState == ConnectionState.waiting;
           final sections = <Widget>[
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,

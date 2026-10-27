@@ -10,8 +10,7 @@ class AllHousesScreen extends StatefulWidget {
   final String title;
   final Map<String, String>? filters;
 
-  const AllHousesScreen({Key? key, required this.title, this.filters})
-      : super(key: key);
+  const AllHousesScreen({super.key, required this.title, this.filters});
 
   @override
   State<AllHousesScreen> createState() => _AllHousesScreenState();

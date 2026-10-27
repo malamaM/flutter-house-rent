@@ -13,8 +13,7 @@ class BestOffer extends StatefulWidget {
   final Map<String, String> filters;
   final List<House>? initialHouses;
 
-  const BestOffer({Key? key, this.filters = const {}, this.initialHouses})
-      : super(key: key);
+  const BestOffer({super.key, this.filters = const {}, this.initialHouses});
 
   @override
   State<BestOffer> createState() => _BestOfferState();

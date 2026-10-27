@@ -650,9 +650,7 @@ class _PaidReservationSheetState extends State<PaidReservationSheet> {
         ? custom
         : values
             .map((value) => ChoiceChip(
-                  label: Text(value.toString() +
-                      ' ' +
-                      (value == 1 ? 'month' : 'months')),
+                  label: Text('$value ${value == 1 ? 'month' : 'months'}'),
                   selected: selected == value,
                   onSelected: (_) => onSelected(value),
                 ))
@@ -684,11 +682,7 @@ class _PaidReservationSheetState extends State<PaidReservationSheet> {
             ..._rules.asMap().entries.map((entry) => _tile(
                   context,
                   Icons.repeat_rounded,
-                  _dayName(entry.value.dayOfWeek) +
-                      ' · ' +
-                      _timeLabel(entry.value.startsAt) +
-                      ' – ' +
-                      _timeLabel(entry.value.endsAt),
+                  '${_dayName(entry.value.dayOfWeek)} · ${_timeLabel(entry.value.startsAt)} – ${_timeLabel(entry.value.endsAt)}',
                   'Weekly availability window',
                   () => _editRule(index: entry.key),
                   () => setState(() {
@@ -723,11 +717,7 @@ class _PaidReservationSheetState extends State<PaidReservationSheet> {
               return _tile(
                 context,
                 Icons.block_outlined,
-                when +
-                    ' · ' +
-                    _timeLabel(item.startsAt) +
-                    ' – ' +
-                    _timeLabel(item.endsAt),
+                '$when · ${_timeLabel(item.startsAt)} – ${_timeLabel(item.endsAt)}',
                 item.label?.isNotEmpty == true
                     ? item.label!
                     : item.kind == 'weekly'
@@ -821,12 +811,7 @@ class _PaidReservationSheetState extends State<PaidReservationSheet> {
   }
 
   String _slotLabel(ReservationSlot slot) =>
-      _dateLabel(_dateKey(slot.startsAt)) +
-      ' · ' +
-      _timeLabel(_timeKey(slot.startsAt)) +
-      ' – ' +
-      _timeLabel(
-          _timeKey(slot.endsAt ?? slot.startsAt.add(const Duration(hours: 1))));
+      '${_dateLabel(_dateKey(slot.startsAt))} · ${_timeLabel(_timeKey(slot.startsAt))} – ${_timeLabel(_timeKey(slot.endsAt ?? slot.startsAt.add(const Duration(hours: 1))))}';
 
   String _dayName(int day) => const [
         'Monday',
@@ -843,44 +828,34 @@ class _PaidReservationSheetState extends State<PaidReservationSheet> {
     final hour24 = int.tryParse(parts.first) ?? 0;
     final minute = parts.length > 1 ? parts[1].padLeft(2, '0') : '00';
     final hour = hour24 % 12 == 0 ? 12 : hour24 % 12;
-    return '$hour:$minute ' + (hour24 >= 12 ? 'PM' : 'AM');
+    return '$hour:$minute ${hour24 >= 12 ? 'PM' : 'AM'}';
   }
 
   String _dateLabel(String? value) {
     if (value == null || value.isEmpty) return 'Specific date';
     final date = DateTime.tryParse(value);
     if (date == null) return value;
-    return date.day.toString() +
-        ' ' +
-        const [
-          'Jan',
-          'Feb',
-          'Mar',
-          'Apr',
-          'May',
-          'Jun',
-          'Jul',
-          'Aug',
-          'Sep',
-          'Oct',
-          'Nov',
-          'Dec',
-        ][date.month - 1] +
-        ' ' +
-        date.year.toString();
+    return '${date.day} ${const [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ][date.month - 1]} ${date.year}';
   }
 
   String _dateKey(DateTime value) =>
-      value.year.toString().padLeft(4, '0') +
-      '-' +
-      value.month.toString().padLeft(2, '0') +
-      '-' +
-      value.day.toString().padLeft(2, '0');
+      '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
 
   String _timeKey(DateTime value) =>
-      value.hour.toString().padLeft(2, '0') +
-      ':' +
-      value.minute.toString().padLeft(2, '0');
+      '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
 }
 
 class _ErrorContent extends StatelessWidget {
@@ -956,16 +931,10 @@ class _AvailabilityWindowPickerState extends State<_AvailabilityWindowPicker> {
   }
 
   String _timeKey(DateTime value) =>
-      value.hour.toString().padLeft(2, '0') +
-      ':' +
-      value.minute.toString().padLeft(2, '0');
+      '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
 
   String _dateKey(DateTime value) =>
-      value.year.toString().padLeft(4, '0') +
-      '-' +
-      value.month.toString().padLeft(2, '0') +
-      '-' +
-      value.day.toString().padLeft(2, '0');
+      '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
 
   @override
   Widget build(BuildContext context) {

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "733739202479",
+    "project_id": "haven-zambia-20260909",
+    "storage_bucket": "haven-zambia-20260909.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:733739202479:android:ca02a6986c77c2a87ee15a",
+        "android_client_info": {
+          "package_name": "com.malamachiluwe.haven"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDO_FhettoTWGAZ6J_ZdcjGJBs-9UZY6Wo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

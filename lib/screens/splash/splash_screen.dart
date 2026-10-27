@@ -11,7 +11,7 @@ import 'package:house_rent/widgets/zambian_signature.dart';
 import 'package:house_rent/config/api_config.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  const SplashScreen({super.key});
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
@@ -131,6 +131,7 @@ class _SplashScreenState extends State<SplashScreen>
       final visibleHomes = homes.where((home) => seen.add(home.id)).take(2);
       final homesToCache = visibleHomes.toList();
       for (var index = 0; index < homesToCache.length; index++) {
+        if (!mounted) return null;
         final home = homesToCache[index];
         if (home.thumbnailUrl.isEmpty) continue;
         try {

@@ -21,7 +21,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 
 class CreateListingScreen extends StatefulWidget {
-  const CreateListingScreen({Key? key}) : super(key: key);
+  const CreateListingScreen({super.key});
 
   @override
   State<CreateListingScreen> createState() => _CreateListingScreenState();
@@ -462,6 +462,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       if (!mounted) return;
       _completed = true;
       await ListingDraftService.instance.clear(_draftId);
+      if (!mounted) return;
       PremiumHaptics.success();
       _message('Your listing is now live.');
       Navigator.pop(context, true);

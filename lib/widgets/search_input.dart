@@ -7,8 +7,7 @@ class SearchInput extends StatelessWidget {
   final String hint;
 
   const SearchInput(
-      {Key? key, this.onTap, this.hint = 'Search by area or property'})
-      : super(key: key);
+      {super.key, this.onTap, this.hint = 'Search by area or property'});
 
   @override
   Widget build(BuildContext context) {

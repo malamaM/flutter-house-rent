@@ -13,7 +13,7 @@ import 'package:house_rent/widgets/haven_navigation_bar.dart';
 import 'package:house_rent/widgets/haven_settings_group.dart';
 
 class MyAccount extends StatefulWidget {
-  const MyAccount({Key? key}) : super(key: key);
+  const MyAccount({super.key});
 
   @override
   State<MyAccount> createState() => _MyAccountState();

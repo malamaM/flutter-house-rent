@@ -13,8 +13,7 @@ class DetailsAppBar extends StatefulWidget {
   final House house;
   final bool isPreview;
 
-  const DetailsAppBar({Key? key, required this.house, this.isPreview = false})
-      : super(key: key);
+  const DetailsAppBar({super.key, required this.house, this.isPreview = false});
 
   @override
   State<DetailsAppBar> createState() => _DetailsAppBarState();

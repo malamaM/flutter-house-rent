@@ -8,13 +8,13 @@ class ScreenState extends StatelessWidget {
   final VoidCallback? onAction;
 
   const ScreenState({
-    Key? key,
+    super.key,
     required this.icon,
     required this.title,
     required this.message,
     this.actionLabel,
     this.onAction,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +57,7 @@ class ScreenState extends StatelessWidget {
 }
 
 class PropertyListSkeleton extends StatelessWidget {
-  const PropertyListSkeleton({Key? key}) : super(key: key);
+  const PropertyListSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {

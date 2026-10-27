@@ -8,7 +8,7 @@ import 'package:house_rent/widgets/screen_state.dart';
 import 'package:house_rent/widgets/cache_status_banner.dart';
 
 class SavedHousesScreen extends StatefulWidget {
-  const SavedHousesScreen({Key? key}) : super(key: key);
+  const SavedHousesScreen({super.key});
 
   @override
   State<SavedHousesScreen> createState() => _SavedHousesScreenState();

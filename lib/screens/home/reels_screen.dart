@@ -21,10 +21,10 @@ import 'package:video_player/video_player.dart';
 
 class ReelsScreen extends StatefulWidget {
   const ReelsScreen({
-    Key? key,
+    super.key,
     this.onInteraction,
     this.onBackdropLuminance,
-  }) : super(key: key);
+  });
 
   final VoidCallback? onInteraction;
   final ValueChanged<double>? onBackdropLuminance;

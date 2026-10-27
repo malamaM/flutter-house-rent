@@ -221,11 +221,11 @@ class ListingSectionHeader extends StatelessWidget {
   final String description;
 
   const ListingSectionHeader({
-    Key? key,
+    super.key,
     required this.eyebrow,
     required this.title,
     required this.description,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -261,7 +261,7 @@ class ListingTextField extends StatelessWidget {
   final bool enabled;
 
   const ListingTextField({
-    Key? key,
+    super.key,
     required this.controller,
     required this.label,
     this.hint,
@@ -270,7 +270,7 @@ class ListingTextField extends StatelessWidget {
     this.maxLines = 1,
     this.suffix,
     this.enabled = true,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -324,12 +324,12 @@ class ListingChoice extends StatelessWidget {
   final ValueChanged<String> onChanged;
 
   const ListingChoice({
-    Key? key,
+    super.key,
     required this.label,
     required this.options,
     required this.selected,
     required this.onChanged,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -378,12 +378,12 @@ class AmenityTile extends StatelessWidget {
   final ValueChanged<bool> onChanged;
 
   const AmenityTile({
-    Key? key,
+    super.key,
     required this.icon,
     required this.label,
     required this.value,
     required this.onChanged,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -434,10 +434,10 @@ class ListingSurface extends StatelessWidget {
   final EdgeInsets padding;
 
   const ListingSurface({
-    Key? key,
+    super.key,
     required this.child,
     this.padding = const EdgeInsets.all(18),
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -452,9 +452,9 @@ class MediaPreparationIndicator extends StatelessWidget {
   final double progress;
 
   const MediaPreparationIndicator({
-    Key? key,
+    super.key,
     required this.progress,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

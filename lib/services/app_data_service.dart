@@ -9,6 +9,7 @@ import 'package:house_rent/services/offline_sync_service.dart';
 import 'package:house_rent/services/recommendation_service.dart';
 import 'package:house_rent/services/listing_draft_service.dart';
 import 'package:house_rent/services/session_token_store.dart';
+import 'package:house_rent/services/push_notification_service.dart';
 import 'package:http/http.dart' as http;
 
 class SessionService {
@@ -38,6 +39,7 @@ class SessionService {
     );
     if (!forceRefresh && cached != null) {
       _memoryUser = Map<String, dynamic>.from(cached.value);
+      unawaited(PushNotificationService.instance.registerForCurrentUser());
       if (!cached.isFresh) unawaited(_refreshInBackground(token, key));
       return _memoryUser;
     }
@@ -76,6 +78,7 @@ class SessionService {
       final user =
           Map<String, dynamic>.from(json.decode(response.body)['user']);
       _memoryUser = user;
+      unawaited(PushNotificationService.instance.registerForCurrentUser());
       await AppCache.instance.write(
         key,
         user,
@@ -116,6 +119,7 @@ class SessionService {
 
   static Future<void> clear() async {
     _memoryUser = null;
+    await PushNotificationService.instance.unregisterCurrentDevice();
     await Future.wait([
       AppCache.instance.clearPrivateData(),
       OfflineSyncService.instance.clear(),
@@ -131,7 +135,8 @@ class SessionService {
     if (_expiring) return;
     _expiring = true;
     try {
-      final hadSession = await SessionTokenStore.read() != null || _memoryUser != null;
+      final hadSession =
+          await SessionTokenStore.read() != null || _memoryUser != null;
       await clear();
       if (hadSession) expirationEvents.value++;
     } finally {

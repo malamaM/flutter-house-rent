@@ -20,7 +20,7 @@ import 'package:house_rent/widgets/property_card.dart';
 import 'package:latlong2/latlong.dart';
 
 class Explore extends StatefulWidget {
-  const Explore({Key? key}) : super(key: key);
+  const Explore({super.key});
 
   @override
   State<Explore> createState() => _ExploreState();
@@ -414,8 +414,8 @@ class _ExploreState extends State<Explore> {
           return AnimatedPadding(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOut,
-            padding:
-                EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+            padding: EdgeInsets.only(
+                bottom: MediaQuery.viewInsetsOf(context).bottom),
             child: Material(
               color: Colors.transparent,
               child: Container(
@@ -610,8 +610,8 @@ class _ExploreState extends State<Explore> {
           FlutterMap(
             mapController: mapController,
             options: MapOptions(
-                center: LatLng(-15.3875, 28.3228),
-                zoom: 12,
+                initialCenter: LatLng(-15.3875, 28.3228),
+                initialZoom: 12,
                 maxZoom: 18,
                 onMapReady: _onMapReady),
             children: [
@@ -661,9 +661,9 @@ class _ExploreState extends State<Explore> {
                   spiderfyCluster: true,
                   spiderfyCircleRadius: 48,
                   size: const Size(46, 46),
-                  anchor: AnchorPos.align(AnchorAlign.center),
-                  fitBoundsOptions: const FitBoundsOptions(
-                      padding: EdgeInsets.all(54), maxZoom: 15),
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.all(54),
+                  maxZoom: 15,
                   markers: houses
                       .where((house) =>
                           house.latitude != null && house.longitude != null)
@@ -671,7 +671,7 @@ class _ExploreState extends State<Explore> {
                             point: LatLng(house.latitude!, house.longitude!),
                             width: 54,
                             height: 54,
-                            builder: (_) => GestureDetector(
+                            child: GestureDetector(
                               onTap: () => _preview(house),
                               child: Container(
                                 decoration: BoxDecoration(
@@ -712,7 +712,7 @@ class _ExploreState extends State<Explore> {
                       point: currentLocation!,
                       width: 30,
                       height: 30,
-                      builder: (_) => Container(
+                      child: Container(
                         decoration: BoxDecoration(
                           color: const Color(0xFF1677FF),
                           shape: BoxShape.circle,
@@ -1083,10 +1083,12 @@ class _ResultsSheet extends StatelessWidget {
                   ),
                   if (loading && houses.isEmpty)
                     const SliverFillRemaining(
+                      hasScrollBody: false,
                       child: Center(child: CircularProgressIndicator()),
                     )
                   else if (errorMessage != null && houses.isEmpty)
                     SliverFillRemaining(
+                      hasScrollBody: false,
                       child: Center(
                         child: Padding(
                           padding: const EdgeInsets.all(24),
@@ -1105,6 +1107,7 @@ class _ResultsSheet extends StatelessWidget {
                     )
                   else if (houses.isEmpty)
                     const SliverFillRemaining(
+                      hasScrollBody: false,
                       child: Center(child: Text('No homes found in this area')),
                     )
                   else ...[

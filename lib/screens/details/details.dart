@@ -1350,11 +1350,11 @@ class Details extends StatefulWidget {
   final bool isPreview;
 
   const Details({
-    Key? key,
+    super.key,
     required this.house,
     this.isOwnerView = false,
     this.isPreview = false,
-  }) : super(key: key);
+  });
 
   /// A lightweight transition keeps the first details frame smooth on Android
   /// while the gallery, videos, owner data, and map initialize behind it.

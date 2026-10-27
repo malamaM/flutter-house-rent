@@ -12,10 +12,10 @@
   "source": {
     "path": "."
   },
-  "source_files": "file_picker_darwin/Sources/file_picker_darwin/**/*",
+  "source_files": "file_picker_darwin/Sources/file_picker_darwin/**/*.swift",
   "resource_bundles": {
     "file_picker_darwin_privacy": [
-      "file_picker_darwin/Resources/PrivacyInfo.xcprivacy"
+      "file_picker_darwin/Sources/file_picker_darwin/PrivacyInfo.xcprivacy"
     ]
   },
   "ios": {

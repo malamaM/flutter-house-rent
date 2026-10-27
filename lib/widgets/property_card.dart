@@ -38,14 +38,14 @@ class PropertyCard extends StatefulWidget {
   final String? secondaryLabel;
 
   const PropertyCard({
-    Key? key,
+    super.key,
     required this.house,
     required this.onTap,
     this.horizontal = false,
     this.showSave = true,
     this.onSecondaryAction,
     this.secondaryLabel,
-  }) : super(key: key);
+  });
 
   @override
   State<PropertyCard> createState() => _PropertyCardState();

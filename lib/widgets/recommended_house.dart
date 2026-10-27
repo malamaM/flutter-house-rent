@@ -14,8 +14,7 @@ class RecommendedHouse extends StatefulWidget {
   final List<House>? initialHouses;
 
   const RecommendedHouse(
-      {Key? key, this.filters = const {}, this.initialHouses})
-      : super(key: key);
+      {super.key, this.filters = const {}, this.initialHouses});
 
   @override
   State<RecommendedHouse> createState() => _RecommendedHouseState();

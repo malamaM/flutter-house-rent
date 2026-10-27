@@ -6,11 +6,11 @@ class ListerTrustBadges extends StatelessWidget {
   final bool compact;
 
   const ListerTrustBadges({
-    Key? key,
+    super.key,
     required this.verified,
     required this.topRated,
     this.compact = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

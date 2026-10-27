@@ -7,10 +7,10 @@ class Categories extends StatelessWidget {
   final ValueChanged<String?> onSelected;
 
   const Categories({
-    Key? key,
+    super.key,
     required this.selectedType,
     required this.onSelected,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

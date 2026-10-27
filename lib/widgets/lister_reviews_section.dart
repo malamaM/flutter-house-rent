@@ -7,8 +7,7 @@ class ListerReviewsSection extends StatefulWidget {
   final VoidCallback? onAddReview;
 
   const ListerReviewsSection(
-      {Key? key, required this.listerId, this.onAddReview})
-      : super(key: key);
+      {super.key, required this.listerId, this.onAddReview});
 
   @override
   State<ListerReviewsSection> createState() => _ListerReviewsSectionState();

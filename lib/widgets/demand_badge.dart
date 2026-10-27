@@ -5,10 +5,10 @@ class DemandBadge extends StatelessWidget {
   final bool compact;
 
   const DemandBadge({
-    Key? key,
+    super.key,
     required this.demandLabel,
     this.compact = false,
-  }) : super(key: key);
+  });
 
   String? get label {
     switch (demandLabel) {

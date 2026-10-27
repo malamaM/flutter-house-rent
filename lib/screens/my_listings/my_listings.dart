@@ -15,7 +15,7 @@ import 'package:house_rent/services/api_error.dart';
 import 'package:house_rent/services/app_feedback.dart';
 
 class MyListingsScreen extends StatefulWidget {
-  const MyListingsScreen({Key? key}) : super(key: key);
+  const MyListingsScreen({super.key});
 
   @override
   State<MyListingsScreen> createState() => _MyListingsScreenState();

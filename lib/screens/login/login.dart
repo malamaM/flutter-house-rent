@@ -15,7 +15,7 @@ import 'package:house_rent/widgets/social_auth_conflict_sheet.dart';
 import 'package:http/http.dart' as http;
 
 class SignInScreen extends StatefulWidget {
-  const SignInScreen({Key? key}) : super(key: key);
+  const SignInScreen({super.key});
 
   @override
   State<SignInScreen> createState() => _SignInScreenState();

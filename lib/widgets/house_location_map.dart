@@ -6,7 +6,7 @@ import 'package:house_rent/services/cached_map_tile_provider.dart';
 
 class HouseLocationMap extends StatefulWidget {
   final House house;
-  const HouseLocationMap({Key? key, required this.house}) : super(key: key);
+  const HouseLocationMap({super.key, required this.house});
   @override
   State<HouseLocationMap> createState() => _HouseLocationMapState();
 }
@@ -47,11 +47,11 @@ class _HouseLocationMapState extends State<HouseLocationMap> {
                 FlutterMap(
                     mapController: _controller,
                     options: MapOptions(
-                        center: center,
-                        zoom: _zoom,
+                        initialCenter: center,
+                        initialZoom: _zoom,
                         minZoom: 11,
                         maxZoom: 18,
-                        interactiveFlags: InteractiveFlag.none),
+                        interactionOptions: const InteractionOptions(flags: 0)),
                     children: [
                       if (darkMap)
                         ColorFiltered(

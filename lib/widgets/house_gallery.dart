@@ -7,7 +7,7 @@ import 'package:house_rent/services/app_data_service.dart';
 class HouseGallery extends StatefulWidget {
   final int houseId;
 
-  const HouseGallery({Key? key, required this.houseId}) : super(key: key);
+  const HouseGallery({super.key, required this.houseId});
 
   @override
   State<HouseGallery> createState() => _HouseGalleryState();
@@ -130,10 +130,10 @@ class FullScreenGallery extends StatefulWidget {
   final int initialIndex;
 
   const FullScreenGallery({
-    Key? key,
+    super.key,
     required this.images,
     required this.initialIndex,
-  }) : super(key: key);
+  });
 
   @override
   State<FullScreenGallery> createState() => _FullScreenGalleryState();

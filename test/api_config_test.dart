@@ -1,13 +1,21 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/foundation.dart';
 import 'package:house_rent/config/api_config.dart';
 
 void main() {
-  test('always targets the live Azure server', () {
-    expect(
-      ApiConfig.origin,
-      'https://haven-c4fga3bbgxgjhyab.southafricanorth-01.azurewebsites.net',
-    );
+  tearDown(() => debugDefaultTargetPlatformOverride = null);
+
+  test('targets the local Laravel server', () {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    expect(ApiConfig.origin, 'http://127.0.0.1:8000');
     expect(ApiConfig.apiBase, '${ApiConfig.origin}/api');
+  });
+
+  test('phones target the Mac on the local network', () {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    expect(ApiConfig.origin, 'http://malamas-macbook-pro.local:8000');
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    expect(ApiConfig.origin, 'http://malamas-macbook-pro.local:8000');
   });
 
   test('builds an exact server image variant for Haven storage assets', () {

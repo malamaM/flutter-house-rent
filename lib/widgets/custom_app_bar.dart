@@ -11,7 +11,7 @@ import 'package:house_rent/services/marketplace_service.dart';
 import 'package:house_rent/theme/app_colors.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const CustomAppBar({Key? key}) : super(key: key);
+  const CustomAppBar({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -191,7 +191,7 @@ class _NotificationButtonState extends State<_NotificationButton> {
 }
 
 class ProfileAvatar extends StatefulWidget {
-  const ProfileAvatar({Key? key}) : super(key: key);
+  const ProfileAvatar({super.key});
 
   @override
   State<ProfileAvatar> createState() => _ProfileAvatarState();

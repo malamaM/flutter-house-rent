@@ -12,8 +12,7 @@ class AllHomes extends StatefulWidget {
   final Map<String, String> filters;
   final List<House>? initialHouses;
 
-  const AllHomes({Key? key, this.filters = const {}, this.initialHouses})
-      : super(key: key);
+  const AllHomes({super.key, this.filters = const {}, this.initialHouses});
 
   @override
   State<AllHomes> createState() => _AllHomesState();
