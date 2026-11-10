@@ -9,7 +9,10 @@ class ApiConfig {
     'DEV_API_HOST',
     defaultValue: 'malamas-MacBook-Pro.local',
   );
-  static const _originOverride = String.fromEnvironment('API_ORIGIN');
+  static const _originOverride = String.fromEnvironment(
+    'API_ORIGIN',
+    defaultValue: 'http://13.60.76.158:8001',
+  );
 
   static String get origin {
     if (_originOverride.isNotEmpty) {
